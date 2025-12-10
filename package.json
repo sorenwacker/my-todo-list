@@ -1,6 +1,6 @@
 {
   "name": "todo-list",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Markdown-based todo list with notes and deadlines",
   "main": "out/main/index.js",
   "scripts": {
@@ -38,7 +38,11 @@
       "output": "dist"
     },
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
     ],
     "mac": {
       "target": [
@@ -51,8 +55,7 @@
       "target": [
         "nsis",
         "portable"
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "nsis": {
       "oneClick": false,

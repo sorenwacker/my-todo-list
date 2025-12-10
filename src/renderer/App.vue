@@ -155,13 +155,6 @@
         <button v-else @click="showAddStatus">+ Add Status</button>
       </div>
 
-      <div class="theme-toggle">
-        <button @click="toggleTheme" class="theme-btn">
-          <span v-if="theme === 'dark'">Light Mode</span>
-          <span v-else>Dark Mode</span>
-        </button>
-      </div>
-
       <div class="settings-section">
         <div class="sidebar-header settings-header" @click="toggleSettingsCollapsed">
           <span class="collapse-indicator">{{ settingsCollapsed ? '+' : '-' }}</span>
@@ -174,6 +167,13 @@
             <small>Database: {{ databasePath }}</small>
           </div>
         </div>
+      </div>
+
+      <div class="theme-toggle">
+        <button @click="toggleTheme" class="theme-btn">
+          <span v-if="theme === 'dark'">Light Mode</span>
+          <span v-else>Dark Mode</span>
+        </button>
       </div>
 
       <div v-if="showImportDialog" class="project-modal" @click.self="showImportDialog = false">
@@ -294,24 +294,19 @@
             <button :class="{ active: currentView === 'timeline' }" @click="currentView = 'timeline'" :disabled="isTrashView">Timeline</button>
             <button :class="{ active: currentView === 'graph' }" @click="currentView = 'graph'" :disabled="isTrashView">Graph</button>
           </div>
-          <div v-if="currentView === 'cards'" class="card-size-control">
-            <label>Size:</label>
-            <input type="range" v-model.number="cardSize" min="200" max="500" step="20" />
-          </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
+        <div v-if="!isTrashView" class="add-todo">
+          <input
+            ref="newTodoInput"
+            v-model="newTodoTitle"
+            @keyup.enter="addTodo"
+            placeholder="Add a new todo... (press 'n')"
+            type="text"
+          />
+          <button @click="addTodo">Add</button>
+        </div>
       </header>
-
-      <div v-if="!isTrashView" class="add-todo">
-        <input
-          ref="newTodoInput"
-          v-model="newTodoTitle"
-          @keyup.enter="addTodo"
-          placeholder="Add a new todo... (press 'n')"
-          type="text"
-        />
-        <button @click="addTodo">Add</button>
-      </div>
 
       <!-- Cards View -->
       <div v-if="currentView === 'cards'" class="cards-view">
@@ -363,9 +358,10 @@
                       {{ element.category_name }}
                     </span>
                   </div>
-                  <div v-if="element.end_date || (element.importance && element.importance > 0)" class="card-footer">
+                  <div v-if="element.start_date || element.end_date || (element.importance && element.importance > 0)" class="card-footer">
+                    <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
                     <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                      Due: {{ formatDeadline(element.end_date) }}
                     </span>
                     <span v-if="element.importance && element.importance > 0" class="card-importance" :style="{ backgroundColor: getImportanceColor(element.importance) }">{{ element.importance }}</span>
                   </div>
@@ -424,9 +420,10 @@
                     {{ element.category_name }}
                   </span>
                 </div>
-                <div v-if="element.end_date || element.importance" class="card-footer">
+                <div v-if="element.start_date || element.end_date || element.importance" class="card-footer">
+                  <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
                   <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                    {{ formatDeadline(element.end_date) }}
+                    Due: {{ formatDeadline(element.end_date) }}
                   </span>
                   <span v-if="element.importance" class="card-importance" :style="{ backgroundColor: getImportanceColor(element.importance) }">{{ element.importance }}</span>
                 </div>
@@ -435,6 +432,10 @@
             </template>
           </draggable>
         </template>
+        <div class="card-size-control">
+          <label>Size:</label>
+          <input type="range" v-model.number="cardSize" min="200" max="500" step="20" />
+        </div>
       </div>
 
       <!-- Table View -->
@@ -442,21 +443,23 @@
         <table>
           <thead>
             <tr>
-              <th class="col-check"></th>
-              <th class="col-title">Title</th>
-              <th class="col-project">Project</th>
-              <th class="col-category">Category</th>
-              <th class="col-status-col">Status</th>
-              <th class="col-importance">Imp</th>
-              <th class="col-start">Start</th>
-              <th class="col-end">End</th>
+              <th class="col-check resizable"></th>
+              <th class="col-title resizable">Title</th>
+              <th class="col-project resizable">Project</th>
+              <th class="col-category resizable">Category</th>
+              <th class="col-status-col resizable">Status</th>
+              <th class="col-importance resizable">Imp</th>
+              <th class="col-subtasks resizable">Tasks</th>
+              <th class="col-notes resizable">Notes</th>
+              <th class="col-start resizable">Start</th>
+              <th class="col-end resizable">End</th>
               <th class="col-actions"></th>
             </tr>
           </thead>
           <template v-if="groupByProject">
             <tbody v-for="group in groupedTodos" :key="group.id">
               <tr class="group-row">
-                <td colspan="9">
+                <td colspan="11">
                   <span class="group-dot" :style="{ background: group.color }"></span>
                   <span class="group-name">{{ group.name }}</span>
                   <span class="group-count">{{ group.todos.length }}</span>
@@ -512,6 +515,14 @@
                       <span v-if="todo.importance" class="importance-badge" :style="{ color: getImportanceColor(todo.importance) }">
                         {{ todo.importance }}
                       </span>
+                      <span v-else>-</span>
+                    </td>
+                    <td class="col-subtasks">
+                      <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
+                      <span v-else>-</span>
+                    </td>
+                    <td class="col-notes">
+                      <span v-if="todo.notes" class="notes-indicator">✓</span>
                       <span v-else>-</span>
                     </td>
                     <td class="col-start">{{ todo.start_date ? formatShortDate(todo.start_date) : '-' }}</td>
@@ -572,6 +583,14 @@
                 <span v-if="todo.importance" class="importance-badge" :style="{ color: getImportanceColor(todo.importance) }">
                   {{ todo.importance }}
                 </span>
+                <span v-else>-</span>
+              </td>
+              <td class="col-subtasks">
+                <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="col-notes">
+                <span v-if="todo.notes" class="notes-indicator">✓</span>
                 <span v-else>-</span>
               </td>
               <td class="col-start">{{ todo.start_date ? formatShortDate(todo.start_date) : '-' }}</td>
@@ -635,8 +654,11 @@
                       <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
                       <span v-if="element.category_name" class="card-category" :style="{ color: element.category_color }">{{ element.category_name }}</span>
                     </div>
-                    <div v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                    <div v-if="element.start_date || element.end_date" class="card-dates">
+                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
+                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
+                        Due: {{ formatDeadline(element.end_date) }}
+                      </span>
                     </div>
                     <div v-if="element.subtask_count > 0" class="card-subtasks">
                       {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
@@ -687,8 +709,11 @@
                       <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
                       <span v-if="element.category_name" class="card-category" :style="{ color: element.category_color }">{{ element.category_name }}</span>
                     </div>
-                    <div v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                    <div v-if="element.start_date || element.end_date" class="card-dates">
+                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
+                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
+                        Due: {{ formatDeadline(element.end_date) }}
+                      </span>
                     </div>
                     <div v-if="element.subtask_count > 0" class="card-subtasks">
                       {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
@@ -738,8 +763,11 @@
                       <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
                       <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
                     </div>
-                    <div v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                    <div v-if="element.start_date || element.end_date" class="card-dates">
+                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
+                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
+                        Due: {{ formatDeadline(element.end_date) }}
+                      </span>
                     </div>
                     <div v-if="element.subtask_count > 0" class="card-subtasks">
                       {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
@@ -790,8 +818,11 @@
                       <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
                       <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
                     </div>
-                    <div v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                    <div v-if="element.start_date || element.end_date" class="card-dates">
+                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
+                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
+                        Due: {{ formatDeadline(element.end_date) }}
+                      </span>
                     </div>
                     <div v-if="element.subtask_count > 0" class="card-subtasks">
                       {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
@@ -841,8 +872,11 @@
                       <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
                       <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
                     </div>
-                    <div v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                    <div v-if="element.start_date || element.end_date" class="card-dates">
+                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
+                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
+                        Due: {{ formatDeadline(element.end_date) }}
+                      </span>
                     </div>
                     <div v-if="element.subtask_count > 0" class="card-subtasks">
                       {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
@@ -894,8 +928,11 @@
                       <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
                       <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
                     </div>
-                    <div v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      {{ formatDeadline(element.end_date) }}
+                    <div v-if="element.start_date || element.end_date" class="card-dates">
+                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
+                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
+                        Due: {{ formatDeadline(element.end_date) }}
+                      </span>
                     </div>
                     <div v-if="element.subtask_count > 0" class="card-subtasks">
                       {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
@@ -1215,7 +1252,7 @@
             <div class="meta-item">
               <label>Importance</label>
               <div class="importance-picker compact">
-                <button v-for="level in 5" :key="level" class="importance-btn" :class="{ active: selectedTodo.importance === level }" @click="setImportance(level)">{{ level }}</button>
+                <button v-for="level in 5" :key="level" class="importance-btn" :class="{ active: selectedTodo.importance == level && selectedTodo.importance > 0 }" @click="setImportance(level)">{{ level }}</button>
               </div>
             </div>
             <div class="meta-item">
@@ -1225,14 +1262,14 @@
             <div class="meta-item">
               <label>Start</label>
               <div class="date-field">
-                <input type="date" :value="selectedTodoStartDate" @change="updateStartDate($event)" />
+                <input type="date" :value="selectedTodoStartDate" @change="updateStartDate($event)" lang="sv-SE" />
                 <button v-if="selectedTodo.start_date" @click="clearStartDate" class="clear-btn">x</button>
               </div>
             </div>
             <div class="meta-item">
               <label>End</label>
               <div class="date-field">
-                <input type="date" :value="selectedTodoEndDate" @change="updateEndDate($event)" />
+                <input type="date" :value="selectedTodoEndDate" @change="updateEndDate($event)" lang="sv-SE" />
                 <button v-if="selectedTodo.end_date" @click="clearEndDate" class="clear-btn">x</button>
               </div>
             </div>
@@ -1263,7 +1300,7 @@
             <div v-if="selectedTodo.recurrence_type" class="meta-item">
               <label>Until</label>
               <div class="date-field">
-                <input type="date" :value="selectedTodo.recurrence_end_date || ''" @change="updateRecurrenceEndDate($event)" />
+                <input type="date" :value="selectedTodo.recurrence_end_date || ''" @change="updateRecurrenceEndDate($event)" lang="sv-SE" />
                 <button v-if="selectedTodo.recurrence_end_date" @click="clearRecurrenceEndDate" class="clear-btn">x</button>
               </div>
             </div>
@@ -1398,7 +1435,7 @@ export default {
       allTodos: [],
       currentFilter: null,
       currentView: localStorage.getItem('current-view') || 'cards',
-      kanbanGroupBy: 'project',
+      kanbanGroupBy: 'status',
       newTodoTitle: '',
       newProjectName: '',
       newCategoryName: '',
@@ -2267,14 +2304,12 @@ export default {
     formatDeadline(deadline) {
       if (!deadline) return ''
       const date = new Date(deadline)
-      return date.toLocaleDateString()
+      return date.toISOString().split('T')[0]
     },
     formatShortDate(dateStr) {
       if (!dateStr) return ''
       const date = new Date(dateStr)
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const day = date.getDate().toString().padStart(2, '0')
-      return `${month}/${day}`
+      return date.toISOString().split('T')[0]
     },
     isOverdue(deadline) {
       if (!deadline) return false
@@ -2455,7 +2490,12 @@ export default {
     },
     // Importance method
     async setImportance(level) {
-      this.selectedTodo.importance = level
+      // Toggle off if clicking the same level
+      if (this.selectedTodo.importance == level) {
+        this.selectedTodo.importance = 0
+      } else {
+        this.selectedTodo.importance = level
+      }
       const todoData = this.toPlainTodo(this.selectedTodo)
       const updated = await window.api.updateTodo(todoData)
       this.selectedTodo = updated
