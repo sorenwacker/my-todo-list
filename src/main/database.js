@@ -30,7 +30,7 @@ export class Database {
       CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        color TEXT DEFAULT '#9b59b6',
+        symbol TEXT DEFAULT '*',
         sort_order INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
@@ -60,6 +60,24 @@ export class Database {
         FOREIGN KEY (target_id) REFERENCES todos(id) ON DELETE CASCADE,
         UNIQUE(source_id, target_id)
       );
+
+      CREATE TABLE IF NOT EXISTS statuses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        color TEXT DEFAULT '#3498db',
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS subtasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        todo_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        completed INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+      );
     `)
 
     // Migration: add importance and category_id if missing
@@ -69,11 +87,54 @@ export class Database {
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN category_id INTEGER')
     } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN start_date TEXT')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN status_id INTEGER')
+    } catch (e) { /* column exists */ }
+
+    // Migration: rename deadline to end_date
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN end_date TEXT')
+      // Migrate data from deadline to end_date
+      this.db.exec('UPDATE todos SET end_date = deadline WHERE deadline IS NOT NULL AND end_date IS NULL')
+    } catch (e) { /* column exists */ }
+
+    // Migration: add deleted_at for soft delete (trashbin)
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN deleted_at TEXT')
+    } catch (e) { /* column exists */ }
+
+    // Migration: add deleted_at for projects soft delete
+    try {
+      this.db.exec('ALTER TABLE projects ADD COLUMN deleted_at TEXT')
+    } catch (e) { /* column exists */ }
+
+    // Migration: add symbol column to categories (replacing color)
+    try {
+      this.db.exec('ALTER TABLE categories ADD COLUMN symbol TEXT DEFAULT \'*\'')
+    } catch (e) { /* column exists */ }
+
+    // Migration: add recurrence fields to todos
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_type TEXT')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_interval INTEGER DEFAULT 1')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_end_date TEXT')
+    } catch (e) { /* column exists */ }
   }
 
   // Project operations
   getAllProjects() {
-    return this.db.prepare('SELECT * FROM projects ORDER BY sort_order ASC').all()
+    return this.db.prepare('SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY sort_order ASC').all()
+  }
+
+  getDeletedProjects() {
+    return this.db.prepare('SELECT * FROM projects WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC').all()
   }
 
   getProject(id) {
@@ -100,6 +161,17 @@ export class Database {
   }
 
   deleteProject(id) {
+    // Soft delete: set deleted_at timestamp
+    this.db.prepare('UPDATE projects SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
+    return true
+  }
+
+  restoreProject(id) {
+    this.db.prepare('UPDATE projects SET deleted_at = NULL WHERE id = ?').run(id)
+    return this.getProject(id)
+  }
+
+  permanentlyDeleteProject(id) {
     this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
     return true
   }
@@ -113,21 +185,21 @@ export class Database {
     return this.db.prepare('SELECT * FROM categories WHERE id = ?').get(id)
   }
 
-  createCategory(name, color = '#9b59b6') {
+  createCategory(name, symbol = '*') {
     const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM categories').get()
     const sortOrder = (maxOrder.max || 0) + 1
 
     const result = this.db.prepare(
-      'INSERT INTO categories (name, color, sort_order) VALUES (?, ?, ?)'
-    ).run(name, color, sortOrder)
+      'INSERT INTO categories (name, symbol, sort_order) VALUES (?, ?, ?)'
+    ).run(name, symbol, sortOrder)
 
     return this.getCategory(result.lastInsertRowid)
   }
 
   updateCategory(category) {
     this.db.prepare(
-      'UPDATE categories SET name = ?, color = ? WHERE id = ?'
-    ).run(category.name, category.color, category.id)
+      'UPDATE categories SET name = ?, symbol = ? WHERE id = ?'
+    ).run(category.name, category.symbol, category.id)
 
     return this.getCategory(category.id)
   }
@@ -137,34 +209,94 @@ export class Database {
     return true
   }
 
+  // Status operations
+  getAllStatuses() {
+    return this.db.prepare('SELECT * FROM statuses ORDER BY sort_order ASC').all()
+  }
+
+  getStatus(id) {
+    return this.db.prepare('SELECT * FROM statuses WHERE id = ?').get(id)
+  }
+
+  createStatus(name, color = '#3498db') {
+    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM statuses').get()
+    const sortOrder = (maxOrder.max || 0) + 1
+
+    const result = this.db.prepare(
+      'INSERT INTO statuses (name, color, sort_order) VALUES (?, ?, ?)'
+    ).run(name, color, sortOrder)
+
+    return this.getStatus(result.lastInsertRowid)
+  }
+
+  updateStatus(status) {
+    this.db.prepare(
+      'UPDATE statuses SET name = ?, color = ? WHERE id = ?'
+    ).run(status.name, status.color, status.id)
+
+    return this.getStatus(status.id)
+  }
+
+  deleteStatus(id) {
+    this.db.prepare('DELETE FROM statuses WHERE id = ?').run(id)
+    return true
+  }
+
   // Todo operations
   getAllTodos(projectId = null) {
     if (projectId === null) {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.color as category_color
+               c.name as category_name, c.symbol as category_symbol,
+               s.name as status_name, s.color as status_color,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN statuses s ON t.status_id = s.id
+        WHERE t.deleted_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
       `).all()
     } else if (projectId === 'inbox') {
       return this.db.prepare(`
         SELECT t.*, NULL as project_name, NULL as project_color,
-               c.name as category_name, c.color as category_color
+               c.name as category_name, c.symbol as category_symbol,
+               s.name as status_name, s.color as status_color,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
         FROM todos t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.project_id IS NULL
+        LEFT JOIN statuses s ON t.status_id = s.id
+        WHERE t.project_id IS NULL AND t.deleted_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
+      `).all()
+    } else if (projectId === 'trash') {
+      return this.db.prepare(`
+        SELECT t.*, p.name as project_name, p.color as project_color,
+               c.name as category_name, c.symbol as category_symbol,
+               s.name as status_name, s.color as status_color,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
+        FROM todos t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN statuses s ON t.status_id = s.id
+        WHERE t.deleted_at IS NOT NULL
+        ORDER BY t.deleted_at DESC
       `).all()
     } else {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.color as category_color
+               c.name as category_name, c.symbol as category_symbol,
+               s.name as status_name, s.color as status_color,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.project_id = ?
+        LEFT JOIN statuses s ON t.status_id = s.id
+        WHERE t.project_id = ? AND t.deleted_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
       `).all(projectId)
     }
@@ -173,10 +305,12 @@ export class Database {
   getTodo(id) {
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.color as category_color
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.id = ?
     `).get(id)
   }
@@ -193,22 +327,117 @@ export class Database {
   }
 
   updateTodo(todo) {
-    // Convert empty strings to null for deadline
-    const deadline = todo.deadline && todo.deadline.trim() !== '' ? todo.deadline : null
+    // Convert empty strings to null for dates
+    const endDate = todo.end_date && todo.end_date.trim() !== '' ? todo.end_date : null
+    const startDate = todo.start_date && todo.start_date.trim() !== '' ? todo.start_date : null
     const importance = todo.importance != null ? todo.importance : 3
+    const recurrenceType = todo.recurrence_type || null
+    const recurrenceInterval = todo.recurrence_interval || 1
+    const recurrenceEndDate = todo.recurrence_end_date && todo.recurrence_end_date.trim() !== '' ? todo.recurrence_end_date : null
 
     this.db.prepare(`
       UPDATE todos
-      SET title = ?, notes = ?, deadline = ?, completed = ?, project_id = ?, category_id = ?, importance = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', deadline, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, importance, todo.id)
+    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, todo.id)
 
     return this.getTodo(todo.id)
   }
 
+  // Create next recurring todo instance when completing a recurring task
+  createNextRecurrence(todoId) {
+    const todo = this.getTodo(todoId)
+    if (!todo || !todo.recurrence_type) return null
+
+    // Calculate next due date
+    const baseDate = todo.end_date ? new Date(todo.end_date) : new Date()
+    const interval = todo.recurrence_interval || 1
+
+    let nextDate = new Date(baseDate)
+    switch (todo.recurrence_type) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + interval)
+        break
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + (interval * 7))
+        break
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + interval)
+        break
+      case 'yearly':
+        nextDate.setFullYear(nextDate.getFullYear() + interval)
+        break
+      default:
+        return null
+    }
+
+    // Check if recurrence end date has passed
+    if (todo.recurrence_end_date) {
+      const endDate = new Date(todo.recurrence_end_date)
+      if (nextDate > endDate) return null
+    }
+
+    const nextDateStr = nextDate.toISOString().split('T')[0]
+
+    // Calculate next start date if original had one
+    let nextStartDate = null
+    if (todo.start_date && todo.end_date) {
+      const startDate = new Date(todo.start_date)
+      const endDateObj = new Date(todo.end_date)
+      const duration = endDateObj - startDate
+      const newStartDate = new Date(nextDate - duration)
+      nextStartDate = newStartDate.toISOString().split('T')[0]
+    }
+
+    // Create new todo with same properties but new dates
+    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM todos').get()
+    const sortOrder = (maxOrder.max || 0) + 1
+
+    const result = this.db.prepare(`
+      INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, category_id, status_id, recurrence_type, recurrence_interval, recurrence_end_date)
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      todo.title,
+      todo.notes || '',
+      nextDateStr,
+      nextStartDate,
+      sortOrder,
+      todo.importance,
+      todo.project_id,
+      todo.category_id,
+      todo.status_id,
+      todo.recurrence_type,
+      todo.recurrence_interval,
+      todo.recurrence_end_date
+    )
+
+    return this.getTodo(result.lastInsertRowid)
+  }
+
   deleteTodo(id) {
+    // Soft delete: set deleted_at timestamp
+    this.db.prepare('UPDATE todos SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
+    return true
+  }
+
+  restoreTodo(id) {
+    this.db.prepare('UPDATE todos SET deleted_at = NULL WHERE id = ?').run(id)
+    return this.getTodo(id)
+  }
+
+  permanentlyDeleteTodo(id) {
     this.db.prepare('DELETE FROM todos WHERE id = ?').run(id)
     return true
+  }
+
+  emptyTrash() {
+    this.db.prepare('DELETE FROM todos WHERE deleted_at IS NOT NULL').run()
+    return true
+  }
+
+  getTrashCount() {
+    const result = this.db.prepare('SELECT COUNT(*) as count FROM todos WHERE deleted_at IS NOT NULL').get()
+    return result.count
   }
 
   reorderTodos(ids) {
@@ -222,14 +451,49 @@ export class Database {
     return true
   }
 
+  reorderProjects(ids) {
+    const stmt = this.db.prepare('UPDATE projects SET sort_order = ? WHERE id = ?')
+    const transaction = this.db.transaction((ids) => {
+      ids.forEach((id, index) => {
+        stmt.run(index, id)
+      })
+    })
+    transaction(ids)
+    return true
+  }
+
+  reorderCategories(ids) {
+    const stmt = this.db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?')
+    const transaction = this.db.transaction((ids) => {
+      ids.forEach((id, index) => {
+        stmt.run(index, id)
+      })
+    })
+    transaction(ids)
+    return true
+  }
+
+  reorderStatuses(ids) {
+    const stmt = this.db.prepare('UPDATE statuses SET sort_order = ? WHERE id = ?')
+    const transaction = this.db.transaction((ids) => {
+      ids.forEach((id, index) => {
+        stmt.run(index, id)
+      })
+    })
+    transaction(ids)
+    return true
+  }
+
   // Link operations
   getLinkedTodos(todoId) {
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.color as category_color
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.id IN (
         SELECT target_id FROM todo_links WHERE source_id = ?
         UNION
@@ -267,23 +531,224 @@ export class Database {
     if (excludeId) {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.color as category_color
+               c.name as category_name, c.symbol as category_symbol,
+               s.name as status_name, s.color as status_color
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.title LIKE ? AND t.id != ?
         LIMIT 10
       `).all(`%${query}%`, excludeId)
     }
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.color as category_color
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.title LIKE ?
       LIMIT 10
     `).all(`%${query}%`)
+  }
+
+  // Subtask operations
+  getSubtasks(todoId) {
+    return this.db.prepare(`
+      SELECT * FROM subtasks WHERE todo_id = ? ORDER BY sort_order ASC
+    `).all(todoId)
+  }
+
+  getSubtask(id) {
+    return this.db.prepare('SELECT * FROM subtasks WHERE id = ?').get(id)
+  }
+
+  createSubtask(todoId, title) {
+    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM subtasks WHERE todo_id = ?').get(todoId)
+    const sortOrder = (maxOrder.max || 0) + 1
+
+    const result = this.db.prepare(`
+      INSERT INTO subtasks (todo_id, title, sort_order) VALUES (?, ?, ?)
+    `).run(todoId, title, sortOrder)
+
+    return this.getSubtask(result.lastInsertRowid)
+  }
+
+  updateSubtask(subtask) {
+    this.db.prepare(`
+      UPDATE subtasks SET title = ?, completed = ? WHERE id = ?
+    `).run(subtask.title, subtask.completed ? 1 : 0, subtask.id)
+
+    return this.getSubtask(subtask.id)
+  }
+
+  deleteSubtask(id) {
+    this.db.prepare('DELETE FROM subtasks WHERE id = ?').run(id)
+    return true
+  }
+
+  reorderSubtasks(ids) {
+    const stmt = this.db.prepare('UPDATE subtasks SET sort_order = ? WHERE id = ?')
+    const transaction = this.db.transaction((ids) => {
+      ids.forEach((id, index) => {
+        stmt.run(index, id)
+      })
+    })
+    transaction(ids)
+    return true
+  }
+
+  // Export/Import operations
+  exportData() {
+    const projects = this.db.prepare('SELECT * FROM projects').all()
+    const categories = this.db.prepare('SELECT * FROM categories').all()
+    const statuses = this.db.prepare('SELECT * FROM statuses').all()
+    const todos = this.db.prepare('SELECT * FROM todos').all()
+    const todoLinks = this.db.prepare('SELECT * FROM todo_links').all()
+    const subtasks = this.db.prepare('SELECT * FROM subtasks').all()
+
+    return {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      data: {
+        projects,
+        categories,
+        statuses,
+        todos,
+        todoLinks,
+        subtasks
+      }
+    }
+  }
+
+  importData(importData, mode = 'merge') {
+    if (!importData || !importData.data) {
+      throw new Error('Invalid import data format')
+    }
+
+    const { projects, categories, statuses, todos, todoLinks, subtasks } = importData.data
+
+    // Create a transaction for atomic import
+    const transaction = this.db.transaction(() => {
+      // If replace mode, clear existing data
+      if (mode === 'replace') {
+        this.db.prepare('DELETE FROM subtasks').run()
+        this.db.prepare('DELETE FROM todo_links').run()
+        this.db.prepare('DELETE FROM todos').run()
+        this.db.prepare('DELETE FROM statuses').run()
+        this.db.prepare('DELETE FROM categories').run()
+        this.db.prepare('DELETE FROM projects').run()
+      }
+
+      // Maps to track old ID to new ID mappings
+      const projectIdMap = new Map()
+      const categoryIdMap = new Map()
+      const statusIdMap = new Map()
+      const todoIdMap = new Map()
+
+      // Import projects
+      if (projects && projects.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO projects (name, color, sort_order, created_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+        projects.forEach(p => {
+          const result = stmt.run(p.name, p.color, p.sort_order, p.created_at, p.deleted_at || null)
+          projectIdMap.set(p.id, result.lastInsertRowid)
+        })
+      }
+
+      // Import categories
+      if (categories && categories.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO categories (name, symbol, sort_order, created_at)
+          VALUES (?, ?, ?, ?)
+        `)
+        categories.forEach(c => {
+          const result = stmt.run(c.name, c.symbol, c.sort_order, c.created_at)
+          categoryIdMap.set(c.id, result.lastInsertRowid)
+        })
+      }
+
+      // Import statuses
+      if (statuses && statuses.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO statuses (name, color, sort_order, created_at)
+          VALUES (?, ?, ?, ?)
+        `)
+        statuses.forEach(s => {
+          const result = stmt.run(s.name, s.color, s.sort_order, s.created_at)
+          statusIdMap.set(s.id, result.lastInsertRowid)
+        })
+      }
+
+      // Import todos
+      if (todos && todos.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, category_id, status_id, created_at, updated_at, deleted_at, recurrence_type, recurrence_interval, recurrence_end_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        todos.forEach(t => {
+          const newProjectId = t.project_id ? projectIdMap.get(t.project_id) : null
+          const newCategoryId = t.category_id ? categoryIdMap.get(t.category_id) : null
+          const newStatusId = t.status_id ? statusIdMap.get(t.status_id) : null
+
+          const result = stmt.run(
+            t.title,
+            t.notes,
+            t.end_date,
+            t.start_date,
+            t.completed,
+            t.sort_order,
+            t.importance,
+            newProjectId,
+            newCategoryId,
+            newStatusId,
+            t.created_at,
+            t.updated_at,
+            t.deleted_at || null,
+            t.recurrence_type,
+            t.recurrence_interval,
+            t.recurrence_end_date
+          )
+          todoIdMap.set(t.id, result.lastInsertRowid)
+        })
+      }
+
+      // Import todo links
+      if (todoLinks && todoLinks.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO todo_links (source_id, target_id, created_at)
+          VALUES (?, ?, ?)
+        `)
+        todoLinks.forEach(l => {
+          const newSourceId = todoIdMap.get(l.source_id)
+          const newTargetId = todoIdMap.get(l.target_id)
+          if (newSourceId && newTargetId) {
+            stmt.run(newSourceId, newTargetId, l.created_at)
+          }
+        })
+      }
+
+      // Import subtasks
+      if (subtasks && subtasks.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO subtasks (todo_id, title, completed, sort_order, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+        subtasks.forEach(s => {
+          const newTodoId = todoIdMap.get(s.todo_id)
+          if (newTodoId) {
+            stmt.run(newTodoId, s.title, s.completed, s.sort_order, s.created_at)
+          }
+        })
+      }
+    })
+
+    transaction()
+    return true
   }
 
   close() {

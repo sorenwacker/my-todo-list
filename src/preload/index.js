@@ -1,19 +1,32 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, shell } from 'electron'
 
 contextBridge.exposeInMainWorld('api', {
+  // External links
+  openExternal: (url) => shell.openExternal(url),
+
   // Project operations
   getProjects: () => ipcRenderer.invoke('get-projects'),
   getProject: (id) => ipcRenderer.invoke('get-project', id),
   createProject: (name, color) => ipcRenderer.invoke('create-project', name, color),
   updateProject: (project) => ipcRenderer.invoke('update-project', project),
   deleteProject: (id) => ipcRenderer.invoke('delete-project', id),
+  restoreProject: (id) => ipcRenderer.invoke('restore-project', id),
+  permanentlyDeleteProject: (id) => ipcRenderer.invoke('permanently-delete-project', id),
+  getDeletedProjects: () => ipcRenderer.invoke('get-deleted-projects'),
 
   // Category operations
   getCategories: () => ipcRenderer.invoke('get-categories'),
   getCategory: (id) => ipcRenderer.invoke('get-category', id),
-  createCategory: (name, color) => ipcRenderer.invoke('create-category', name, color),
+  createCategory: (name, symbol) => ipcRenderer.invoke('create-category', name, symbol),
   updateCategory: (category) => ipcRenderer.invoke('update-category', category),
   deleteCategory: (id) => ipcRenderer.invoke('delete-category', id),
+
+  // Status operations
+  getStatuses: () => ipcRenderer.invoke('get-statuses'),
+  getStatus: (id) => ipcRenderer.invoke('get-status', id),
+  createStatus: (name, color) => ipcRenderer.invoke('create-status', name, color),
+  updateStatus: (status) => ipcRenderer.invoke('update-status', status),
+  deleteStatus: (id) => ipcRenderer.invoke('delete-status', id),
 
   // Todo operations
   getTodos: (projectId) => ipcRenderer.invoke('get-todos', projectId),
@@ -21,13 +34,35 @@ contextBridge.exposeInMainWorld('api', {
   createTodo: (title, projectId) => ipcRenderer.invoke('create-todo', title, projectId),
   updateTodo: (todo) => ipcRenderer.invoke('update-todo', todo),
   deleteTodo: (id) => ipcRenderer.invoke('delete-todo', id),
+  restoreTodo: (id) => ipcRenderer.invoke('restore-todo', id),
+  permanentlyDeleteTodo: (id) => ipcRenderer.invoke('permanently-delete-todo', id),
+  emptyTrash: () => ipcRenderer.invoke('empty-trash'),
+  getTrashCount: () => ipcRenderer.invoke('get-trash-count'),
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),
+  reorderProjects: (ids) => ipcRenderer.invoke('reorder-projects', ids),
+  reorderCategories: (ids) => ipcRenderer.invoke('reorder-categories', ids),
+  reorderStatuses: (ids) => ipcRenderer.invoke('reorder-statuses', ids),
 
   // Link operations
   getLinkedTodos: (todoId) => ipcRenderer.invoke('get-linked-todos', todoId),
   linkTodos: (sourceId, targetId) => ipcRenderer.invoke('link-todos', sourceId, targetId),
   unlinkTodos: (sourceId, targetId) => ipcRenderer.invoke('unlink-todos', sourceId, targetId),
   searchTodos: (query, excludeId) => ipcRenderer.invoke('search-todos', query, excludeId),
+
+  // Subtask operations
+  getSubtasks: (todoId) => ipcRenderer.invoke('get-subtasks', todoId),
+  createSubtask: (todoId, title) => ipcRenderer.invoke('create-subtask', todoId, title),
+  updateSubtask: (subtask) => ipcRenderer.invoke('update-subtask', subtask),
+  deleteSubtask: (id) => ipcRenderer.invoke('delete-subtask', id),
+  reorderSubtasks: (ids) => ipcRenderer.invoke('reorder-subtasks', ids),
+
+  // Recurrence operations
+  createNextRecurrence: (todoId) => ipcRenderer.invoke('create-next-recurrence', todoId),
+
+  // Export/Import operations
+  exportData: () => ipcRenderer.invoke('export-data'),
+  importData: (mode) => ipcRenderer.invoke('import-data', mode),
+  getDatabasePath: () => ipcRenderer.invoke('get-database-path'),
 
   // Window operations
   openDetail: (todoId) => ipcRenderer.invoke('open-detail', todoId),

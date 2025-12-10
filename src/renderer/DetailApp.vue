@@ -1,5 +1,5 @@
 <template>
-  <div class="detail-app" v-if="todo">
+  <div class="detail-app" :class="{ 'light-theme': theme === 'light' }" v-if="todo">
     <header>
       <input
         v-model="todo.title"
@@ -21,13 +21,23 @@
       </div>
 
       <div class="meta-row">
-        <label>Deadline:</label>
+        <label>Start Date:</label>
         <input
           type="date"
-          v-model="deadlineDate"
+          v-model="startDate"
           @change="save"
         />
-        <button v-if="deadlineDate" @click="clearDeadline" class="clear-btn">Clear</button>
+        <button v-if="startDate" @click="clearStartDate" class="clear-btn">Clear</button>
+      </div>
+
+      <div class="meta-row">
+        <label>End Date:</label>
+        <input
+          type="date"
+          v-model="endDate"
+          @change="save"
+        />
+        <button v-if="endDate" @click="clearEndDate" class="clear-btn">Clear</button>
       </div>
     </div>
 
@@ -64,7 +74,7 @@
           class="linked-item"
         >
           <span class="linked-title" @click="openLinked(linked.id)">{{ linked.title }}</span>
-          <span v-if="linked.project_name" class="linked-project" :style="{ color: linked.project_color }">
+          <span v-if="linked.project_name" class="linked-project">
             {{ linked.project_name }}
           </span>
           <button @click="unlinkFrom(linked)" class="unlink-btn">x</button>
@@ -83,6 +93,10 @@
           :class="{ active: activeTab === 'preview' }"
           @click="activeTab = 'preview'"
         >Preview</button>
+        <button
+          :class="{ active: activeTab === 'split' }"
+          @click="activeTab = 'split'"
+        >Split</button>
       </div>
 
       <textarea
@@ -94,10 +108,25 @@
       ></textarea>
 
       <div
-        v-else
+        v-else-if="activeTab === 'preview'"
         class="notes-preview markdown-body"
         v-html="renderedNotes"
+        @click="handleMarkdownClick"
       ></div>
+
+      <div v-else class="notes-split">
+        <textarea
+          v-model="todo.notes"
+          @input="save"
+          placeholder="Add notes (Markdown supported)..."
+          class="notes-editor split-editor"
+        ></textarea>
+        <div
+          class="notes-preview markdown-body split-preview"
+          v-html="renderedNotes"
+          @click="handleMarkdownClick"
+        ></div>
+      </div>
     </div>
 
     <div class="status-bar">
@@ -108,6 +137,27 @@
 
 <script>
 import { marked } from 'marked'
+import mermaid from 'mermaid'
+
+const savedTheme = localStorage.getItem('todo-theme') || 'dark'
+mermaid.initialize({
+  startOnLoad: false,
+  theme: savedTheme === 'light' ? 'default' : 'dark',
+  securityLevel: 'loose'
+})
+
+const mermaidExtension = {
+  name: 'mermaid',
+  renderer: {
+    code(token) {
+      if (token.lang === 'mermaid') {
+        return `<pre class="mermaid">${token.text}</pre>`
+      }
+      return `<pre><code class="language-${token.lang || ''}">${token.text}</code></pre>`
+    }
+  }
+}
+marked.use(mermaidExtension)
 
 export default {
   name: 'DetailApp',
@@ -121,17 +171,27 @@ export default {
       saveTimeout: null,
       showLinkSearch: false,
       linkQuery: '',
-      linkResults: []
+      linkResults: [],
+      theme: localStorage.getItem('todo-theme') || 'dark'
     }
   },
   computed: {
-    deadlineDate: {
+    startDate: {
       get() {
-        if (!this.todo?.deadline) return ''
-        return this.todo.deadline.split('T')[0]
+        if (!this.todo?.start_date) return ''
+        return this.todo.start_date.split('T')[0]
       },
       set(value) {
-        this.todo.deadline = value || null
+        this.todo.start_date = value || null
+      }
+    },
+    endDate: {
+      get() {
+        if (!this.todo?.end_date) return ''
+        return this.todo.end_date.split('T')[0]
+      },
+      set(value) {
+        this.todo.end_date = value || null
       }
     },
     renderedNotes() {
@@ -150,6 +210,21 @@ export default {
 
     window.api.onLoadTodo((id) => {
       this.loadTodo(id)
+    })
+
+    // Listen for theme changes from main window
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'todo-theme') {
+        this.theme = e.newValue || 'dark'
+      }
+    })
+
+    // Reload theme when window gets focus (in case it changed in main window)
+    window.addEventListener('focus', () => {
+      const currentTheme = localStorage.getItem('todo-theme') || 'dark'
+      if (this.theme !== currentTheme) {
+        this.theme = currentTheme
+      }
     })
   },
   methods: {
@@ -180,8 +255,12 @@ export default {
         }, 1500)
       }, 300)
     },
-    clearDeadline() {
-      this.todo.deadline = null
+    clearStartDate() {
+      this.todo.start_date = null
+      this.save()
+    },
+    clearEndDate() {
+      this.todo.end_date = null
       this.save()
     },
     async searchForLinks() {
@@ -207,6 +286,26 @@ export default {
     },
     openLinked(id) {
       this.loadTodo(id)
+    },
+    handleMarkdownClick(event) {
+      const link = event.target.closest('a')
+      if (link && link.href) {
+        event.preventDefault()
+        window.api.openExternal(link.href)
+      }
+    },
+    async renderMermaid() {
+      await this.$nextTick()
+      try {
+        await mermaid.run({
+          querySelector: '.notes-preview pre.mermaid:not([data-processed])'
+        })
+        document.querySelectorAll('.notes-preview pre.mermaid').forEach(el => {
+          el.setAttribute('data-processed', 'true')
+        })
+      } catch (e) {
+        console.error('Mermaid render error:', e)
+      }
     }
   },
   watch: {
@@ -215,6 +314,16 @@ export default {
         this.$nextTick(() => {
           this.$refs.linkInput?.focus()
         })
+      }
+    },
+    activeTab(val) {
+      if (val === 'preview' || val === 'split') {
+        this.renderMermaid()
+      }
+    },
+    renderedNotes() {
+      if (this.activeTab === 'preview' || this.activeTab === 'split') {
+        this.renderMermaid()
       }
     }
   }
