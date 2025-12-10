@@ -8,12 +8,16 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:all": "npm run build && electron-builder --win --mac"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",
     "@vitejs/plugin-vue": "^5.1.4",
     "electron": "^33.0.0",
+    "electron-builder": "^26.0.12",
     "electron-vite": "^2.3.0",
     "vite": "^5.4.9",
     "vitest": "^2.1.3"
@@ -26,5 +30,33 @@
     "mermaid": "^11.12.2",
     "vue": "^3.5.12",
     "vuedraggable": "^4.1.0"
+  },
+  "build": {
+    "appId": "com.todolist.app",
+    "productName": "Todo List",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
