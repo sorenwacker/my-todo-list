@@ -276,6 +276,12 @@
             </div>
           </div>
 
+          <div class="stakeholder-register-link">
+            <button @click.stop="openStakeholderRegister" class="register-btn" v-if="editingProject && editingProject.id">
+              View Stakeholder Register
+            </button>
+          </div>
+
           <div class="modal-actions">
             <button class="delete-btn" @click.stop="deleteProjectConfirm">Delete</button>
             <button @click.stop="cancelEditProject">Cancel</button>
@@ -3282,6 +3288,11 @@ export default {
 
       await window.api.unlinkProjectPerson(this.editingProject.id, person.id)
       await this.loadProjectPersons(this.editingProject.id)
+    },
+    openStakeholderRegister() {
+      if (this.editingProject && this.editingProject.id) {
+        window.api.openStakeholderRegister(this.editingProject.id)
+      }
     },
     async handleExport() {
       try {

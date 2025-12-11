@@ -6,6 +6,7 @@ import { Database } from './database.js'
 let mainWindow = null
 let detailWindow = null
 let settingsWindow = null
+let stakeholderWindow = null
 let database = null
 
 function createMainWindow() {
@@ -84,6 +85,35 @@ function createSettingsWindow() {
 
   settingsWindow.on('closed', () => {
     settingsWindow = null
+  })
+}
+
+function createStakeholderWindow(projectId) {
+  if (stakeholderWindow) {
+    stakeholderWindow.focus()
+    return
+  }
+
+  stakeholderWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  if (process.env.NODE_ENV === 'development') {
+    stakeholderWindow.loadURL(`http://localhost:5173/stakeholder-register.html?projectId=${projectId}`)
+  } else {
+    stakeholderWindow.loadFile(join(__dirname, '../renderer/stakeholder-register.html'), {
+      query: { projectId: projectId.toString() }
+    })
+  }
+
+  stakeholderWindow.on('closed', () => {
+    stakeholderWindow = null
   })
 }
 
@@ -219,6 +249,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('open-settings', () => {
     createSettingsWindow()
+  })
+
+  ipcMain.handle('open-stakeholder-register', (_, projectId) => {
+    createStakeholderWindow(projectId)
   })
 
   // Notify main window of updates

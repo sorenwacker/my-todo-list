@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld('api', {
   // Window operations
   openDetail: (todoId) => ipcRenderer.invoke('open-detail', todoId),
   openSettings: () => ipcRenderer.invoke('open-settings'),
+  openStakeholderRegister: (projectId) => ipcRenderer.invoke('open-stakeholder-register', projectId),
 
   // Events
   onRefreshTodos: (callback) => {
