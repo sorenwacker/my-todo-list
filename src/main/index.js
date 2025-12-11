@@ -130,7 +130,8 @@ app.whenReady().then(() => {
 
   // Project-Person linking
   ipcMain.handle('get-project-persons', (_, projectId) => database.getProjectPersons(projectId))
-  ipcMain.handle('link-project-person', (_, projectId, personId) => database.linkProjectPerson(projectId, personId))
+  ipcMain.handle('link-project-person', (_, projectId, personId, stakeholderData) => database.linkProjectPerson(projectId, personId, stakeholderData))
+  ipcMain.handle('update-project-person-stakeholder', (_, projectId, personId, stakeholderData) => database.updateProjectPersonStakeholder(projectId, personId, stakeholderData))
   ipcMain.handle('unlink-project-person', (_, projectId, personId) => database.unlinkProjectPerson(projectId, personId))
   ipcMain.handle('get-person-projects', (_, personId) => database.getPersonProjects(personId))
 

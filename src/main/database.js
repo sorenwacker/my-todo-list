@@ -106,6 +106,11 @@ export class Database {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
         person_id INTEGER NOT NULL,
+        influence_level INTEGER DEFAULT 3,
+        interest_level INTEGER DEFAULT 3,
+        stakeholder_type TEXT DEFAULT 'Internal',
+        engagement_strategy TEXT DEFAULT 'Keep Informed',
+        notes TEXT DEFAULT '',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
@@ -158,6 +163,23 @@ export class Database {
     } catch (e) { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_end_date TEXT')
+    } catch (e) { /* column exists */ }
+
+    // Migration: add stakeholder analysis fields to project_persons
+    try {
+      this.db.exec('ALTER TABLE project_persons ADD COLUMN influence_level INTEGER DEFAULT 3')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE project_persons ADD COLUMN interest_level INTEGER DEFAULT 3')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE project_persons ADD COLUMN stakeholder_type TEXT DEFAULT \'Internal\'')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE project_persons ADD COLUMN engagement_strategy TEXT DEFAULT \'Keep Informed\'')
+    } catch (e) { /* column exists */ }
+    try {
+      this.db.exec('ALTER TABLE project_persons ADD COLUMN notes TEXT DEFAULT \'\'')
     } catch (e) { /* column exists */ }
   }
 
@@ -747,7 +769,12 @@ export class Database {
   // Project-Person linking operations
   getProjectPersons(projectId) {
     return this.db.prepare(`
-      SELECT p.*
+      SELECT p.*,
+             pp.influence_level,
+             pp.interest_level,
+             pp.stakeholder_type,
+             pp.engagement_strategy,
+             pp.notes as stakeholder_notes
       FROM persons p
       INNER JOIN project_persons pp ON p.id = pp.person_id
       WHERE pp.project_id = ?
@@ -755,16 +782,46 @@ export class Database {
     `).all(projectId)
   }
 
-  linkProjectPerson(projectId, personId) {
+  linkProjectPerson(projectId, personId, stakeholderData = {}) {
     try {
+      const {
+        influence_level = 3,
+        interest_level = 3,
+        stakeholder_type = 'Internal',
+        engagement_strategy = 'Keep Informed',
+        notes = ''
+      } = stakeholderData
+
       this.db.prepare(`
-        INSERT OR IGNORE INTO project_persons (project_id, person_id)
-        VALUES (?, ?)
-      `).run(projectId, personId)
+        INSERT OR IGNORE INTO project_persons
+        (project_id, person_id, influence_level, interest_level, stakeholder_type, engagement_strategy, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(projectId, personId, influence_level, interest_level, stakeholder_type, engagement_strategy, notes)
       return true
     } catch {
       return false
     }
+  }
+
+  updateProjectPersonStakeholder(projectId, personId, stakeholderData) {
+    this.db.prepare(`
+      UPDATE project_persons
+      SET influence_level = ?,
+          interest_level = ?,
+          stakeholder_type = ?,
+          engagement_strategy = ?,
+          notes = ?
+      WHERE project_id = ? AND person_id = ?
+    `).run(
+      stakeholderData.influence_level,
+      stakeholderData.interest_level,
+      stakeholderData.stakeholder_type,
+      stakeholderData.engagement_strategy,
+      stakeholderData.notes || '',
+      projectId,
+      personId
+    )
+    return true
   }
 
   unlinkProjectPerson(projectId, personId) {

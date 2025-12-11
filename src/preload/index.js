@@ -44,7 +44,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Project-Person linking
   getProjectPersons: (projectId) => ipcRenderer.invoke('get-project-persons', projectId),
-  linkProjectPerson: (projectId, personId) => ipcRenderer.invoke('link-project-person', projectId, personId),
+  linkProjectPerson: (projectId, personId, stakeholderData) => ipcRenderer.invoke('link-project-person', projectId, personId, stakeholderData),
+  updateProjectPersonStakeholder: (projectId, personId, stakeholderData) => ipcRenderer.invoke('update-project-person-stakeholder', projectId, personId, stakeholderData),
   unlinkProjectPerson: (projectId, personId) => ipcRenderer.invoke('unlink-project-person', projectId, personId),
   getPersonProjects: (personId) => ipcRenderer.invoke('get-person-projects', personId),
 
