@@ -248,6 +248,34 @@
               @click="editingProject.color = color"
             ></div>
           </div>
+
+          <div class="stakeholders-section">
+            <div class="section-header">
+              <label>Stakeholders</label>
+              <button @click.stop="showProjectPersonPicker = !showProjectPersonPicker" class="picker-toggle-btn">
+                {{ showProjectPersonPicker ? 'Hide' : '+ Assign' }}
+              </button>
+            </div>
+
+            <div v-if="showProjectPersonPicker" class="stakeholder-picker">
+              <div v-for="person in persons" :key="person.id" class="person-option"
+                   @click.stop="assignProjectPerson(person)">
+                <span class="person-color-dot" :style="{ background: person.color }"></span>
+                <span class="person-name">{{ person.name }}</span>
+              </div>
+            </div>
+
+            <div class="assigned-stakeholders">
+              <div v-for="person in currentProjectPersons" :key="person.id"
+                   class="stakeholder-badge"
+                   :style="{ background: person.color + '33', borderColor: person.color }">
+                {{ person.name }}
+                <button @click.stop="unassignProjectPerson(person)" class="stakeholder-remove">×</button>
+              </div>
+              <p v-if="!currentProjectPersons.length" class="no-stakeholders">No stakeholders assigned</p>
+            </div>
+          </div>
+
           <div class="modal-actions">
             <button class="delete-btn" @click.stop="deleteProjectConfirm">Delete</button>
             <button @click.stop="cancelEditProject">Cancel</button>
@@ -1533,7 +1561,11 @@ export default {
       searchResults: [],
       // Export/Import
       showImportDialog: false,
-      databasePath: ''
+      databasePath: '',
+      // Persons/Stakeholders
+      persons: [],
+      projectPersons: {},
+      showProjectPersonPicker: false
     }
   },
   computed: {
@@ -1571,6 +1603,10 @@ export default {
         case 'yearly': return plural ? 'years' : 'year'
         default: return ''
       }
+    },
+    currentProjectPersons() {
+      if (!this.editingProject || !this.editingProject.id) return []
+      return this.projectPersons[this.editingProject.id] || []
     },
     allCount() {
       return this.allTodos.length
@@ -1859,6 +1895,7 @@ export default {
     await this.loadProjects()
     await this.loadCategories()
     await this.loadStatuses()
+    await this.loadPersons()
     await this.loadAllTodos()
     await this.loadTodos()
     await this.loadAllLinks()
@@ -2337,11 +2374,16 @@ export default {
       this.newProjectName = ''
       this.showProjectInput = false
     },
-    editProject(project) {
+    async editProject(project) {
       this.editingProject = { ...project }
+      this.showProjectPersonPicker = false
+      if (project.id) {
+        await this.loadProjectPersons(project.id)
+      }
     },
     cancelEditProject() {
       this.editingProject = null
+      this.showProjectPersonPicker = false
     },
     async saveProject() {
       try {
@@ -3218,6 +3260,28 @@ export default {
     },
     openSettings() {
       window.api.openSettings()
+    },
+    async loadPersons() {
+      this.persons = await window.api.getPersons()
+    },
+    async loadProjectPersons(projectId) {
+      const persons = await window.api.getProjectPersons(projectId)
+      this.$set(this.projectPersons, projectId, persons)
+    },
+    async assignProjectPerson(person) {
+      if (!this.editingProject || !this.editingProject.id) return
+      // Check if already assigned
+      if (this.currentProjectPersons.some(p => p.id === person.id)) return
+
+      await window.api.linkProjectPerson(this.editingProject.id, person.id)
+      await this.loadProjectPersons(this.editingProject.id)
+      this.showProjectPersonPicker = false
+    },
+    async unassignProjectPerson(person) {
+      if (!this.editingProject || !this.editingProject.id) return
+
+      await window.api.unlinkProjectPerson(this.editingProject.id, person.id)
+      await this.loadProjectPersons(this.editingProject.id)
     },
     async handleExport() {
       try {

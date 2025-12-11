@@ -135,7 +135,13 @@ export default {
   },
   methods: {
     async loadPersons() {
-      this.persons = await window.api.getPersons()
+      try {
+        console.log('Loading persons...')
+        this.persons = await window.api.getPersons()
+        console.log('Loaded persons:', this.persons)
+      } catch (error) {
+        console.error('Error loading persons:', error)
+      }
     },
 
     showAddPerson() {
@@ -157,14 +163,33 @@ export default {
     async savePerson() {
       if (!this.editingPerson.name.trim()) return
 
-      if (this.editingPerson.id) {
-        await window.api.updatePerson(this.editingPerson)
-      } else {
-        await window.api.createPerson(this.editingPerson)
-      }
+      try {
+        // Create a plain object with only the data we need
+        const personData = {
+          name: this.editingPerson.name,
+          email: this.editingPerson.email || '',
+          phone: this.editingPerson.phone || '',
+          company: this.editingPerson.company || '',
+          role: this.editingPerson.role || '',
+          notes: this.editingPerson.notes || '',
+          color: this.editingPerson.color || '#0f4c75'
+        }
 
-      await this.loadPersons()
-      this.editingPerson = null
+        if (this.editingPerson.id) {
+          personData.id = this.editingPerson.id
+          const result = await window.api.updatePerson(personData)
+          console.log('Update result:', result)
+        } else {
+          const result = await window.api.createPerson(personData)
+          console.log('Create result:', result)
+        }
+
+        await this.loadPersons()
+        this.editingPerson = null
+      } catch (error) {
+        console.error('Error saving person:', error)
+        alert('Failed to save person: ' + error.message)
+      }
     },
 
     async deletePerson() {
@@ -415,7 +440,7 @@ export default {
 
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  grid-template-columns: repeat(6, 40px);
   gap: 8px;
 }
 

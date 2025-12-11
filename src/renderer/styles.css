@@ -5105,3 +5105,117 @@ body {
 .light-theme .assigned-person {
   background: #f0f0f0;
 }
+
+/* Stakeholders Section in Project Modal */
+.stakeholders-section {
+  margin: 20px 0;
+}
+
+.stakeholders-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.stakeholders-section label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.light-theme .stakeholders-section label {
+  color: #333;
+}
+
+.picker-toggle-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.picker-toggle-btn:hover {
+  background: #2980b9;
+}
+
+.stakeholder-picker {
+  background: #1a1a1a;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.light-theme .stakeholder-picker {
+  background: #f5f5f5;
+}
+
+.stakeholder-picker .person-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.stakeholder-picker .person-option:hover {
+  background: #333;
+}
+
+.light-theme .stakeholder-picker .person-option:hover {
+  background: #e0e0e0;
+}
+
+.assigned-stakeholders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.stakeholder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid;
+  cursor: default;
+}
+
+.stakeholder-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.stakeholder-remove:hover {
+  opacity: 1;
+}
+
+.no-stakeholders {
+  color: #888;
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.light-theme .no-stakeholders {
+  color: #666;
+}
