@@ -136,6 +136,32 @@
       </div>
     </div>
 
+    <div class="persons-section">
+      <div class="section-header">
+        <h3>Assigned Persons</h3>
+        <button @click="togglePersonPicker" class="link-btn">{{ showPersonPicker ? 'Hide' : '+ Assign' }}</button>
+      </div>
+
+      <div v-if="showPersonPicker" class="person-picker">
+        <div v-for="person in persons" :key="person.id" class="person-option"
+             :class="{ assigned: assignedPersons.some(p => p.id === person.id) }"
+             @click="assignPerson(person)">
+          <span class="person-color-dot" :style="{ background: person.color }"></span>
+          <span class="person-name">{{ person.name }}</span>
+          <span v-if="person.email" class="person-email">{{ person.email }}</span>
+        </div>
+      </div>
+
+      <div class="assigned-persons">
+        <div v-for="person in assignedPersons" :key="person.id" class="assigned-person">
+          <span class="person-color-dot" :style="{ background: person.color }"></span>
+          <span class="person-name">{{ person.name }}</span>
+          <button @click="unassignPerson(person)" class="unlink-btn">x</button>
+        </div>
+        <p v-if="!assignedPersons.length" class="no-links">No persons assigned</p>
+      </div>
+    </div>
+
     <div class="meta-section compact">
       <div class="meta-grid">
         <div class="meta-item">
@@ -250,6 +276,9 @@ export default {
       showLinkSearch: false,
       linkQuery: '',
       linkResults: [],
+      assignedPersons: [],
+      showPersonPicker: false,
+      persons: [],
       theme: localStorage.getItem('todo-theme') || 'dark'
     }
   },
@@ -294,6 +323,7 @@ export default {
     await this.loadProjects()
     await this.loadCategories()
     await this.loadStatuses()
+    await this.loadPersons()
 
     const params = new URLSearchParams(window.location.search)
     const id = params.get('id')
@@ -334,9 +364,11 @@ export default {
       this.todo = await window.api.getTodo(id)
       this.linkedTodos = await window.api.getLinkedTodos(id)
       this.subtasks = await window.api.getSubtasks(id)
+      this.assignedPersons = await window.api.getTodoPersons(id)
       this.showLinkSearch = false
       this.linkQuery = ''
       this.linkResults = []
+      this.showPersonPicker = false
     },
     toggleComplete() {
       this.todo.completed = !this.todo.completed
@@ -445,6 +477,25 @@ export default {
       } catch (e) {
         console.error('Mermaid render error:', e)
       }
+    },
+    async loadPersons() {
+      this.persons = await window.api.getPersons()
+    },
+    async loadAssignedPersons() {
+      this.assignedPersons = await window.api.getTodoPersons(this.todo.id)
+    },
+    async assignPerson(person) {
+      await window.api.linkTodoPerson(this.todo.id, person.id)
+      await this.loadAssignedPersons()
+      window.api.notifyTodoUpdated()
+    },
+    async unassignPerson(person) {
+      await window.api.unlinkTodoPerson(this.todo.id, person.id)
+      await this.loadAssignedPersons()
+      window.api.notifyTodoUpdated()
+    },
+    togglePersonPicker() {
+      this.showPersonPicker = !this.showPersonPicker
     }
   },
   watch: {

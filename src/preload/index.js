@@ -28,6 +28,26 @@ contextBridge.exposeInMainWorld('api', {
   updateStatus: (status) => ipcRenderer.invoke('update-status', status),
   deleteStatus: (id) => ipcRenderer.invoke('delete-status', id),
 
+  // Person operations
+  getPersons: () => ipcRenderer.invoke('get-persons'),
+  getPerson: (id) => ipcRenderer.invoke('get-person', id),
+  createPerson: (person) => ipcRenderer.invoke('create-person', person),
+  updatePerson: (person) => ipcRenderer.invoke('update-person', person),
+  deletePerson: (id) => ipcRenderer.invoke('delete-person', id),
+  reorderPersons: (ids) => ipcRenderer.invoke('reorder-persons', ids),
+
+  // Todo-Person linking
+  getTodoPersons: (todoId) => ipcRenderer.invoke('get-todo-persons', todoId),
+  linkTodoPerson: (todoId, personId) => ipcRenderer.invoke('link-todo-person', todoId, personId),
+  unlinkTodoPerson: (todoId, personId) => ipcRenderer.invoke('unlink-todo-person', todoId, personId),
+  getPersonTodos: (personId) => ipcRenderer.invoke('get-person-todos', personId),
+
+  // Project-Person linking
+  getProjectPersons: (projectId) => ipcRenderer.invoke('get-project-persons', projectId),
+  linkProjectPerson: (projectId, personId) => ipcRenderer.invoke('link-project-person', projectId, personId),
+  unlinkProjectPerson: (projectId, personId) => ipcRenderer.invoke('unlink-project-person', projectId, personId),
+  getPersonProjects: (personId) => ipcRenderer.invoke('get-person-projects', personId),
+
   // Todo operations
   getTodos: (projectId) => ipcRenderer.invoke('get-todos', projectId),
   getTodo: (id) => ipcRenderer.invoke('get-todo', id),
@@ -66,6 +86,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Window operations
   openDetail: (todoId) => ipcRenderer.invoke('open-detail', todoId),
+  openSettings: () => ipcRenderer.invoke('open-settings'),
 
   // Events
   onRefreshTodos: (callback) => {

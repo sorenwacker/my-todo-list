@@ -161,6 +161,7 @@
           <h2>Settings</h2>
         </div>
         <div v-show="!settingsCollapsed" class="settings-content">
+          <button @click="openSettings" class="settings-btn">Persons & Contacts</button>
           <button @click="handleExport" class="settings-btn">Export</button>
           <button @click="showImportDialog = true" class="settings-btn">Import</button>
           <div class="database-location">
@@ -3214,6 +3215,9 @@ export default {
     toggleSettingsCollapsed() {
       this.settingsCollapsed = !this.settingsCollapsed
       localStorage.setItem('settings-collapsed', this.settingsCollapsed)
+    },
+    openSettings() {
+      window.api.openSettings()
     },
     async handleExport() {
       try {

@@ -4979,3 +4979,129 @@ body {
   outline-color: #0f4c75;
   background: #eef2f7;
 }
+
+/* Persons Section */
+.persons-section {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.persons-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.persons-section .section-header h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.person-picker {
+  margin: 12px 0;
+  padding: 12px;
+  background: #1a1a1a;
+  border-radius: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.person-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.person-option:hover {
+  background: #333;
+}
+
+.person-option.assigned {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.person-option.assigned:hover {
+  background: transparent;
+}
+
+.person-color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.person-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.person-email {
+  font-size: 12px;
+  color: #888;
+}
+
+.assigned-persons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assigned-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: #333;
+  border-radius: 4px;
+}
+
+.assigned-person .person-name {
+  flex: 1;
+}
+
+.assigned-person .unlink-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.assigned-person .unlink-btn:hover {
+  background: #c0392b;
+}
+
+/* Light theme variants */
+.light-theme .persons-section {
+  background: white;
+  border: 1px solid #e0e0e0;
+}
+
+.light-theme .person-picker {
+  background: #f5f5f5;
+}
+
+.light-theme .person-option:hover {
+  background: #e0e0e0;
+}
+
+.light-theme .person-email {
+  color: #666;
+}
+
+.light-theme .assigned-person {
+  background: #f0f0f0;
+}

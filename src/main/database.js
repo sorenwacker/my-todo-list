@@ -78,6 +78,39 @@ export class Database {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS persons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        company TEXT DEFAULT '',
+        role TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        color TEXT DEFAULT '#0f4c75',
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS todo_persons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        todo_id INTEGER NOT NULL,
+        person_id INTEGER NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
+        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
+        UNIQUE(todo_id, person_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS project_persons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        person_id INTEGER NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
+        UNIQUE(project_id, person_id)
+      );
     `)
 
     // Migration: add importance and category_id if missing
@@ -239,6 +272,71 @@ export class Database {
 
   deleteStatus(id) {
     this.db.prepare('DELETE FROM statuses WHERE id = ?').run(id)
+    return true
+  }
+
+  // Person operations
+  getAllPersons() {
+    return this.db.prepare('SELECT * FROM persons ORDER BY sort_order ASC').all()
+  }
+
+  getPerson(id) {
+    return this.db.prepare('SELECT * FROM persons WHERE id = ?').get(id)
+  }
+
+  createPerson(person) {
+    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM persons').get()
+    const sortOrder = (maxOrder.max || 0) + 1
+
+    const result = this.db.prepare(`
+      INSERT INTO persons (name, email, phone, company, role, notes, color, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      person.name,
+      person.email || '',
+      person.phone || '',
+      person.company || '',
+      person.role || '',
+      person.notes || '',
+      person.color || '#0f4c75',
+      sortOrder
+    )
+
+    return this.getPerson(result.lastInsertRowid)
+  }
+
+  updatePerson(person) {
+    this.db.prepare(`
+      UPDATE persons
+      SET name = ?, email = ?, phone = ?, company = ?, role = ?, notes = ?, color = ?
+      WHERE id = ?
+    `).run(
+      person.name,
+      person.email || '',
+      person.phone || '',
+      person.company || '',
+      person.role || '',
+      person.notes || '',
+      person.color,
+      person.id
+    )
+
+    return this.getPerson(person.id)
+  }
+
+  deletePerson(id) {
+    this.db.prepare('DELETE FROM persons WHERE id = ?').run(id)
+    return true
+  }
+
+  reorderPersons(ids) {
+    const stmt = this.db.prepare('UPDATE persons SET sort_order = ? WHERE id = ?')
+    const transaction = this.db.transaction((ids) => {
+      ids.forEach((id, index) => {
+        stmt.run(index, id)
+      })
+    })
+    transaction(ids)
     return true
   }
 
@@ -600,6 +698,93 @@ export class Database {
     return true
   }
 
+  // Todo-Person linking operations
+  getTodoPersons(todoId) {
+    return this.db.prepare(`
+      SELECT p.*
+      FROM persons p
+      INNER JOIN todo_persons tp ON p.id = tp.person_id
+      WHERE tp.todo_id = ?
+      ORDER BY p.sort_order ASC
+    `).all(todoId)
+  }
+
+  linkTodoPerson(todoId, personId) {
+    try {
+      this.db.prepare(`
+        INSERT OR IGNORE INTO todo_persons (todo_id, person_id)
+        VALUES (?, ?)
+      `).run(todoId, personId)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  unlinkTodoPerson(todoId, personId) {
+    this.db.prepare(`
+      DELETE FROM todo_persons
+      WHERE todo_id = ? AND person_id = ?
+    `).run(todoId, personId)
+    return true
+  }
+
+  getPersonTodos(personId) {
+    return this.db.prepare(`
+      SELECT t.*, p.name as project_name, p.color as project_color,
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
+      FROM todos t
+      INNER JOIN todo_persons tp ON t.id = tp.todo_id
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
+      WHERE tp.person_id = ? AND t.deleted_at IS NULL
+      ORDER BY t.sort_order ASC
+    `).all(personId)
+  }
+
+  // Project-Person linking operations
+  getProjectPersons(projectId) {
+    return this.db.prepare(`
+      SELECT p.*
+      FROM persons p
+      INNER JOIN project_persons pp ON p.id = pp.person_id
+      WHERE pp.project_id = ?
+      ORDER BY p.sort_order ASC
+    `).all(projectId)
+  }
+
+  linkProjectPerson(projectId, personId) {
+    try {
+      this.db.prepare(`
+        INSERT OR IGNORE INTO project_persons (project_id, person_id)
+        VALUES (?, ?)
+      `).run(projectId, personId)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  unlinkProjectPerson(projectId, personId) {
+    this.db.prepare(`
+      DELETE FROM project_persons
+      WHERE project_id = ? AND person_id = ?
+    `).run(projectId, personId)
+    return true
+  }
+
+  getPersonProjects(personId) {
+    return this.db.prepare(`
+      SELECT p.*
+      FROM projects p
+      INNER JOIN project_persons pp ON p.id = pp.project_id
+      WHERE pp.person_id = ?
+      ORDER BY p.sort_order ASC
+    `).all(personId)
+  }
+
   // Export/Import operations
   exportData() {
     const projects = this.db.prepare('SELECT * FROM projects').all()
@@ -608,6 +793,9 @@ export class Database {
     const todos = this.db.prepare('SELECT * FROM todos').all()
     const todoLinks = this.db.prepare('SELECT * FROM todo_links').all()
     const subtasks = this.db.prepare('SELECT * FROM subtasks').all()
+    const persons = this.db.prepare('SELECT * FROM persons').all()
+    const todoPersons = this.db.prepare('SELECT * FROM todo_persons').all()
+    const projectPersons = this.db.prepare('SELECT * FROM project_persons').all()
 
     return {
       version: '1.0',
@@ -618,7 +806,10 @@ export class Database {
         statuses,
         todos,
         todoLinks,
-        subtasks
+        subtasks,
+        persons,
+        todoPersons,
+        projectPersons
       }
     }
   }
@@ -628,15 +819,18 @@ export class Database {
       throw new Error('Invalid import data format')
     }
 
-    const { projects, categories, statuses, todos, todoLinks, subtasks } = importData.data
+    const { projects, categories, statuses, todos, todoLinks, subtasks, persons, todoPersons, projectPersons } = importData.data
 
     // Create a transaction for atomic import
     const transaction = this.db.transaction(() => {
       // If replace mode, clear existing data
       if (mode === 'replace') {
+        this.db.prepare('DELETE FROM project_persons').run()
+        this.db.prepare('DELETE FROM todo_persons').run()
         this.db.prepare('DELETE FROM subtasks').run()
         this.db.prepare('DELETE FROM todo_links').run()
         this.db.prepare('DELETE FROM todos').run()
+        this.db.prepare('DELETE FROM persons').run()
         this.db.prepare('DELETE FROM statuses').run()
         this.db.prepare('DELETE FROM categories').run()
         this.db.prepare('DELETE FROM projects').run()
@@ -647,6 +841,7 @@ export class Database {
       const categoryIdMap = new Map()
       const statusIdMap = new Map()
       const todoIdMap = new Map()
+      const personIdMap = new Map()
 
       // Import projects
       if (projects && projects.length > 0) {
@@ -681,6 +876,28 @@ export class Database {
         statuses.forEach(s => {
           const result = stmt.run(s.name, s.color, s.sort_order, s.created_at)
           statusIdMap.set(s.id, result.lastInsertRowid)
+        })
+      }
+
+      // Import persons
+      if (persons && persons.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO persons (name, email, phone, company, role, notes, color, sort_order, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        persons.forEach(p => {
+          const result = stmt.run(
+            p.name,
+            p.email || '',
+            p.phone || '',
+            p.company || '',
+            p.role || '',
+            p.notes || '',
+            p.color,
+            p.sort_order,
+            p.created_at
+          )
+          personIdMap.set(p.id, result.lastInsertRowid)
         })
       }
 
@@ -742,6 +959,36 @@ export class Database {
           const newTodoId = todoIdMap.get(s.todo_id)
           if (newTodoId) {
             stmt.run(newTodoId, s.title, s.completed, s.sort_order, s.created_at)
+          }
+        })
+      }
+
+      // Import todo-person links
+      if (todoPersons && todoPersons.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO todo_persons (todo_id, person_id, created_at)
+          VALUES (?, ?, ?)
+        `)
+        todoPersons.forEach(tp => {
+          const newTodoId = todoIdMap.get(tp.todo_id)
+          const newPersonId = personIdMap.get(tp.person_id)
+          if (newTodoId && newPersonId) {
+            stmt.run(newTodoId, newPersonId, tp.created_at)
+          }
+        })
+      }
+
+      // Import project-person links
+      if (projectPersons && projectPersons.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO project_persons (project_id, person_id, created_at)
+          VALUES (?, ?, ?)
+        `)
+        projectPersons.forEach(pp => {
+          const newProjectId = projectIdMap.get(pp.project_id)
+          const newPersonId = personIdMap.get(pp.person_id)
+          if (newProjectId && newPersonId) {
+            stmt.run(newProjectId, newPersonId, pp.created_at)
           }
         })
       }

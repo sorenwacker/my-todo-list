@@ -5,6 +5,7 @@ import { Database } from './database.js'
 
 let mainWindow = null
 let detailWindow = null
+let settingsWindow = null
 let database = null
 
 function createMainWindow() {
@@ -59,6 +60,33 @@ function createDetailWindow(todoId) {
   })
 }
 
+function createSettingsWindow() {
+  if (settingsWindow) {
+    settingsWindow.focus()
+    return
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 900,
+    height: 700,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  if (process.env.NODE_ENV === 'development') {
+    settingsWindow.loadURL('http://localhost:5173/settings.html')
+  } else {
+    settingsWindow.loadFile(join(__dirname, '../renderer/settings.html'))
+  }
+
+  settingsWindow.on('closed', () => {
+    settingsWindow = null
+  })
+}
+
 app.whenReady().then(() => {
   database = new Database()
 
@@ -85,6 +113,26 @@ app.whenReady().then(() => {
   ipcMain.handle('create-status', (_, name, color) => database.createStatus(name, color))
   ipcMain.handle('update-status', (_, status) => database.updateStatus(status))
   ipcMain.handle('delete-status', (_, id) => database.deleteStatus(id))
+
+  // Person operations
+  ipcMain.handle('get-persons', () => database.getAllPersons())
+  ipcMain.handle('get-person', (_, id) => database.getPerson(id))
+  ipcMain.handle('create-person', (_, person) => database.createPerson(person))
+  ipcMain.handle('update-person', (_, person) => database.updatePerson(person))
+  ipcMain.handle('delete-person', (_, id) => database.deletePerson(id))
+  ipcMain.handle('reorder-persons', (_, ids) => database.reorderPersons(ids))
+
+  // Todo-Person linking
+  ipcMain.handle('get-todo-persons', (_, todoId) => database.getTodoPersons(todoId))
+  ipcMain.handle('link-todo-person', (_, todoId, personId) => database.linkTodoPerson(todoId, personId))
+  ipcMain.handle('unlink-todo-person', (_, todoId, personId) => database.unlinkTodoPerson(todoId, personId))
+  ipcMain.handle('get-person-todos', (_, personId) => database.getPersonTodos(personId))
+
+  // Project-Person linking
+  ipcMain.handle('get-project-persons', (_, projectId) => database.getProjectPersons(projectId))
+  ipcMain.handle('link-project-person', (_, projectId, personId) => database.linkProjectPerson(projectId, personId))
+  ipcMain.handle('unlink-project-person', (_, projectId, personId) => database.unlinkProjectPerson(projectId, personId))
+  ipcMain.handle('get-person-projects', (_, personId) => database.getPersonProjects(personId))
 
   // Todo operations
   ipcMain.handle('get-todos', (_, projectId) => database.getAllTodos(projectId))
@@ -166,6 +214,10 @@ app.whenReady().then(() => {
   // Window management
   ipcMain.handle('open-detail', (_, todoId) => {
     createDetailWindow(todoId)
+  })
+
+  ipcMain.handle('open-settings', () => {
+    createSettingsWindow()
   })
 
   // Notify main window of updates
