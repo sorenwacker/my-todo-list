@@ -76,6 +76,44 @@
         </draggable>
       </nav>
 
+      <div class="sidebar-header status-header" @click="toggleStatusesCollapsed">
+        <span class="collapse-indicator">{{ statusesCollapsed ? '+' : '-' }}</span>
+        <h2>Statuses</h2>
+      </div>
+
+      <nav class="status-nav" v-show="!statusesCollapsed">
+        <draggable
+          v-model="statuses"
+          item-key="id"
+          @end="onStatusDragEnd"
+          class="statuses-list"
+        >
+          <template #item="{ element: status }">
+            <div
+              class="nav-item status-item"
+              @click="editStatus(status)"
+            >
+              <span class="status-dot" :style="{ background: status.color }"></span>
+              <span class="status-name">{{ status.name }}</span>
+              <span class="count">{{ getStatusCount(status.id) }}</span>
+            </div>
+          </template>
+        </draggable>
+      </nav>
+
+      <div class="add-status" v-show="!statusesCollapsed">
+        <input
+          v-if="showStatusInput"
+          v-model="newStatusName"
+          @keyup.enter="addStatus"
+          @blur="cancelAddStatus"
+          placeholder="Status name..."
+          ref="statusInput"
+          type="text"
+        />
+        <button v-else @click="showAddStatus">+ Add Status</button>
+      </div>
+
       <div class="sidebar-header category-header" @click="toggleCategoriesCollapsed">
         <span class="collapse-indicator">{{ categoriesCollapsed ? '+' : '-' }}</span>
         <h2>Categories</h2>
@@ -117,51 +155,18 @@
         <button v-else @click="showAddCategory">+ Add Category</button>
       </div>
 
-      <div class="sidebar-header status-header" @click="toggleStatusesCollapsed">
-        <span class="collapse-indicator">{{ statusesCollapsed ? '+' : '-' }}</span>
-        <h2>Statuses</h2>
-      </div>
-
-      <nav class="status-nav" v-show="!statusesCollapsed">
-        <draggable
-          v-model="statuses"
-          item-key="id"
-          @end="onStatusDragEnd"
-          class="statuses-list"
-        >
-          <template #item="{ element: status }">
-            <div
-              class="nav-item status-item"
-              @click="editStatus(status)"
-            >
-              <span class="status-dot" :style="{ background: status.color }"></span>
-              <span class="status-name">{{ status.name }}</span>
-              <span class="count">{{ getStatusCount(status.id) }}</span>
-            </div>
-          </template>
-        </draggable>
-      </nav>
-
-      <div class="add-status" v-show="!statusesCollapsed">
-        <input
-          v-if="showStatusInput"
-          v-model="newStatusName"
-          @keyup.enter="addStatus"
-          @blur="cancelAddStatus"
-          placeholder="Status name..."
-          ref="statusInput"
-          type="text"
-        />
-        <button v-else @click="showAddStatus">+ Add Status</button>
-      </div>
-
       <div class="settings-section">
         <div class="sidebar-header settings-header" @click="toggleSettingsCollapsed">
           <span class="collapse-indicator">{{ settingsCollapsed ? '+' : '-' }}</span>
           <h2>Settings</h2>
         </div>
         <div v-show="!settingsCollapsed" class="settings-content">
-          <button @click="openSettings" class="settings-btn">Persons & Contacts</button>
+          <div class="preference-item">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="openTodosInWindow" @change="saveOpenModePreference" />
+              <span class="preference-text">Open todos in new window</span>
+            </label>
+          </div>
           <button @click="handleExport" class="settings-btn">Export</button>
           <button @click="showImportDialog = true" class="settings-btn">Import</button>
           <div class="database-location">
@@ -170,11 +175,14 @@
         </div>
       </div>
 
-      <div class="theme-toggle">
-        <button @click="toggleTheme" class="theme-btn">
-          <span v-if="theme === 'dark'">Light Mode</span>
-          <span v-else>Dark Mode</span>
-        </button>
+      <div class="sidebar-section">
+        <div class="sidebar-header persons-header" @click="togglePersonsCollapsed">
+          <span class="collapse-indicator">{{ personsCollapsed ? '+' : '-' }}</span>
+          <h2>Persons</h2>
+        </div>
+        <div v-show="!personsCollapsed">
+          <button @click="openSettings" class="manage-persons-btn">Manage Persons</button>
+        </div>
       </div>
 
       <div v-if="showImportDialog" class="project-modal" @click.self="showImportDialog = false">
@@ -329,6 +337,14 @@
             <button :class="{ active: currentView === 'timeline' }" @click="currentView = 'timeline'" :disabled="isTrashView">Timeline</button>
             <button :class="{ active: currentView === 'graph' }" @click="currentView = 'graph'" :disabled="isTrashView">Graph</button>
           </div>
+          <label v-if="!isTrashView" class="hide-completed-toggle">
+            <input type="checkbox" v-model="hideCompleted" @change="toggleHideCompleted" />
+            <span>Hide completed</span>
+          </label>
+          <button @click="toggleTheme" class="theme-toggle-btn" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+            <span v-if="theme === 'dark'">☀️</span>
+            <span v-else>🌙</span>
+          </button>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
         <div v-if="!isTrashView" class="add-todo">
@@ -674,6 +690,7 @@
                     class="kanban-card"
                     :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
                     :style="{ borderLeftColor: element.category_color || '#666' }"
+                    :data-todo-id="element.id"
                     @click="selectTodo(element.id)"
                   >
                     <div class="card-header">
@@ -729,6 +746,7 @@
                     class="kanban-card"
                     :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
                     :style="{ borderLeftColor: project.color }"
+                    :data-todo-id="element.id"
                     @click="selectTodo(element.id)"
                   >
                     <div class="card-header">
@@ -1092,13 +1110,22 @@
                 v-for="(todo, index) in graphNodes"
                 :key="todo.id"
                 class="graph-node"
-                :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, linking: graphLinkMode && graphLinkSource?.id === todo.id, dragging: draggingNode?.id === todo.id }"
+                :class="{
+                  person: todo.type === 'person',
+                  completed: todo.completed,
+                  selected: selectedTodo?.id === todo.id,
+                  linking: graphLinkMode && graphLinkSource?.id === todo.id,
+                  dragging: draggingNode?.id === todo.id
+                }"
                 :transform="`translate(${getNodeX(todo.id)}, ${getNodeY(todo.id)})`"
                 @mousedown.stop="onNodeMouseDown($event, todo)"
                 @mouseenter="hoveredNode = todo"
                 @mouseleave="hoveredNode = null"
               >
-                <circle r="30" :fill="todo.project_color || '#0f4c75'" />
+                <!-- Person node (square) -->
+                <rect v-if="todo.type === 'person'" x="-25" y="-25" width="50" height="50" rx="5" :fill="todo.color || '#8e44ad'" />
+                <!-- Todo node (circle) -->
+                <circle v-else r="30" :fill="todo.project_color || '#0f4c75'" />
                 <text class="node-title" dy="4" text-anchor="middle">{{ todo.title.slice(0, 10) }}{{ todo.title.length > 10 ? '...' : '' }}</text>
               </g>
             </g>
@@ -1130,6 +1157,12 @@
           <span v-else-if="graphLinkMode" class="link-hint">Click a node to start linking</span>
         </div>
         <div v-if="showGraphSettings" class="graph-settings">
+          <div class="setting-row">
+            <label>
+              <input type="checkbox" v-model="showPersonsInGraph" @change="updateGraphData" />
+              Show Persons
+            </label>
+          </div>
           <div class="setting-row">
             <label>Repulsion:</label>
             <input type="range" min="-1000" max="-50" step="50" v-model.number="graphRepulsion" @input="onGraphSettingChange" />
@@ -1348,12 +1381,35 @@
                 <button @click="showLinkSearch = !showLinkSearch" class="add-link-btn">+</button>
               </div>
             </div>
+            <div class="meta-item persons-item">
+              <label>Persons</label>
+              <div class="inline-persons">
+                <span v-for="person in assignedPersons" :key="person.id" class="person-chip" :style="{ background: person.color + '33', borderColor: person.color }">
+                  <span class="person-color-dot" :style="{ background: person.color }"></span>
+                  {{ person.name }}<button @click.stop="unassignPerson(person)" class="chip-x">x</button>
+                </span>
+                <button @click="showPersonPicker = !showPersonPicker" class="add-person-btn">+</button>
+              </div>
+            </div>
           </div>
           <div v-if="showLinkSearch" class="link-search-popup">
             <input v-model="linkQuery" @input="searchForLinks" placeholder="Search todos..." ref="linkInput" />
             <div v-if="linkResults.length" class="link-results">
               <div v-for="result in linkResults" :key="result.id" class="link-result" @click="linkTo(result)">
                 {{ result.title }}
+              </div>
+            </div>
+          </div>
+          <div v-if="showPersonPicker" class="person-picker-popup">
+            <div class="person-picker-list">
+              <div v-for="person in persons" :key="person.id" class="person-option" :class="{ assigned: assignedPersons.some(p => p.id === person.id) }" @click="assignPerson(person)">
+                <span class="person-color-dot" :style="{ background: person.color }"></span>
+                <span class="person-name">{{ person.name }}</span>
+                <span v-if="person.email" class="person-email">{{ person.email }}</span>
+              </div>
+              <div v-if="!persons.length" class="person-picker-empty">
+                <p>No persons available</p>
+                <button @click="openSettings">Manage Persons</button>
               </div>
             </div>
           </div>
@@ -1438,7 +1494,30 @@ function reinitializeMermaid(theme) {
   mermaid.initialize({
     startOnLoad: false,
     theme: theme === 'light' ? 'default' : 'dark',
-    securityLevel: 'loose'
+    securityLevel: 'loose',
+    flowchart: {
+      htmlLabels: true,
+      curve: 'basis',
+      nodeSpacing: 50,
+      rankSpacing: 50,
+      padding: 15,
+      useMaxWidth: true
+    },
+    themeVariables: theme === 'dark' ? {
+      primaryColor: '#0f4c75',
+      primaryTextColor: '#e0e0e0',
+      primaryBorderColor: '#4fc3f7',
+      lineColor: '#4fc3f7',
+      secondaryColor: '#252a3d',
+      tertiaryColor: '#1a1f2e',
+      background: '#1a1a1a',
+      mainBkg: '#252a3d',
+      secondBkg: '#1a1f2e',
+      mainContrastColor: '#e0e0e0',
+      darkMode: true,
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '14px'
+    } : {}
   })
 }
 
@@ -1470,6 +1549,7 @@ export default {
       allTodos: [],
       currentFilter: null,
       currentView: localStorage.getItem('current-view') || 'cards',
+      hideCompleted: localStorage.getItem('hide-completed') === 'true',
       kanbanGroupBy: 'status',
       newTodoTitle: '',
       newProjectName: '',
@@ -1489,6 +1569,8 @@ export default {
       showLinkSearch: false,
       linkQuery: '',
       linkResults: [],
+      assignedPersons: [],
+      showPersonPicker: false,
       saveTimeout: null,
       sortBy: localStorage.getItem('sort-by') || 'manual',
       groupByProject: localStorage.getItem('group-by-project') === 'true',
@@ -1549,13 +1631,17 @@ export default {
       graphRepulsion: parseInt(localStorage.getItem('graph-repulsion')) || -400,
       graphEdgeLength: parseInt(localStorage.getItem('graph-edge-length')) || 100,
       showGraphSettings: false,
+      showPersonsInGraph: localStorage.getItem('show-persons-in-graph') === 'true',
+      todoPersons: {},
       d3Simulation: null,
       // Theme
       theme: localStorage.getItem('todo-theme') || 'dark',
+      openTodosInWindow: localStorage.getItem('todo-open-mode') === 'window',
       // Sidebar visibility
       sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') === 'true',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
+      personsCollapsed: localStorage.getItem('persons-collapsed') !== 'false',
       settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
       // Trash
       trashCount: 0,
@@ -1719,12 +1805,16 @@ export default {
       if (this.importanceFilterOp !== 'none') {
         const val = this.importanceFilterValue
         if (this.importanceFilterOp === 'gte') {
-          todos = todos.filter(t => (t.importance || 3) >= val)
+          todos = todos.filter(t => (t.importance || 0) >= val)
         } else if (this.importanceFilterOp === 'lte') {
-          todos = todos.filter(t => (t.importance || 3) <= val)
+          todos = todos.filter(t => (t.importance || 0) <= val)
         } else if (this.importanceFilterOp === 'eq') {
-          todos = todos.filter(t => (t.importance || 3) === val)
+          todos = todos.filter(t => (t.importance || 0) === val)
         }
+      }
+      // Hide completed items if enabled
+      if (this.hideCompleted) {
+        todos = todos.filter(t => !t.completed)
       }
       return todos
     },
@@ -1794,7 +1884,36 @@ export default {
       return 14                                    // Every 2 weeks
     },
     graphNodes() {
-      return this.filteredTodos
+      const nodes = [...this.filteredTodos]
+
+      // Add person nodes if enabled
+      if (this.showPersonsInGraph) {
+        const personSet = new Set()
+
+        // Collect all unique persons from todos
+        Object.values(this.todoPersons).forEach(persons => {
+          persons.forEach(person => {
+            personSet.add(person.id)
+          })
+        })
+
+        // Add person nodes
+        personSet.forEach(personId => {
+          const person = this.persons.find(p => p.id === personId)
+          if (person) {
+            nodes.push({
+              id: `person-${person.id}`,
+              personId: person.id,
+              type: 'person',
+              title: person.name,
+              color: person.color,
+              person: person
+            })
+          }
+        })
+      }
+
+      return nodes
     },
     tooltipStyle() {
       return {
@@ -1805,9 +1924,27 @@ export default {
     graphLinks() {
       const todoIds = new Set(this.filteredTodos.map(t => t.id))
       // Filter links to only include those where both ends are visible
-      return this.allLinks.filter(link =>
+      const links = this.allLinks.filter(link =>
         todoIds.has(link.source) && todoIds.has(link.target)
       )
+
+      // Add person-todo links if enabled
+      if (this.showPersonsInGraph) {
+        Object.entries(this.todoPersons).forEach(([todoId, persons]) => {
+          const numTodoId = parseInt(todoId)
+          if (todoIds.has(numTodoId)) {
+            persons.forEach(person => {
+              links.push({
+                source: `person-${person.id}`,
+                target: numTodoId,
+                type: 'person-todo'
+              })
+            })
+          }
+        })
+      }
+
+      return links
     },
     ganttRows() {
       const rows = []
@@ -1907,6 +2044,11 @@ export default {
     await this.loadAllLinks()
     this.databasePath = await window.api.getDatabasePath()
 
+    // Load graph person data if enabled
+    if (this.showPersonsInGraph) {
+      await this.updateGraphData()
+    }
+
     window.api.onRefreshTodos(() => {
       this.loadAllTodos()
       this.loadTodos()
@@ -1936,6 +2078,9 @@ export default {
     },
     getIconComponent(name) {
       return categoryIcons[name] || null
+    },
+    toggleHideCompleted() {
+      localStorage.setItem('hide-completed', this.hideCompleted.toString())
     },
     async loadProjects() {
       this.projects = await window.api.getProjects()
@@ -2151,7 +2296,7 @@ export default {
       await window.api.reorderStatuses(ids)
     },
     async onKanbanDrop(event, targetProjectId) {
-      const todoId = event.item?.__draggable_context?.element?.id
+      const todoId = parseInt(event.item.dataset.todoId)
       if (!todoId) return
 
       const todo = this.allTodos.find(t => t.id === todoId)
@@ -2181,23 +2326,46 @@ export default {
       this.selectTodo(id)
     },
     async selectTodo(id) {
-      await this.loadSelectedTodo(id)
+      const openInWindow = localStorage.getItem('todo-open-mode') === 'window'
+      if (openInWindow) {
+        await window.api.openDetail(id)
+      } else {
+        await this.loadSelectedTodo(id)
+      }
     },
     async loadSelectedTodo(id) {
+      // Flush any pending saves before loading a new todo
+      if (this.saveTimeout && this.selectedTodo) {
+        clearTimeout(this.saveTimeout)
+        const todoData = this.toPlainTodo(this.selectedTodo)
+        await window.api.updateTodo(todoData)
+      }
+
       this.selectedTodo = await window.api.getTodo(id)
       this.linkedTodos = await window.api.getLinkedTodos(id)
       this.subtasks = await window.api.getSubtasks(id)
+      this.assignedPersons = await window.api.getTodoPersons(id)
       this.newSubtaskTitle = ''
       this.showLinkSearch = false
+      this.showPersonPicker = false
       this.linkQuery = ''
       this.linkResults = []
       this.activeTab = 'edit'
     },
-    closeDetail() {
+    async closeDetail() {
+      // Flush any pending saves before closing
+      if (this.saveTimeout && this.selectedTodo) {
+        clearTimeout(this.saveTimeout)
+        const todoData = this.toPlainTodo(this.selectedTodo)
+        await window.api.updateTodo(todoData)
+      }
+
       this.selectedTodo = null
       this.linkedTodos = []
       this.subtasks = []
+      this.assignedPersons = []
       this.newSubtaskTitle = ''
+      this.showPersonPicker = false
     },
     async detachDetail() {
       const todoId = this.selectedTodo.id
@@ -2302,6 +2470,30 @@ export default {
     async unlinkFrom(linked) {
       await window.api.unlinkTodos(this.selectedTodo.id, linked.id)
       this.linkedTodos = await window.api.getLinkedTodos(this.selectedTodo.id)
+    },
+    async assignPerson(person) {
+      if (!this.selectedTodo) return
+      // Check if already assigned
+      if (this.assignedPersons.some(p => p.id === person.id)) {
+        this.showPersonPicker = false
+        return
+      }
+      await window.api.linkTodoPerson(this.selectedTodo.id, person.id)
+      this.assignedPersons = await window.api.getTodoPersons(this.selectedTodo.id)
+      this.showPersonPicker = false
+      // Update graph data if persons are shown in graph
+      if (this.showPersonsInGraph) {
+        await this.updateGraphData()
+      }
+    },
+    async unassignPerson(person) {
+      if (!this.selectedTodo) return
+      await window.api.unlinkTodoPerson(this.selectedTodo.id, person.id)
+      this.assignedPersons = await window.api.getTodoPersons(this.selectedTodo.id)
+      // Update graph data if persons are shown in graph
+      if (this.showPersonsInGraph) {
+        await this.updateGraphData()
+      }
     },
     async loadSubtasks() {
       if (this.selectedTodo) {
@@ -3260,15 +3452,40 @@ export default {
       this.statusesCollapsed = !this.statusesCollapsed
       localStorage.setItem('statuses-collapsed', this.statusesCollapsed)
     },
+    togglePersonsCollapsed() {
+      this.personsCollapsed = !this.personsCollapsed
+      localStorage.setItem('persons-collapsed', this.personsCollapsed)
+    },
     toggleSettingsCollapsed() {
       this.settingsCollapsed = !this.settingsCollapsed
       localStorage.setItem('settings-collapsed', this.settingsCollapsed)
+    },
+    saveOpenModePreference() {
+      const mode = this.openTodosInWindow ? 'window' : 'sidebar'
+      localStorage.setItem('todo-open-mode', mode)
     },
     openSettings() {
       window.api.openSettings()
     },
     async loadPersons() {
       this.persons = await window.api.getPersons()
+    },
+    async updateGraphData() {
+      // Save preference
+      localStorage.setItem('show-persons-in-graph', this.showPersonsInGraph)
+
+      // Load person assignments for all todos if enabled
+      if (this.showPersonsInGraph) {
+        this.todoPersons = {}
+        for (const todo of this.filteredTodos) {
+          const persons = await window.api.getTodoPersons(todo.id)
+          if (persons && persons.length > 0) {
+            this.$set(this.todoPersons, todo.id, persons)
+          }
+        }
+      } else {
+        this.todoPersons = {}
+      }
     },
     async loadProjectPersons(projectId) {
       const persons = await window.api.getProjectPersons(projectId)

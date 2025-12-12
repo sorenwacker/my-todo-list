@@ -5,6 +5,7 @@ import { Database } from './database.js'
 
 let mainWindow = null
 let detailWindow = null
+let detailWindowTodoId = null
 let settingsWindow = null
 let stakeholderWindow = null
 let database = null
@@ -32,12 +33,22 @@ function createMainWindow() {
 }
 
 function createDetailWindow(todoId) {
-  if (detailWindow) {
+  // If a detail window is already open for this specific todo, just focus it
+  if (detailWindow && detailWindowTodoId === todoId) {
+    detailWindow.focus()
+    return
+  }
+
+  // If a detail window is open for a different todo, update it to show the new todo
+  if (detailWindow && detailWindowTodoId !== todoId) {
+    detailWindowTodoId = todoId
     detailWindow.focus()
     detailWindow.webContents.send('load-todo', todoId)
     return
   }
 
+  // Create new detail window
+  detailWindowTodoId = todoId
   detailWindow = new BrowserWindow({
     width: 600,
     height: 700,
@@ -58,6 +69,7 @@ function createDetailWindow(todoId) {
 
   detailWindow.on('closed', () => {
     detailWindow = null
+    detailWindowTodoId = null
   })
 }
 

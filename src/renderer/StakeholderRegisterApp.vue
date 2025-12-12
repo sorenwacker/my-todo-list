@@ -2,11 +2,36 @@
   <div class="stakeholder-register-app" :class="{ 'light-theme': theme === 'light' }">
     <header class="register-header">
       <h1>Stakeholder Register - {{ projectName }}</h1>
-      <div class="view-toggle">
-        <button @click="currentView = 'table'" :class="{ active: currentView === 'table' }">Table</button>
-        <button @click="currentView = 'matrix'" :class="{ active: currentView === 'matrix' }">Matrix</button>
+      <div class="header-actions">
+        <button @click="showAddStakeholder = !showAddStakeholder" class="add-stakeholder-btn">
+          + Add Stakeholder
+        </button>
+        <div class="view-toggle">
+          <button @click="currentView = 'table'" :class="{ active: currentView === 'table' }">Table</button>
+          <button @click="currentView = 'matrix'" :class="{ active: currentView === 'matrix' }">Matrix</button>
+        </div>
       </div>
     </header>
+
+    <!-- Add Stakeholder Picker -->
+    <div v-if="showAddStakeholder" class="stakeholder-picker">
+      <div class="picker-header">
+        <h3>Select Person to Add as Stakeholder</h3>
+        <button @click="showCreatePerson = true" class="create-person-btn">+ Create New Person</button>
+      </div>
+      <div class="person-list">
+        <div v-for="person in availablePersons" :key="person.id"
+             class="person-option"
+             @click="addStakeholder(person)">
+          <span class="color-dot" :style="{ background: person.color }"></span>
+          <span class="person-name">{{ person.name }}</span>
+          <span class="person-info">{{ person.role || person.company }}</span>
+        </div>
+        <p v-if="!availablePersons.length" class="no-persons">
+          All persons are already stakeholders. Create a new person to add more.
+        </p>
+      </div>
+    </div>
 
     <main class="register-main">
       <!-- Table View -->
@@ -16,7 +41,7 @@
             <tr>
               <th>Name</th>
               <th>Role</th>
-              <th>Company</th>
+              <th>Institution/Company</th>
               <th>Type</th>
               <th>Influence</th>
               <th>Interest</th>
@@ -25,7 +50,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="stakeholder in stakeholders" :key="stakeholder.id">
+            <tr v-for="stakeholder in stakeholders" :key="stakeholder.id"
+                @click="editStakeholder(stakeholder)" class="clickable-row">
               <td>
                 <div class="name-cell">
                   <span class="color-dot" :style="{ background: stakeholder.color }"></span>
@@ -48,8 +74,8 @@
                 </div>
               </td>
               <td>{{ stakeholder.engagement_strategy }}</td>
-              <td>
-                <button @click="editStakeholder(stakeholder)" class="edit-btn">Edit</button>
+              <td @click.stop>
+                <button @click="removeStakeholder(stakeholder)" class="remove-btn">Remove</button>
               </td>
             </tr>
           </tbody>
@@ -100,60 +126,179 @@
       </div>
     </main>
 
-    <!-- Edit Stakeholder Modal -->
-    <div v-if="editingStakeholder" class="stakeholder-modal" @click.self="cancelEdit">
+    <!-- Create Person Modal -->
+    <div v-if="showCreatePerson" class="stakeholder-modal" @click.self="showCreatePerson = false">
       <div class="modal-content" @click.stop>
-        <h3>Edit Stakeholder Analysis - {{ editingStakeholder.name }}</h3>
-
+        <h3>Create New Person</h3>
         <div class="form-grid">
           <div class="form-field">
-            <label>Stakeholder Type</label>
-            <select v-model="editingStakeholder.stakeholder_type">
-              <option>Internal</option>
-              <option>External</option>
-              <option>Partner</option>
-              <option>Customer</option>
-              <option>Supplier</option>
-              <option>Regulator</option>
-            </select>
+            <label>Name *</label>
+            <input type="text" v-model="newPerson.name" required placeholder="Enter name" />
           </div>
 
           <div class="form-field">
-            <label>Influence Level (1-5)</label>
-            <div class="level-slider">
-              <input type="range" v-model.number="editingStakeholder.influence_level" min="1" max="5" />
-              <span class="level-value">{{ editingStakeholder.influence_level }}</span>
-            </div>
+            <label>Email</label>
+            <input type="email" v-model="newPerson.email" placeholder="email@example.com" />
           </div>
 
           <div class="form-field">
-            <label>Interest Level (1-5)</label>
-            <div class="level-slider">
-              <input type="range" v-model.number="editingStakeholder.interest_level" min="1" max="5" />
-              <span class="level-value">{{ editingStakeholder.interest_level }}</span>
+            <label>Phone</label>
+            <input type="tel" v-model="newPerson.phone" placeholder="+1234567890" />
+          </div>
+
+          <div class="form-field">
+            <label>Institution/Company</label>
+            <input type="text" v-model="newPerson.company" placeholder="Institution or company name" />
+          </div>
+
+          <div class="form-field full-width">
+            <label>Role</label>
+            <input type="text" v-model="newPerson.role" placeholder="Job title or role" />
+          </div>
+
+          <div class="form-field full-width">
+            <label>GitHub Username</label>
+            <input type="text" v-model="newPerson.github_name" placeholder="@username" />
+          </div>
+
+          <div class="form-field full-width">
+            <label>Color</label>
+            <div class="color-picker">
+              <div v-for="color in personColors" :key="color"
+                   class="color-option"
+                   :class="{ selected: newPerson.color === color }"
+                   :style="{ background: color }"
+                   @click="newPerson.color = color">
+              </div>
             </div>
           </div>
 
           <div class="form-field full-width">
-            <label>Engagement Strategy</label>
-            <select v-model="editingStakeholder.engagement_strategy">
-              <option>Keep Informed</option>
-              <option>Monitor</option>
-              <option>Keep Satisfied</option>
-              <option>Manage Closely</option>
-            </select>
+            <label>Notes</label>
+            <textarea v-model="newPerson.notes" rows="3"
+                      placeholder="General notes about this person..."></textarea>
           </div>
+        </div>
 
-          <div class="form-field full-width">
-            <label>Notes (Project-Specific)</label>
-            <textarea v-model="editingStakeholder.stakeholder_notes" rows="4"
-                      placeholder="Stakeholder-specific notes for this project..."></textarea>
+        <div class="modal-actions">
+          <button @click="cancelCreatePerson">Cancel</button>
+          <button class="primary" @click="createPerson" :disabled="!newPerson.name">Create Person</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Stakeholder Modal -->
+    <div v-if="editingStakeholder" class="stakeholder-modal" @click.self="cancelEdit">
+      <div class="modal-content large" @click.stop>
+        <h3>{{ editingStakeholder.name }}</h3>
+
+        <!-- Person Information Section -->
+        <div class="section">
+          <h4>Person Information</h4>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Name *</label>
+              <input type="text" v-model="editingStakeholder.name" required />
+            </div>
+
+            <div class="form-field">
+              <label>Email</label>
+              <input type="email" v-model="editingStakeholder.email" />
+            </div>
+
+            <div class="form-field">
+              <label>Phone</label>
+              <input type="tel" v-model="editingStakeholder.phone" />
+            </div>
+
+            <div class="form-field">
+              <label>Institution/Company</label>
+              <input type="text" v-model="editingStakeholder.company" />
+            </div>
+
+            <div class="form-field full-width">
+              <label>Role</label>
+              <input type="text" v-model="editingStakeholder.role" />
+            </div>
+
+            <div class="form-field full-width">
+              <label>GitHub Username</label>
+              <input type="text" v-model="editingStakeholder.github_name" placeholder="@username" />
+            </div>
+
+            <div class="form-field full-width">
+              <label>Color</label>
+              <div class="color-picker">
+                <div v-for="color in personColors" :key="color"
+                     class="color-option"
+                     :class="{ selected: editingStakeholder.color === color }"
+                     :style="{ background: color }"
+                     @click="editingStakeholder.color = color">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-field full-width">
+              <label>General Notes</label>
+              <textarea v-model="editingStakeholder.notes" rows="3"
+                        placeholder="General notes about this person..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stakeholder Analysis Section -->
+        <div class="section">
+          <h4>Stakeholder Analysis (Project-Specific)</h4>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Stakeholder Type</label>
+              <select v-model="editingStakeholder.stakeholder_type">
+                <option>Internal</option>
+                <option>External</option>
+                <option>Partner</option>
+                <option>Customer</option>
+                <option>Supplier</option>
+                <option>Regulator</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label>Influence Level (1-5)</label>
+              <div class="level-slider">
+                <input type="range" v-model.number="editingStakeholder.influence_level" min="1" max="5" />
+                <span class="level-value">{{ editingStakeholder.influence_level }}</span>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>Interest Level (1-5)</label>
+              <div class="level-slider">
+                <input type="range" v-model.number="editingStakeholder.interest_level" min="1" max="5" />
+                <span class="level-value">{{ editingStakeholder.interest_level }}</span>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>Engagement Strategy</label>
+              <select v-model="editingStakeholder.engagement_strategy">
+                <option>Keep Informed</option>
+                <option>Monitor</option>
+                <option>Keep Satisfied</option>
+                <option>Manage Closely</option>
+              </select>
+            </div>
+
+            <div class="form-field full-width">
+              <label>Project-Specific Notes</label>
+              <textarea v-model="editingStakeholder.stakeholder_notes" rows="3"
+                        placeholder="Notes specific to this person's involvement in this project..."></textarea>
+            </div>
           </div>
         </div>
 
         <div class="modal-actions">
           <button @click="cancelEdit">Cancel</button>
-          <button class="primary" @click="saveStakeholder">Save</button>
+          <button class="primary" @click="saveStakeholder">Save All Changes</button>
         </div>
       </div>
     </div>
@@ -168,9 +313,34 @@ export default {
       projectId: null,
       projectName: '',
       stakeholders: [],
+      allPersons: [],
       currentView: 'table',
       editingStakeholder: null,
-      theme: localStorage.getItem('todo-theme') || 'dark'
+      showAddStakeholder: false,
+      showCreatePerson: false,
+      newPerson: {
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        role: '',
+        github_name: '',
+        color: '#3498db',
+        notes: ''
+      },
+      theme: localStorage.getItem('todo-theme') || 'dark',
+      personColors: [
+        '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c',
+        '#e67e22', '#34495e', '#16a085', '#c0392b', '#8e44ad', '#2980b9'
+      ]
+    }
+  },
+  computed: {
+    availablePersons() {
+      // Filter out persons who are already stakeholders
+      return this.allPersons.filter(person =>
+        !this.stakeholders.some(s => s.id === person.id)
+      )
     }
   },
   async mounted() {
@@ -180,6 +350,7 @@ export default {
     if (this.projectId) {
       await this.loadProject()
       await this.loadStakeholders()
+      await this.loadAllPersons()
     }
 
     // Listen for theme changes
@@ -203,27 +374,123 @@ export default {
     },
     async loadStakeholders() {
       this.stakeholders = await window.api.getProjectPersons(this.projectId)
+      console.log('Loaded stakeholders:', this.stakeholders)
+    },
+    async loadAllPersons() {
+      this.allPersons = await window.api.getPersons()
+    },
+    async addStakeholder(person) {
+      await window.api.linkProjectPerson(this.projectId, person.id)
+      await this.loadStakeholders()
+      this.showAddStakeholder = false
     },
     editStakeholder(stakeholder) {
+      console.log('Editing stakeholder:', stakeholder)
       this.editingStakeholder = { ...stakeholder }
+      console.log('editingStakeholder set to:', this.editingStakeholder)
     },
     async saveStakeholder() {
-      const stakeholderData = {
-        influence_level: this.editingStakeholder.influence_level,
-        interest_level: this.editingStakeholder.interest_level,
-        stakeholder_type: this.editingStakeholder.stakeholder_type,
-        engagement_strategy: this.editingStakeholder.engagement_strategy,
-        notes: this.editingStakeholder.stakeholder_notes || ''
+      try {
+        // Save person information
+        const personData = {
+          id: this.editingStakeholder.id,
+          name: this.editingStakeholder.name,
+          email: this.editingStakeholder.email || '',
+          phone: this.editingStakeholder.phone || '',
+          company: this.editingStakeholder.company || '',
+          role: this.editingStakeholder.role || '',
+          github_name: this.editingStakeholder.github_name || '',
+          notes: this.editingStakeholder.notes || '',
+          color: this.editingStakeholder.color
+        }
+
+        await window.api.updatePerson(personData)
+
+        // Save stakeholder analysis data
+        const stakeholderData = {
+          influence_level: this.editingStakeholder.influence_level,
+          interest_level: this.editingStakeholder.interest_level,
+          stakeholder_type: this.editingStakeholder.stakeholder_type,
+          engagement_strategy: this.editingStakeholder.engagement_strategy,
+          notes: this.editingStakeholder.stakeholder_notes || ''
+        }
+
+        console.log('Saving stakeholder:', this.projectId, this.editingStakeholder.id, stakeholderData)
+
+        await window.api.updateProjectPersonStakeholder(
+          this.projectId,
+          this.editingStakeholder.id,
+          stakeholderData
+        )
+
+        await this.loadStakeholders()
+        await this.loadAllPersons()
+        this.editingStakeholder = null
+        console.log('Stakeholder saved successfully')
+      } catch (error) {
+        console.error('Error saving stakeholder:', error)
+        alert('Failed to save stakeholder: ' + error.message)
+      }
+    },
+    async removeStakeholder(stakeholder) {
+      if (confirm(`Remove ${stakeholder.name} from stakeholders?`)) {
+        await window.api.unlinkProjectPerson(this.projectId, stakeholder.id)
+        await this.loadStakeholders()
+      }
+    },
+    async createPerson() {
+      if (!this.newPerson.name) {
+        alert('Please enter a name')
+        return
       }
 
-      await window.api.updateProjectPersonStakeholder(
-        this.projectId,
-        this.editingStakeholder.id,
-        stakeholderData
-      )
+      try {
+        // Create plain object to avoid cloning issues
+        const personData = {
+          name: this.newPerson.name,
+          email: this.newPerson.email || '',
+          phone: this.newPerson.phone || '',
+          company: this.newPerson.company || '',
+          role: this.newPerson.role || '',
+          github_name: this.newPerson.github_name || '',
+          notes: this.newPerson.notes || '',
+          color: this.newPerson.color || '#3498db'
+        }
+        const person = await window.api.createPerson(personData)
+        await this.loadAllPersons()
 
-      await this.loadStakeholders()
-      this.editingStakeholder = null
+        // Add the newly created person as a stakeholder
+        await this.addStakeholder(person)
+
+        // Reset form
+        this.newPerson = {
+          name: '',
+          email: '',
+          phone: '',
+          company: '',
+          role: '',
+          github_name: '',
+          color: '#3498db',
+          notes: ''
+        }
+        this.showCreatePerson = false
+      } catch (error) {
+        console.error('Error creating person:', error)
+        alert('Failed to create person: ' + error.message)
+      }
+    },
+    cancelCreatePerson() {
+      this.newPerson = {
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        role: '',
+        github_name: '',
+        color: '#3498db',
+        notes: ''
+      }
+      this.showCreatePerson = false
     },
     cancelEdit() {
       this.editingStakeholder = null
@@ -261,6 +528,28 @@ export default {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.add-stakeholder-btn {
+  background: #2ecc71;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.add-stakeholder-btn:hover {
+  background: #27ae60;
+}
+
 .view-toggle {
   display: flex;
   gap: 8px;
@@ -290,6 +579,98 @@ export default {
 .register-main {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* Stakeholder Picker */
+.stakeholder-picker {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.light-theme .stakeholder-picker {
+  background: white;
+  border: 1px solid #e0e0e0;
+}
+
+.picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.picker-header h3 {
+  margin: 0;
+}
+
+.create-person-btn {
+  padding: 8px 16px;
+  background: #8e44ad;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.create-person-btn:hover {
+  background: #9b59b6;
+}
+
+.stakeholder-picker h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.person-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.person-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #1a1a1a;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.light-theme .person-option {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+}
+
+.person-option:hover {
+  background: #333;
+}
+
+.light-theme .person-option:hover {
+  background: #f0f0f0;
+}
+
+.person-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.person-info {
+  color: #888;
+  font-size: 13px;
+}
+
+.no-persons {
+  text-align: center;
+  color: #888;
+  padding: 20px;
+  font-style: italic;
 }
 
 /* Table View */
@@ -328,6 +709,19 @@ export default {
 
 .light-theme .stakeholder-table td {
   border-top-color: #e0e0e0;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clickable-row:hover {
+  background: #333;
+}
+
+.light-theme .clickable-row:hover {
+  background: #f9f9f9;
 }
 
 .name-cell {
@@ -378,6 +772,20 @@ export default {
 
 .edit-btn:hover {
   background: #2980b9;
+}
+
+.remove-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.remove-btn:hover {
+  background: #c0392b;
 }
 
 .no-stakeholders {
@@ -527,9 +935,62 @@ export default {
   overflow-y: auto;
 }
 
+.modal-content.large {
+  max-width: 800px;
+}
+
 .light-theme .modal-content {
   background: white;
   border: 1px solid #e0e0e0;
+}
+
+.section {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #444;
+}
+
+.light-theme .section {
+  border-bottom-color: #e0e0e0;
+}
+
+.section:last-of-type {
+  border-bottom: none;
+}
+
+.section h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #3498db;
+}
+
+.color-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 40px);
+  gap: 8px;
+}
+
+.color-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: white;
+  transform: scale(1.15);
+}
+
+.light-theme .color-option.selected {
+  border-color: #333;
 }
 
 .modal-content h3 {
@@ -624,5 +1085,49 @@ export default {
 
 .modal-actions button.primary:hover {
   background: #27ae60;
+}
+
+/* Light theme button styles */
+.light-theme .add-stakeholder-btn {
+  background: #27ae60;
+}
+
+.light-theme .add-stakeholder-btn:hover {
+  background: #2ecc71;
+}
+
+.light-theme .create-person-btn {
+  background: #8e44ad;
+}
+
+.light-theme .create-person-btn:hover {
+  background: #9b59b6;
+}
+
+.light-theme .modal-actions button {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.light-theme .modal-actions button:hover {
+  background: #d0d0d0;
+}
+
+.light-theme .modal-actions button.primary {
+  background: #27ae60;
+  color: white;
+}
+
+.light-theme .modal-actions button.primary:hover {
+  background: #2ecc71;
+}
+
+.light-theme .remove-btn {
+  background: #e74c3c;
+  color: white;
+}
+
+.light-theme .remove-btn:hover {
+  background: #c0392b;
 }
 </style>

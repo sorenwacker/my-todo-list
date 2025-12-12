@@ -1,7 +1,7 @@
 <template>
   <div class="settings-app" :class="{ 'light-theme': theme === 'light' }">
     <header class="settings-header">
-      <h1>Settings - Persons & Contacts</h1>
+      <h1>Manage Persons</h1>
     </header>
 
     <main class="settings-main">
@@ -59,13 +59,18 @@
           </div>
 
           <div class="form-field">
-            <label>Company</label>
-            <input v-model="editingPerson.company" placeholder="Company name" />
+            <label>Institution/Company</label>
+            <input v-model="editingPerson.company" placeholder="Institution or company name" />
           </div>
 
           <div class="form-field">
             <label>Role/Title</label>
             <input v-model="editingPerson.role" placeholder="Job title" />
+          </div>
+
+          <div class="form-field">
+            <label>GitHub Username</label>
+            <input v-model="editingPerson.github_name" placeholder="@username" />
           </div>
 
           <div class="form-field full-width">

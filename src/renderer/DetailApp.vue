@@ -45,6 +45,7 @@
         v-if="activeTab === 'edit'"
         v-model="todo.notes"
         @input="save"
+        @keydown="handleNotesKeydown"
         placeholder="Add notes (Markdown supported)..."
         class="notes-editor"
       ></textarea>
@@ -60,6 +61,7 @@
         <textarea
           v-model="todo.notes"
           @input="save"
+          @keydown="handleNotesKeydown"
           placeholder="Add notes (Markdown supported)..."
           class="notes-editor split-editor"
         ></textarea>
@@ -243,7 +245,30 @@ const savedTheme = localStorage.getItem('todo-theme') || 'dark'
 mermaid.initialize({
   startOnLoad: false,
   theme: savedTheme === 'light' ? 'default' : 'dark',
-  securityLevel: 'loose'
+  securityLevel: 'loose',
+  flowchart: {
+    htmlLabels: true,
+    curve: 'basis',
+    nodeSpacing: 50,
+    rankSpacing: 50,
+    padding: 15,
+    useMaxWidth: true
+  },
+  themeVariables: savedTheme === 'dark' ? {
+    primaryColor: '#0f4c75',
+    primaryTextColor: '#e0e0e0',
+    primaryBorderColor: '#4fc3f7',
+    lineColor: '#4fc3f7',
+    secondaryColor: '#252a3d',
+    tertiaryColor: '#1a1f2e',
+    background: '#1a1a1a',
+    mainBkg: '#252a3d',
+    secondBkg: '#1a1f2e',
+    mainContrastColor: '#e0e0e0',
+    darkMode: true,
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontSize: '14px'
+  } : {}
 })
 
 const mermaidExtension = {
@@ -350,6 +375,15 @@ export default {
       }
     })
   },
+  beforeUnmount() {
+    // Flush any pending saves before component is destroyed
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout)
+      if (this.todo) {
+        window.api.updateTodo(this.todo)
+      }
+    }
+  },
   methods: {
     async loadProjects() {
       this.projects = await window.api.getProjects()
@@ -425,6 +459,26 @@ export default {
           this.showSaved = false
         }, 1500)
       }, 300)
+    },
+    handleNotesKeydown(event) {
+      // Handle Tab key for indentation
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        const textarea = event.target
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const indent = '  ' // 2 spaces
+
+        // Insert indent at cursor position
+        this.todo.notes = this.todo.notes.substring(0, start) + indent + this.todo.notes.substring(end)
+
+        // Move cursor after the indent
+        this.$nextTick(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + indent.length
+        })
+
+        this.save()
+      }
     },
     clearStartDate() {
       this.todo.start_date = null

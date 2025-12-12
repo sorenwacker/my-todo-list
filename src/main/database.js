@@ -42,7 +42,7 @@ export class Database {
         deadline TEXT,
         completed INTEGER DEFAULT 0,
         sort_order INTEGER DEFAULT 0,
-        importance INTEGER DEFAULT 3,
+        importance INTEGER DEFAULT NULL,
         project_id INTEGER,
         category_id INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -86,6 +86,7 @@ export class Database {
         phone TEXT DEFAULT '',
         company TEXT DEFAULT '',
         role TEXT DEFAULT '',
+        github_name TEXT DEFAULT '',
         notes TEXT DEFAULT '',
         color TEXT DEFAULT '#0f4c75',
         sort_order INTEGER DEFAULT 0,
@@ -120,7 +121,7 @@ export class Database {
 
     // Migration: add importance and category_id if missing
     try {
-      this.db.exec('ALTER TABLE todos ADD COLUMN importance INTEGER DEFAULT 3')
+      this.db.exec('ALTER TABLE todos ADD COLUMN importance INTEGER DEFAULT NULL')
     } catch (e) { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN category_id INTEGER')
@@ -216,6 +217,9 @@ export class Database {
   }
 
   deleteProject(id) {
+    // Move all todos in this project to inbox (no project)
+    this.db.prepare('UPDATE todos SET project_id = NULL WHERE project_id = ?').run(id)
+
     // Soft delete: set deleted_at timestamp
     this.db.prepare('UPDATE projects SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
     return true
@@ -311,14 +315,15 @@ export class Database {
     const sortOrder = (maxOrder.max || 0) + 1
 
     const result = this.db.prepare(`
-      INSERT INTO persons (name, email, phone, company, role, notes, color, sort_order)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO persons (name, email, phone, company, role, github_name, notes, color, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       person.name,
       person.email || '',
       person.phone || '',
       person.company || '',
       person.role || '',
+      person.github_name || '',
       person.notes || '',
       person.color || '#0f4c75',
       sortOrder
@@ -330,7 +335,7 @@ export class Database {
   updatePerson(person) {
     this.db.prepare(`
       UPDATE persons
-      SET name = ?, email = ?, phone = ?, company = ?, role = ?, notes = ?, color = ?
+      SET name = ?, email = ?, phone = ?, company = ?, role = ?, github_name = ?, notes = ?, color = ?
       WHERE id = ?
     `).run(
       person.name,
@@ -338,6 +343,7 @@ export class Database {
       person.phone || '',
       person.company || '',
       person.role || '',
+      person.github_name || '',
       person.notes || '',
       person.color,
       person.id
@@ -450,7 +456,7 @@ export class Database {
     // Convert empty strings to null for dates
     const endDate = todo.end_date && todo.end_date.trim() !== '' ? todo.end_date : null
     const startDate = todo.start_date && todo.start_date.trim() !== '' ? todo.start_date : null
-    const importance = todo.importance != null ? todo.importance : 3
+    const importance = todo.importance != null ? todo.importance : null
     const recurrenceType = todo.recurrence_type || null
     const recurrenceInterval = todo.recurrence_interval || 1
     const recurrenceEndDate = todo.recurrence_end_date && todo.recurrence_end_date.trim() !== '' ? todo.recurrence_end_date : null

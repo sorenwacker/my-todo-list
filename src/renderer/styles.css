@@ -86,6 +86,7 @@ body {
 
 .sidebar-header.category-header,
 .sidebar-header.status-header,
+.sidebar-header.persons-header,
 .sidebar-header.settings-header {
   cursor: pointer;
   display: flex;
@@ -96,6 +97,7 @@ body {
 
 .sidebar-header.category-header:hover,
 .sidebar-header.status-header:hover,
+.sidebar-header.persons-header:hover,
 .sidebar-header.settings-header:hover {
   background: rgba(255, 255, 255, 0.05);
 }
@@ -496,6 +498,91 @@ body {
 .view-switcher button.active {
   background: #0f4c75;
   color: #fff;
+}
+
+/* Hide Completed Toggle */
+.hide-completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #16213e;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #888;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.hide-completed-toggle:hover {
+  color: #aaa;
+}
+
+.hide-completed-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.hide-completed-toggle span {
+  white-space: nowrap;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  padding: 8px 12px;
+  background: #16213e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle-btn:hover {
+  background: #1f2b4a;
+  transform: scale(1.05);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Light Theme Styles for New Elements */
+.light-theme .hide-completed-toggle {
+  background: white;
+  border: 1px solid #e0e0e0;
+}
+
+.light-theme .hide-completed-toggle:hover {
+  border-color: #0f4c75;
+  background: #f9f9f9;
+}
+
+.light-theme .theme-toggle-btn {
+  background: white;
+  border: 1px solid #e0e0e0;
+}
+
+.light-theme .theme-toggle-btn:hover {
+  background: #f9f9f9;
+  border-color: #0f4c75;
+}
+
+.light-theme .manage-persons-btn {
+  background: white;
+  border: 1px solid #e0e0e0;
+  color: #333;
+}
+
+.light-theme .manage-persons-btn:hover {
+  border-color: #0f4c75;
+  color: #0f4c75;
+  background: #f9f9f9;
 }
 
 .card-size-control {
@@ -1000,6 +1087,132 @@ body {
   background: #252a3d;
 }
 
+/* Inline Persons */
+.persons-item {
+  flex: 1;
+  min-width: 150px;
+}
+
+.inline-persons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 11px;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-chip .person-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.add-person-btn {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px dashed #444;
+  border-radius: 4px;
+  color: #666;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.add-person-btn:hover {
+  border-color: #8e44ad;
+  color: #8e44ad;
+}
+
+.person-picker-popup {
+  margin-top: 8px;
+  padding: 8px;
+  background: #1a1f2e;
+  border-radius: 4px;
+}
+
+.person-picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.person-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.person-option:hover {
+  background: #252a3d;
+}
+
+.person-option.assigned {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.person-option.assigned:hover {
+  background: transparent;
+}
+
+.person-option .person-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.person-option .person-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.person-option .person-email {
+  color: #888;
+  font-size: 10px;
+  margin-left: auto;
+}
+
+.person-picker-empty {
+  text-align: center;
+  padding: 16px;
+  color: #666;
+}
+
+.person-picker-empty p {
+  margin-bottom: 8px;
+}
+
+.person-picker-empty button {
+  padding: 6px 12px;
+  background: #8e44ad;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.person-picker-empty button:hover {
+  background: #9b59b6;
+}
+
 /* Subtasks Section */
 .subtasks-section {
   margin-bottom: 16px;
@@ -1393,6 +1606,59 @@ body {
   color: #4fc3f7;
 }
 
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  overflow-x: auto;
+  display: block;
+}
+
+.markdown-body table thead {
+  background: #252a3d;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  border: 1px solid #444;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-body table th {
+  font-weight: 600;
+  color: #fff;
+}
+
+.markdown-body table tr:nth-child(even) {
+  background: #1a1f2e;
+}
+
+.markdown-body table tr:hover {
+  background: #252a3d;
+}
+
+.light-theme .markdown-body table thead {
+  background: #e0e0e0;
+}
+
+.light-theme .markdown-body table th,
+.light-theme .markdown-body table td {
+  border: 1px solid #ddd;
+}
+
+.light-theme .markdown-body table th {
+  color: #333;
+}
+
+.light-theme .markdown-body table tr:nth-child(even) {
+  background: #f5f5f5;
+}
+
+.light-theme .markdown-body table tr:hover {
+  background: #e8e8e8;
+}
+
 .markdown-body .placeholder {
   color: #666;
   font-style: italic;
@@ -1410,6 +1676,24 @@ body {
 .markdown-body pre.mermaid svg {
   max-width: 100%;
   height: auto;
+}
+
+/* Mermaid text wrapping and sizing */
+.markdown-body pre.mermaid .nodeLabel,
+.markdown-body pre.mermaid .edgeLabel {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body pre.mermaid .node rect,
+.markdown-body pre.mermaid .node circle,
+.markdown-body pre.mermaid .node polygon {
+  min-width: 100px;
+}
+
+.markdown-body pre.mermaid foreignObject {
+  overflow: visible;
 }
 
 .markdown-body .mermaid-error {
@@ -3350,6 +3634,32 @@ body {
   font-size: 10px;
   font-weight: 500;
   pointer-events: none;
+  stroke: #000;
+  stroke-width: 3px;
+  paint-order: stroke fill;
+}
+
+/* Person node styles */
+.graph-node.person rect {
+  stroke: #fff;
+  stroke-width: 2;
+  transition: filter 0.15s, stroke-width 0.15s;
+}
+
+.graph-node.person:hover rect {
+  stroke-width: 3;
+  filter: brightness(1.2);
+}
+
+.graph-node.person.selected rect {
+  stroke: #f39c12;
+  stroke-width: 4;
+}
+
+.graph-node.person.linking rect {
+  stroke: #2ecc71;
+  stroke-width: 4;
+  animation: pulse 1s infinite;
 }
 
 .graph-controls {
@@ -3595,6 +3905,61 @@ body {
 
 .settings-content {
   padding: var(--sidebar-header-padding);
+}
+
+.preference-item {
+  margin: 8px 0;
+  padding: 8px;
+  background: #1a1f2e;
+  border-radius: 6px;
+}
+
+.light-theme .preference-item {
+  background: #f5f5f5;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.preference-text {
+  user-select: none;
+  color: #e0e0e0;
+  line-height: 1.4;
+}
+
+.light-theme .preference-text {
+  color: #333;
+}
+
+/* Manage Persons Button */
+.manage-persons-btn {
+  width: 100%;
+  padding: 8px;
+  background: #16213e;
+  border: 1px solid #333;
+  color: #888;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  margin: 8px 0;
+}
+
+.manage-persons-btn:hover {
+  border-color: #0f4c75;
+  color: #fff;
+  background: #1f2b4a;
 }
 
 .settings-btn {
@@ -3848,6 +4213,15 @@ body {
 
 .light-theme .add-todo input:focus {
   border-color: var(--accent-color);
+}
+
+.light-theme .add-todo button {
+  background: var(--accent-color);
+  color: white;
+}
+
+.light-theme .add-todo button:hover {
+  background: #0d3f5f;
 }
 
 .light-theme .todo-item {
@@ -4177,6 +4551,37 @@ body {
   background: var(--bg-tertiary);
 }
 
+.light-theme .add-person-btn {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .add-person-btn:hover {
+  border-color: #8e44ad;
+  color: #8e44ad;
+}
+
+.light-theme .person-picker-popup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.light-theme .person-option {
+  color: var(--text-primary);
+}
+
+.light-theme .person-option:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .person-option .person-email {
+  color: var(--text-muted);
+}
+
+.light-theme .person-picker-empty {
+  color: var(--text-muted);
+}
+
 .light-theme .tabs button {
   background: var(--bg-tertiary);
   color: var(--text-muted);
@@ -4503,7 +4908,8 @@ body {
 }
 
 .light-theme .graph-node .node-title {
-  fill: #fff;
+  fill: #333;
+  stroke: #fff;
 }
 
 .light-theme .empty-state {
