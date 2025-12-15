@@ -473,12 +473,13 @@ export class Database {
     const recurrenceType = todo.recurrence_type && todo.recurrence_type.trim() !== '' ? todo.recurrence_type : null
     const recurrenceInterval = todo.recurrence_interval || 1
     const recurrenceEndDate = todo.recurrence_end_date && todo.recurrence_end_date.trim() !== '' ? todo.recurrence_end_date : null
+    const notesSensitive = todo.notes_sensitive ? 1 : 0
 
     this.db.prepare(`
       UPDATE todos
-      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, todo.id)
+    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, todo.id)
 
     return this.getTodo(todo.id)
   }

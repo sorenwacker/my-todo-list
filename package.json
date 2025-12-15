@@ -39,12 +39,14 @@
     },
     "files": [
       "out/**/*",
-      "node_modules/better-sqlite3/**/*"
+      "node_modules/better-sqlite3/**/*",
+      "resources/**/*"
     ],
     "asarUnpack": [
       "node_modules/better-sqlite3/**/*"
     ],
     "mac": {
+      "icon": "resources/icon-512.png",
       "target": [
         "dmg",
         "zip"
@@ -52,9 +54,17 @@
       "category": "public.app-category.productivity"
     },
     "win": {
+      "icon": "resources/icon-256.png",
       "target": [
         "nsis",
         "portable"
+      ]
+    },
+    "linux": {
+      "icon": "resources",
+      "target": [
+        "AppImage",
+        "deb"
       ]
     },
     "nsis": {

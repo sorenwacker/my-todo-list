@@ -341,6 +341,10 @@
             <input type="checkbox" v-model="hideCompleted" @change="toggleHideCompleted" />
             <span>Hide completed</span>
           </label>
+          <label v-if="currentView === 'cards'" class="grid-lock-toggle">
+            <input type="checkbox" v-model="gridLock" @change="toggleGridLock" />
+            <span>Grid lock</span>
+          </label>
           <button @click="toggleTheme" class="theme-toggle-btn" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
             <span v-if="theme === 'dark'">☀️</span>
             <span v-else>🌙</span>
@@ -384,6 +388,7 @@
                   :class="{ completed: element.completed, selected: selectedTodo?.id === element.id, 'keyboard-focused': focusedTodo?.id === element.id }"
                   :style="getCardStyle(element.id, element.project_color)"
                   @click="handleCardClick($event, element.id)"
+                  @mousedown="onCardMouseDown($event, element.id)"
                   @mouseup="onCardResize($event, element.id)"
                 >
                   <div class="card-header">
@@ -445,6 +450,7 @@
                 :class="{ completed: element.completed, selected: selectedTodo?.id === element.id, 'keyboard-focused': focusedTodo?.id === element.id }"
                 :style="getCardStyle(element.id, element.project_color)"
                 @click="handleCardClick($event, element.id)"
+                @mousedown="onCardMouseDown($event, element.id)"
                 @mouseup="onCardResize($event, element.id)"
               >
                 <div class="card-header">
@@ -1600,6 +1606,10 @@ export default {
       groupByProject: localStorage.getItem('group-by-project') === 'true',
       cardSize: parseInt(localStorage.getItem('card-size')) || 280,
       cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
+      justResizedCard: false,
+      cardMouseDownHeight: null,
+      gridLock: localStorage.getItem('grid-lock') === 'true',
+      gridSize: 100,
       filterProjectId: null,
       filterCategoryId: null,
       importanceFilterOp: 'none',
@@ -2087,6 +2097,10 @@ export default {
       if (this.selectedTodo) {
         this.loadSelectedTodo(this.selectedTodo.id)
       }
+      // Reapply masonry layout when todos are refreshed (e.g., after editing notes)
+      if (this.currentView === 'cards') {
+        this.applyMasonryLayout()
+      }
     })
 
     // Close sidebar detail when opened in detached window
@@ -2143,6 +2157,9 @@ export default {
     toggleHideCompleted() {
       localStorage.setItem('hide-completed', this.hideCompleted.toString())
     },
+    toggleGridLock() {
+      localStorage.setItem('grid-lock', this.gridLock.toString())
+    },
     async loadProjects() {
       this.projects = await window.api.getProjects()
     },
@@ -2154,6 +2171,11 @@ export default {
     },
     async loadAllTodos() {
       this.allTodos = await window.api.getTodos(null)
+      // Debug: check if notes_sensitive is being loaded
+      const sensitiveTodos = this.allTodos.filter(t => t.notes_sensitive)
+      if (sensitiveTodos.length > 0) {
+        console.log('Found', sensitiveTodos.length, 'sensitive todos:', sensitiveTodos.map(t => ({ id: t.id, title: t.title, notes_sensitive: t.notes_sensitive })))
+      }
       this.trashCount = await window.api.getTrashCount()
     },
     async loadTodos() {
@@ -2370,6 +2392,12 @@ export default {
       }
     },
     handleCardClick(event, id) {
+      // Don't open detail if we just resized the card
+      if (this.justResizedCard) {
+        this.justResizedCard = false
+        return
+      }
+
       // Check if the click was on a link
       const link = event.target.closest('a')
       if (link && link.href) {
@@ -2906,19 +2934,85 @@ export default {
       // Otherwise let the card size naturally based on content (no min-height)
       return style
     },
+    applyMasonryLayout() {
+      // Apply masonry layout to all card grids
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const grids = document.querySelectorAll('.cards-grid')
+          grids.forEach(grid => {
+            const cards = grid.querySelectorAll('.todo-card')
+
+            cards.forEach((card) => {
+              const height = card.getBoundingClientRect().height
+              const rowSpan = Math.ceil(height / 17) + 1
+              card.style.gridRowEnd = `span ${rowSpan}`
+            })
+          })
+
+          // Apply again after a short delay to catch any late-rendering content
+          setTimeout(() => {
+            const grids = document.querySelectorAll('.cards-grid')
+            grids.forEach(grid => {
+              const cards = grid.querySelectorAll('.todo-card')
+
+              cards.forEach((card) => {
+                const height = card.getBoundingClientRect().height
+                const rowSpan = Math.ceil(height / 17) + 1
+                card.style.gridRowEnd = `span ${rowSpan}`
+              })
+            })
+          }, 200)
+        }, 150)
+      })
+    },
+    onCardMouseDown(event, todoId) {
+      // Store the initial height when mouse goes down
+      const card = event.currentTarget
+      if (card) {
+        this.cardMouseDownHeight = card.offsetHeight
+      }
+    },
     onCardResize(event, todoId) {
       const card = event.currentTarget
       if (!card) return
 
+      const currentHeight = card.offsetHeight
+
+      // Check if size changed compared to mousedown height
+      if (this.cardMouseDownHeight !== null && Math.abs(currentHeight - this.cardMouseDownHeight) > 5) {
+        // Size changed - this was a resize, set flag immediately before click fires
+        this.justResizedCard = true
+        setTimeout(() => {
+          this.justResizedCard = false
+        }, 300)
+      }
+
       // Use requestAnimationFrame to ensure browser has updated the height after resize
       requestAnimationFrame(() => {
-        const height = card.offsetHeight
-        // Only save if height differs from default min-height
+        let height = card.offsetHeight
+
+        // Snap to grid if grid lock is enabled
+        if (this.gridLock) {
+          height = Math.round(height / this.gridSize) * this.gridSize
+        }
+
         const defaultMinHeight = Math.round(this.cardSize * 0.6)
+
+        // Only save if height differs from default min-height
         if (height > defaultMinHeight + 10) {
           this.cardSizes[todoId] = { height }
           this.saveCardSizes()
+          // Reapply masonry layout after resize
+          this.applyMasonryLayout()
+        } else {
+          // Card was made smaller than threshold, remove custom size
+          delete this.cardSizes[todoId]
+          this.saveCardSizes()
+          this.applyMasonryLayout()
         }
+
+        // Reset mousedown height
+        this.cardMouseDownHeight = null
       })
     },
     saveCardSizes() {
@@ -3667,8 +3761,20 @@ export default {
         })
       } else if (oldVal === 'graph') {
         this.stopForceLayout()
+      } else if (val === 'cards') {
+        this.applyMasonryLayout()
       }
       localStorage.setItem('current-view', val)
+    },
+    sortedTodos() {
+      if (this.currentView === 'cards') {
+        this.applyMasonryLayout()
+      }
+    },
+    groupedTodos() {
+      if (this.currentView === 'cards') {
+        this.applyMasonryLayout()
+      }
     },
     sidebarVisible(val) {
       localStorage.setItem('sidebar-visible', val)

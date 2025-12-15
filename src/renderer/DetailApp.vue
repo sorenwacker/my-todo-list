@@ -491,6 +491,14 @@ export default {
     },
     async loadTodo(id) {
       this.todo = await window.api.getTodo(id)
+      // Ensure notes_sensitive is properly initialized as a boolean
+      if (this.todo.notes_sensitive === null || this.todo.notes_sensitive === undefined) {
+        this.todo.notes_sensitive = false
+      } else {
+        // Convert to boolean (1 or true -> true, 0 or false -> false)
+        this.todo.notes_sensitive = !!this.todo.notes_sensitive
+      }
+      console.log('Loaded todo:', this.todo.title, 'notes_sensitive:', this.todo.notes_sensitive, typeof this.todo.notes_sensitive)
       this.linkedTodos = await window.api.getLinkedTodos(id)
       this.subtasks = await window.api.getSubtasks(id)
       this.assignedPersons = await window.api.getTodoPersons(id)
@@ -560,10 +568,12 @@ export default {
 
       this.saveTimeout = setTimeout(async () => {
         console.log('Auto-saving todo:', this.todo.title)
+        console.log('notes_sensitive before conversion:', this.todo.notes_sensitive, typeof this.todo.notes_sensitive)
         // Create a plain object copy to avoid Vue reactive issues
         const todoData = JSON.parse(JSON.stringify(this.todo))
         // Ensure notes_sensitive is a number (0 or 1) for SQLite
         todoData.notes_sensitive = todoData.notes_sensitive ? 1 : 0
+        console.log('notes_sensitive after conversion:', todoData.notes_sensitive)
         await window.api.updateTodo(todoData)
         window.api.notifyTodoUpdated()
         console.log('Auto-save complete')

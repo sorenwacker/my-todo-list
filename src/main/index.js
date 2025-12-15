@@ -13,9 +13,14 @@ let database = null
 function createMainWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
 
+  const iconPath = process.env.NODE_ENV === 'development'
+    ? join(app.getAppPath(), 'resources/icon-512.png')
+    : join(process.resourcesPath, 'resources/icon-512.png')
+
   mainWindow = new BrowserWindow({
     width,
     height,
+    icon: iconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
