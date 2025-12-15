@@ -1,8 +1,8 @@
-import { contextBridge, ipcRenderer, shell } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('api', {
   // External links
-  openExternal: (url) => shell.openExternal(url),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   // Project operations
   getProjects: () => ipcRenderer.invoke('get-projects'),
@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('api', {
   getTodo: (id) => ipcRenderer.invoke('get-todo', id),
   createTodo: (title, projectId) => ipcRenderer.invoke('create-todo', title, projectId),
   updateTodo: (todo) => ipcRenderer.invoke('update-todo', todo),
+  updateTodoSync: (todo) => ipcRenderer.sendSync('update-todo-sync', todo),
   deleteTodo: (id) => ipcRenderer.invoke('delete-todo', id),
   restoreTodo: (id) => ipcRenderer.invoke('restore-todo', id),
   permanentlyDeleteTodo: (id) => ipcRenderer.invoke('permanently-delete-todo', id),
@@ -87,6 +88,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Window operations
   openDetail: (todoId) => ipcRenderer.invoke('open-detail', todoId),
+  closeDetailWindow: (todoId) => ipcRenderer.invoke('close-detail-window', todoId),
   openSettings: () => ipcRenderer.invoke('open-settings'),
   openStakeholderRegister: (projectId) => ipcRenderer.invoke('open-stakeholder-register', projectId),
 
@@ -98,6 +100,14 @@ contextBridge.exposeInMainWorld('api', {
   onLoadTodo: (callback) => {
     ipcRenderer.on('load-todo', (_, id) => callback(id))
     return () => ipcRenderer.removeListener('load-todo', callback)
+  },
+  onSaveBeforeClose: (callback) => {
+    ipcRenderer.on('save-before-close', callback)
+    return () => ipcRenderer.removeListener('save-before-close', callback)
+  },
+  onDetailOpenedInWindow: (callback) => {
+    ipcRenderer.on('detail-opened-in-window', (_, todoId) => callback(todoId))
+    return () => ipcRenderer.removeListener('detail-opened-in-window', callback)
   },
   notifyTodoUpdated: () => ipcRenderer.send('todo-updated')
 })

@@ -1,5 +1,5 @@
 <template>
-  <div class="app" :class="{ 'light-theme': theme === 'light', 'sidebar-collapsed': !sidebarVisible, 'vertical-layout': isVerticalLayout }">
+  <div class="app" :class="{ 'light-theme': theme === 'light', 'sidebar-collapsed': !sidebarVisible, 'vertical-layout': isVerticalLayout }" :style="{ borderLeftColor: currentProjectColor }">
     <button class="sidebar-toggle" @click="sidebarVisible = !sidebarVisible" :title="sidebarVisible ? 'Hide sidebar' : 'Show sidebar'">
       <span v-if="sidebarVisible">&lt;</span>
       <span v-else>&gt;</span>
@@ -1384,10 +1384,14 @@
             <div class="meta-item persons-item">
               <label>Persons</label>
               <div class="inline-persons">
-                <span v-for="person in assignedPersons" :key="person.id" class="person-chip" :style="{ background: person.color + '33', borderColor: person.color }">
-                  <span class="person-color-dot" :style="{ background: person.color }"></span>
-                  {{ person.name }}<button @click.stop="unassignPerson(person)" class="chip-x">x</button>
-                </span>
+                <span
+                  v-for="person in assignedPersons"
+                  :key="person.id"
+                  class="person-avatar"
+                  :style="{ background: person.color }"
+                  :title="person.name"
+                  @click="unassignPerson(person)"
+                >{{ getInitials(person.name) }}</span>
                 <button @click="showPersonPicker = !showPersonPicker" class="add-person-btn">+</button>
               </div>
             </div>
@@ -1427,7 +1431,7 @@
             v-model="searchQuery"
             @input="onSearchInput"
             @keydown.esc="closeCommandPalette"
-            placeholder="Search todos... (Esc to close)"
+            placeholder="Search todos and persons... (Esc to close)"
             class="command-palette-input"
             autofocus
           />
@@ -1435,23 +1439,31 @@
         <div class="command-palette-results" v-if="searchResults.length > 0">
           <div
             v-for="(result, index) in searchResults"
-            :key="result.id"
+            :key="result.type + '-' + result.id"
             class="command-palette-result"
-            :class="{ 'is-completed': result.completed }"
+            :class="{ 'is-completed': result.completed, 'is-person': result.type === 'person' }"
             @click="selectSearchResult(result)"
           >
-            <span class="result-title">{{ result.title }}</span>
-            <span v-if="result.project_name" class="result-project" :style="{ color: result.project_color }">
-              {{ result.project_name }}
-            </span>
-            <span v-else class="result-project inbox">Inbox</span>
+            <template v-if="result.type === 'person'">
+              <span class="person-color-dot" :style="{ background: result.color }">{{ getInitials(result.name) }}</span>
+              <span class="result-title">{{ result.name }}</span>
+              <span v-if="result.email" class="result-project">{{ result.email }}</span>
+              <span v-else-if="result.company" class="result-project">{{ result.company }}</span>
+            </template>
+            <template v-else>
+              <span class="result-title">{{ result.title }}</span>
+              <span v-if="result.project_name" class="result-project" :style="{ color: result.project_color }">
+                {{ result.project_name }}
+              </span>
+              <span v-else class="result-project inbox">Inbox</span>
+            </template>
           </div>
         </div>
         <div class="command-palette-empty" v-else-if="searchQuery && searchQuery.length > 0">
           <p>No results found</p>
         </div>
         <div class="command-palette-hint" v-else>
-          <p>Type to search across all todos</p>
+          <p>Type to search across all todos and persons</p>
           <div class="keyboard-hints">
             <span><kbd>j</kbd>/<kbd>k</kbd> Navigate</span>
             <span><kbd>x</kbd> Toggle complete</span>
@@ -1661,6 +1673,13 @@ export default {
     }
   },
   computed: {
+    currentProjectColor() {
+      if (this.currentFilter && this.currentFilter !== 'inbox' && this.currentFilter !== 'trash') {
+        const project = this.projects.find(p => p.id === this.currentFilter)
+        return project ? project.color : '#333'
+      }
+      return '#333'
+    },
     isProjectSelected() {
       return this.currentFilter !== null && this.currentFilter !== 'inbox'
     },
@@ -1750,7 +1769,7 @@ export default {
       return style
     },
     sortedTodos() {
-      let sorted = [...this.todos]
+      let sorted = [...this.filteredTodos]
       if (this.sortBy === 'end_date') {
         sorted.sort((a, b) => {
           if (!a.end_date && !b.end_date) return 0
@@ -2023,7 +2042,7 @@ export default {
       } else if (this.ganttGroupBy === 'importance') {
         // Group by importance (5 to 1)
         for (let i = 5; i >= 1; i--) {
-          const impTodos = todos.filter(t => (t.importance || 3) === i)
+          const impTodos = todos.filter(t => (t.importance || 0) === i)
           if (impTodos.length > 0) {
             const { todoLanes, laneCount } = assignLanes(impTodos)
             rows.push({ id: `imp-${i}`, name: `Importance ${i}`, color: this.getImportanceColor(i), todos: impTodos, todoLanes, laneCount })
@@ -2058,6 +2077,13 @@ export default {
       }
     })
 
+    // Close sidebar detail when opened in detached window
+    window.api.onDetailOpenedInWindow((todoId) => {
+      if (this.selectedTodo && this.selectedTodo.id === todoId) {
+        this.selectedTodo = null
+      }
+    })
+
     // Check layout on mount and resize
     this.checkLayout()
     window.addEventListener('resize', this.checkLayout)
@@ -2065,6 +2091,21 @@ export default {
 
     // Keyboard shortcuts
     window.addEventListener('keydown', this.handleKeyDown)
+
+    // Add native event listener for links in markdown
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest('a')
+      if (link && link.href && (link.closest('.notes-preview') || link.closest('.card-notes-preview'))) {
+        console.log('Native click on link:', link.href)
+        event.preventDefault()
+        event.stopPropagation()
+        if (window.api && window.api.openExternal) {
+          window.api.openExternal(link.href)
+        } else {
+          console.error('window.api.openExternal is not available')
+        }
+      }
+    })
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.checkLayout)
@@ -2078,6 +2119,14 @@ export default {
     },
     getIconComponent(name) {
       return categoryIcons[name] || null
+    },
+    getInitials(name) {
+      if (!name) return ''
+      const parts = name.trim().split(' ')
+      if (parts.length === 1) {
+        return parts[0].substring(0, 2)
+      }
+      return parts[0][0] + parts[parts.length - 1][0]
     },
     toggleHideCompleted() {
       localStorage.setItem('hide-completed', this.hideCompleted.toString())
@@ -2309,6 +2358,19 @@ export default {
       }
     },
     handleCardClick(event, id) {
+      // Check if the click was on a link
+      const link = event.target.closest('a')
+      if (link && link.href) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (window.api && window.api.openExternal) {
+          window.api.openExternal(link.href)
+        } else {
+          console.error('window.api.openExternal is not available')
+        }
+        return
+      }
+
       const card = event.currentTarget
       const rect = card.getBoundingClientRect()
       const clickX = event.clientX - rect.left
@@ -2340,6 +2402,9 @@ export default {
         const todoData = this.toPlainTodo(this.selectedTodo)
         await window.api.updateTodo(todoData)
       }
+
+      // Close any detached window for this todo
+      await window.api.closeDetailWindow(id)
 
       this.selectedTodo = await window.api.getTodo(id)
       this.linkedTodos = await window.api.getLinkedTodos(id)
@@ -3292,10 +3357,7 @@ export default {
             this.selectTodo(this.todos[this.focusedTodoIndex].id)
           }
           break
-        case 'd': // Delete
         case 'Delete':
-        case 'Backspace':
-          if (e.key === 'Backspace' && !e.metaKey && !e.ctrlKey) break // Only process Backspace with modifier
           e.preventDefault()
           if (this.focusedTodoIndex >= 0 && this.todos[this.focusedTodoIndex]) {
             this.deleteTodo(this.todos[this.focusedTodoIndex].id)
@@ -3346,32 +3408,48 @@ export default {
       }
 
       // Search across all todos
-      this.searchResults = this.allTodos.filter(todo => {
+      const todoResults = this.allTodos.filter(todo => {
         const titleMatch = todo.title.toLowerCase().includes(query)
         const notesMatch = todo.notes?.toLowerCase().includes(query)
         const projectMatch = todo.project_name?.toLowerCase().includes(query)
         return titleMatch || notesMatch || projectMatch
-      }).slice(0, 10) // Limit to 10 results
+      }).slice(0, 8).map(t => ({ ...t, type: 'todo' }))
+
+      // Search across all persons
+      const personResults = this.persons.filter(person => {
+        const nameMatch = person.name.toLowerCase().includes(query)
+        const emailMatch = person.email?.toLowerCase().includes(query)
+        const companyMatch = person.company?.toLowerCase().includes(query)
+        return nameMatch || emailMatch || companyMatch
+      }).slice(0, 5).map(p => ({ ...p, type: 'person' }))
+
+      this.searchResults = [...todoResults, ...personResults]
     },
-    selectSearchResult(todo) {
-      // Navigate to the todo's project and select it
-      if (todo.project_id) {
-        this.setFilter(todo.project_id)
+    selectSearchResult(result) {
+      if (result.type === 'person') {
+        // Open settings window for persons
+        this.closeCommandPalette()
+        window.api.openSettings()
       } else {
-        this.setFilter('inbox')
-      }
-      this.closeCommandPalette()
-      // Wait for todos to load then select
-      this.$nextTick(() => {
-        const index = this.todos.findIndex(t => t.id === todo.id)
-        if (index >= 0) {
-          this.focusedTodoIndex = index
-          this.selectTodo(todo.id)
+        // Navigate to the todo's project and select it
+        if (result.project_id) {
+          this.setFilter(result.project_id)
         } else {
-          // Todo might not be in filtered view, select it anyway
-          this.selectTodo(todo.id)
+          this.setFilter('inbox')
         }
-      })
+        this.closeCommandPalette()
+        // Wait for todos to load then select
+        this.$nextTick(() => {
+          const index = this.todos.findIndex(t => t.id === result.id)
+          if (index >= 0) {
+            this.focusedTodoIndex = index
+            this.selectTodo(result.id)
+          } else {
+            // Todo might not be in filtered view, select it anyway
+            this.selectTodo(result.id)
+          }
+        })
+      }
     },
     // Resize methods
     checkLayout() {
@@ -3536,9 +3614,14 @@ export default {
       }
     },
     handleMarkdownClick(event) {
-      const link = event.target.closest('a')
+      console.log('Click event:', event.target)
+      // Check if clicked element is a link or inside a link
+      const link = event.target.tagName === 'A' ? event.target : event.target.closest('a')
+      console.log('Found link:', link)
       if (link && link.href) {
+        console.log('Opening link:', link.href)
         event.preventDefault()
+        event.stopPropagation()
         window.api.openExternal(link.href)
       }
     },

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog, shell } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { Database } from './database.js'
@@ -67,6 +67,44 @@ function createDetailWindow(todoId) {
     })
   }
 
+  // Save before closing - execute save directly
+  detailWindow.on('close', async (e) => {
+    if (detailWindow && !detailWindow.isDestroyed() && !detailWindow.webContents.isDestroyed()) {
+      e.preventDefault()
+      console.log('Detail window closing, executing save...')
+      try {
+        // Execute save directly in the renderer
+        const saved = await detailWindow.webContents.executeJavaScript(`
+          (function() {
+            try {
+              if (window.api && window.api.updateTodoSync) {
+                const app = document.querySelector('#app').__vue_app__;
+                if (app) {
+                  const instance = app._instance;
+                  if (instance && instance.proxy && instance.proxy.todo) {
+                    console.log('Saving todo via executeJavaScript');
+                    // Create plain object copy to avoid Vue reactive issues
+                    const todoData = JSON.parse(JSON.stringify(instance.proxy.todo));
+                    window.api.updateTodoSync(todoData);
+                    window.api.notifyTodoUpdated();
+                    return true;
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('Error in executeJavaScript save:', e);
+            }
+            return false;
+          })();
+        `)
+        console.log('Save completed:', saved, '- closing window')
+      } catch (err) {
+        console.error('Error saving before close:', err)
+      }
+      detailWindow.destroy()
+    }
+  })
+
   detailWindow.on('closed', () => {
     detailWindow = null
     detailWindowTodoId = null
@@ -132,6 +170,9 @@ function createStakeholderWindow(projectId) {
 app.whenReady().then(() => {
   database = new Database()
 
+  // External links
+  ipcMain.handle('open-external', (_, url) => shell.openExternal(url))
+
   // Project operations
   ipcMain.handle('get-projects', () => database.getAllProjects())
   ipcMain.handle('get-project', (_, id) => database.getProject(id))
@@ -182,6 +223,12 @@ app.whenReady().then(() => {
   ipcMain.handle('get-todo', (_, id) => database.getTodo(id))
   ipcMain.handle('create-todo', (_, title, projectId) => database.createTodo(title, projectId))
   ipcMain.handle('update-todo', (_, todo) => database.updateTodo(todo))
+  ipcMain.on('update-todo-sync', (event, todo) => {
+    console.log('Sync save requested for todo:', todo.id, todo.title)
+    database.updateTodo(todo)
+    console.log('Sync save completed')
+    event.returnValue = true
+  })
   ipcMain.handle('delete-todo', (_, id) => database.deleteTodo(id))
   ipcMain.handle('restore-todo', (_, id) => database.restoreTodo(id))
   ipcMain.handle('permanently-delete-todo', (_, id) => database.permanentlyDeleteTodo(id))
@@ -257,6 +304,17 @@ app.whenReady().then(() => {
   // Window management
   ipcMain.handle('open-detail', (_, todoId) => {
     createDetailWindow(todoId)
+    // Notify main window that detail was opened in a window
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('detail-opened-in-window', todoId)
+    }
+  })
+
+  ipcMain.handle('close-detail-window', (_, todoId) => {
+    // Close the detail window if it's open for this todo
+    if (detailWindow && detailWindowTodoId === todoId && !detailWindow.isDestroyed()) {
+      detailWindow.close()
+    }
   })
 
   ipcMain.handle('open-settings', () => {

@@ -1,5 +1,5 @@
 <template>
-  <div class="detail-app" :class="{ 'light-theme': theme === 'light' }" v-if="todo">
+  <div class="detail-app" :class="{ 'light-theme': theme === 'light' }" :style="{ borderLeftColor: todo.project_color || '#333' }" v-if="todo">
     <div class="title-row">
       <input
         type="checkbox"
@@ -10,19 +10,9 @@
       <input
         v-model="todo.title"
         class="title-input"
-        @change="save"
+        @input="save"
         placeholder="Todo title"
       />
-    </div>
-
-    <div class="meta-row project-row">
-      <label>Project:</label>
-      <select v-model="todo.project_id" @change="save">
-        <option :value="null">Inbox (No Project)</option>
-        <option v-for="project in projects" :key="project.id" :value="project.id">
-          {{ project.name }}
-        </option>
-      </select>
     </div>
 
     <div class="notes-section">
@@ -96,76 +86,68 @@
       </div>
     </div>
 
-    <div class="links-section">
-      <div class="section-header">
-        <h3>Linked Items</h3>
-        <button @click="showLinkSearch = !showLinkSearch" class="link-btn">+ Link</button>
+    <div class="meta-section compact collapsible">
+      <div class="section-header clickable" @click="metaExpanded = !metaExpanded">
+        <h3>
+          <span class="collapse-icon">{{ metaExpanded ? '▼' : '▶' }}</span>
+          Metadata
+        </h3>
       </div>
 
-      <div v-if="showLinkSearch" class="link-search">
-        <input
-          v-model="linkQuery"
-          @input="searchForLinks"
-          placeholder="Search todos to link..."
-          ref="linkInput"
-        />
-        <div v-if="linkResults.length" class="link-results">
-          <div
-            v-for="result in linkResults"
-            :key="result.id"
-            class="link-result"
-            @click="linkTo(result)"
-          >
-            <span>{{ result.title }}</span>
-            <span v-if="result.project_name" class="result-project">{{ result.project_name }}</span>
+      <div v-if="metaExpanded">
+        <!-- Linked Items -->
+        <div class="links-subsection">
+          <div class="subsection-header">
+            <h4>Linked Items <span v-if="linkedTodos.length" class="count-badge">{{ linkedTodos.length }}</span></h4>
+            <button @click.stop="showLinkSearch = !showLinkSearch" class="link-btn">+ Link</button>
+          </div>
+
+          <div v-if="showLinkSearch" class="link-search">
+            <input
+              v-model="linkQuery"
+              @input="searchForLinks"
+              placeholder="Search todos to link..."
+              ref="linkInput"
+            />
+            <div v-if="linkResults.length" class="link-results">
+              <div
+                v-for="result in linkResults"
+                :key="result.id"
+                class="link-result"
+                @click="linkTo(result)"
+              >
+                <span>{{ result.title }}</span>
+                <span v-if="result.project_name" class="result-project">{{ result.project_name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="linked-items">
+            <div
+              v-for="linked in linkedTodos"
+              :key="linked.id"
+              class="linked-item"
+            >
+              <span class="linked-title" @click="openLinked(linked.id)">{{ linked.title }}</span>
+              <span v-if="linked.project_name" class="linked-project">
+                {{ linked.project_name }}
+              </span>
+              <button @click="unlinkFrom(linked)" class="unlink-btn">x</button>
+            </div>
+            <p v-if="!linkedTodos.length" class="no-links">No linked items</p>
           </div>
         </div>
-      </div>
 
-      <div class="linked-items">
-        <div
-          v-for="linked in linkedTodos"
-          :key="linked.id"
-          class="linked-item"
-        >
-          <span class="linked-title" @click="openLinked(linked.id)">{{ linked.title }}</span>
-          <span v-if="linked.project_name" class="linked-project">
-            {{ linked.project_name }}
-          </span>
-          <button @click="unlinkFrom(linked)" class="unlink-btn">x</button>
+
+        <!-- Properties Grid -->
+        <div class="meta-grid">
+        <div class="meta-item">
+          <label>Project</label>
+          <select v-model="todo.project_id" @change="save">
+            <option :value="null">Inbox</option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+          </select>
         </div>
-        <p v-if="!linkedTodos.length" class="no-links">No linked items</p>
-      </div>
-    </div>
-
-    <div class="persons-section">
-      <div class="section-header">
-        <h3>Assigned Persons</h3>
-        <button @click="togglePersonPicker" class="link-btn">{{ showPersonPicker ? 'Hide' : '+ Assign' }}</button>
-      </div>
-
-      <div v-if="showPersonPicker" class="person-picker">
-        <div v-for="person in persons" :key="person.id" class="person-option"
-             :class="{ assigned: assignedPersons.some(p => p.id === person.id) }"
-             @click="assignPerson(person)">
-          <span class="person-color-dot" :style="{ background: person.color }"></span>
-          <span class="person-name">{{ person.name }}</span>
-          <span v-if="person.email" class="person-email">{{ person.email }}</span>
-        </div>
-      </div>
-
-      <div class="assigned-persons">
-        <div v-for="person in assignedPersons" :key="person.id" class="assigned-person">
-          <span class="person-color-dot" :style="{ background: person.color }"></span>
-          <span class="person-name">{{ person.name }}</span>
-          <button @click="unassignPerson(person)" class="unlink-btn">x</button>
-        </div>
-        <p v-if="!assignedPersons.length" class="no-links">No persons assigned</p>
-      </div>
-    </div>
-
-    <div class="meta-section compact">
-      <div class="meta-grid">
         <div class="meta-item">
           <label>Category</label>
           <select v-model="todo.category_id" @change="save">
@@ -227,6 +209,42 @@
               <span>{{ recurrenceUnit }}</span>
             </div>
           </div>
+        </div>
+        <div class="meta-item persons-item">
+          <label>Persons</label>
+          <div class="persons-inline">
+            <div class="assigned-persons">
+              <span
+                v-for="person in assignedPersons"
+                :key="person.id"
+                class="person-avatar"
+                :style="{ background: person.color }"
+                :title="person.name"
+                @click="unassignPerson(person)"
+              >{{ getInitials(person.name) }}</span>
+              <button @click.stop="showPersonSearch = !showPersonSearch" class="add-person-inline">{{ assignedPersons.length ? '+' : '+ Assign' }}</button>
+            </div>
+            <div v-if="showPersonSearch" class="person-search-inline">
+              <input
+                v-model="personQuery"
+                @input="searchPersons"
+                placeholder="Search..."
+                ref="personInput"
+              />
+              <div v-if="personResults.length" class="search-results-inline">
+                <div
+                  v-for="person in personResults"
+                  :key="person.id"
+                  class="search-result-inline"
+                  @click="assignPerson(person)"
+                >
+                  <span class="person-color-dot" :style="{ background: person.color }">{{ getInitials(person.name) }}</span>
+                  <span>{{ person.name }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
     </div>
@@ -302,9 +320,12 @@ export default {
       linkQuery: '',
       linkResults: [],
       assignedPersons: [],
-      showPersonPicker: false,
+      showPersonSearch: false,
+      personQuery: '',
+      personResults: [],
       persons: [],
-      theme: localStorage.getItem('todo-theme') || 'dark'
+      theme: localStorage.getItem('todo-theme') || 'dark',
+      metaExpanded: false
     }
   },
   computed: {
@@ -360,6 +381,50 @@ export default {
       this.loadTodo(id)
     })
 
+    // Add native event listener for links in markdown
+    document.addEventListener('click', (event) => {
+      console.log('Document click detected, target:', event.target.tagName, event.target.className)
+      const link = event.target.closest('a')
+      console.log('Closest link:', link)
+      if (link) {
+        console.log('Link href:', link.href)
+        console.log('Link in notes-preview?', link.closest('.notes-preview'))
+        if (link.href && link.closest('.notes-preview')) {
+          console.log('Opening external link:', link.href)
+          event.preventDefault()
+          event.stopPropagation()
+          if (window.api && window.api.openExternal) {
+            window.api.openExternal(link.href)
+          } else {
+            console.error('window.api.openExternal is not available')
+          }
+        }
+      }
+    }, true)
+
+    // Save when main process requests it (on window close)
+    console.log('Registering save-before-close listener')
+    window.api.onSaveBeforeClose(() => {
+      console.log('=== SAVE BEFORE CLOSE TRIGGERED ===')
+      if (this.saveTimeout) {
+        clearTimeout(this.saveTimeout)
+        this.saveTimeout = null
+      }
+      if (this.todo) {
+        console.log('Saving todo synchronously:', this.todo.title)
+        try {
+          window.api.updateTodoSync(this.todo)
+          window.api.notifyTodoUpdated()
+          console.log('Todo saved successfully')
+        } catch (e) {
+          console.error('Error saving todo:', e)
+        }
+      } else {
+        console.log('No todo to save')
+      }
+    })
+    console.log('Save-before-close listener registered')
+
     // Listen for theme changes from main window
     window.addEventListener('storage', (e) => {
       if (e.key === 'todo-theme') {
@@ -376,12 +441,17 @@ export default {
     })
   },
   beforeUnmount() {
+    console.log('beforeUnmount called, saving todo')
     // Flush any pending saves before component is destroyed
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout)
-      if (this.todo) {
-        window.api.updateTodo(this.todo)
-      }
+      this.saveTimeout = null
+    }
+    // Save synchronously - Vue won't wait for async beforeUnmount
+    if (this.todo) {
+      window.api.updateTodo(this.todo)
+      window.api.notifyTodoUpdated()
+      console.log('beforeUnmount save triggered')
     }
   },
   methods: {
@@ -394,6 +464,14 @@ export default {
     async loadStatuses() {
       this.statuses = await window.api.getStatuses()
     },
+    getInitials(name) {
+      if (!name) return ''
+      const parts = name.trim().split(' ')
+      if (parts.length === 1) {
+        return parts[0].substring(0, 2)
+      }
+      return parts[0][0] + parts[parts.length - 1][0]
+    },
     async loadTodo(id) {
       this.todo = await window.api.getTodo(id)
       this.linkedTodos = await window.api.getLinkedTodos(id)
@@ -402,7 +480,12 @@ export default {
       this.showLinkSearch = false
       this.linkQuery = ''
       this.linkResults = []
-      this.showPersonPicker = false
+      this.showPersonSearch = false
+      this.personQuery = ''
+
+      // Set active tab based on notes presence
+      this.activeTab = this.todo.notes && this.todo.notes.trim() ? 'preview' : 'edit'
+      this.personResults = []
     },
     toggleComplete() {
       this.todo.completed = !this.todo.completed
@@ -452,13 +535,17 @@ export default {
       }
 
       this.saveTimeout = setTimeout(async () => {
-        await window.api.updateTodo(this.todo)
+        console.log('Auto-saving todo:', this.todo.title)
+        // Create a plain object copy to avoid Vue reactive issues
+        const todoData = JSON.parse(JSON.stringify(this.todo))
+        await window.api.updateTodo(todoData)
         window.api.notifyTodoUpdated()
+        console.log('Auto-save complete')
         this.showSaved = true
         setTimeout(() => {
           this.showSaved = false
         }, 1500)
-      }, 300)
+      }, 100)
     },
     handleNotesKeydown(event) {
       // Handle Tab key for indentation
@@ -512,10 +599,28 @@ export default {
     openLinked(id) {
       this.loadTodo(id)
     },
+    searchPersons() {
+      if (!this.personQuery.trim()) {
+        this.personResults = []
+        return
+      }
+      const query = this.personQuery.toLowerCase()
+      const assignedIds = this.assignedPersons.map(p => p.id)
+      this.personResults = this.persons.filter(p =>
+        !assignedIds.includes(p.id) &&
+        (p.name.toLowerCase().includes(query) ||
+         (p.email && p.email.toLowerCase().includes(query)))
+      )
+    },
     handleMarkdownClick(event) {
-      const link = event.target.closest('a')
+      console.log('Click event:', event.target)
+      // Check if clicked element is a link or inside a link
+      const link = event.target.tagName === 'A' ? event.target : event.target.closest('a')
+      console.log('Found link:', link)
       if (link && link.href) {
+        console.log('Opening link:', link.href)
         event.preventDefault()
+        event.stopPropagation()
         window.api.openExternal(link.href)
       }
     },
@@ -541,15 +646,15 @@ export default {
     async assignPerson(person) {
       await window.api.linkTodoPerson(this.todo.id, person.id)
       await this.loadAssignedPersons()
+      this.personQuery = ''
+      this.personResults = []
+      this.showPersonSearch = false
       window.api.notifyTodoUpdated()
     },
     async unassignPerson(person) {
       await window.api.unlinkTodoPerson(this.todo.id, person.id)
       await this.loadAssignedPersons()
       window.api.notifyTodoUpdated()
-    },
-    togglePersonPicker() {
-      this.showPersonPicker = !this.showPersonPicker
     }
   },
   watch: {
