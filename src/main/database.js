@@ -130,6 +130,9 @@ export class Database {
       this.db.exec('ALTER TABLE todos ADD COLUMN start_date TEXT')
     } catch (e) { /* column exists */ }
     try {
+      this.db.exec('ALTER TABLE persons ADD COLUMN github_name TEXT DEFAULT \'\'')
+    } catch (e) { /* column exists */ }
+    try {
       this.db.exec('ALTER TABLE todos ADD COLUMN status_id INTEGER')
     } catch (e) { /* column exists */ }
 
@@ -166,6 +169,11 @@ export class Database {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_end_date TEXT')
     } catch (e) { /* column exists */ }
 
+    // Migration: fix importance default - update any default 3 values to NULL
+    try {
+      this.db.exec('UPDATE todos SET importance = NULL WHERE importance = 3 AND title NOT LIKE \'%importance%\'')
+    } catch (e) { /* ignore errors */ }
+
     // Migration: add stakeholder analysis fields to project_persons
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN influence_level INTEGER DEFAULT 3')
@@ -181,6 +189,11 @@ export class Database {
     } catch (e) { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN notes TEXT DEFAULT \'\'')
+    } catch (e) { /* column exists */ }
+
+    // Migration: add notes_sensitive flag for todos
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN notes_sensitive INTEGER DEFAULT 0')
     } catch (e) { /* column exists */ }
   }
 
@@ -446,7 +459,7 @@ export class Database {
     const sortOrder = (maxOrder.max || 0) + 1
 
     const result = this.db.prepare(`
-      INSERT INTO todos (title, sort_order, project_id) VALUES (?, ?, ?)
+      INSERT INTO todos (title, sort_order, project_id, importance) VALUES (?, ?, ?, NULL)
     `).run(title, sortOrder, projectId)
 
     return this.getTodo(result.lastInsertRowid)
@@ -457,7 +470,7 @@ export class Database {
     const endDate = todo.end_date && todo.end_date.trim() !== '' ? todo.end_date : null
     const startDate = todo.start_date && todo.start_date.trim() !== '' ? todo.start_date : null
     const importance = todo.importance != null ? todo.importance : null
-    const recurrenceType = todo.recurrence_type || null
+    const recurrenceType = todo.recurrence_type && todo.recurrence_type.trim() !== '' ? todo.recurrence_type : null
     const recurrenceInterval = todo.recurrence_interval || 1
     const recurrenceEndDate = todo.recurrence_end_date && todo.recurrence_end_date.trim() !== '' ? todo.recurrence_end_date : null
 

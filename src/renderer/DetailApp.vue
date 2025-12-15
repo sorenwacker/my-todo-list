@@ -29,6 +29,14 @@
           :class="{ active: activeTab === 'split' }"
           @click="activeTab = 'split'"
         >Split</button>
+        <label class="sensitive-checkbox">
+          <input
+            type="checkbox"
+            v-model="todo.notes_sensitive"
+            @change="save"
+          />
+          <span>Sensitive</span>
+        </label>
       </div>
 
       <textarea
@@ -43,9 +51,14 @@
       <div
         v-else-if="activeTab === 'preview'"
         class="notes-preview markdown-body"
-        v-html="renderedNotes"
-        @click="handleMarkdownClick"
-      ></div>
+      >
+        <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
+          <div class="sensitive-icon">🔒</div>
+          <p>Sensitive content hidden</p>
+          <button @click="revealNotes" class="reveal-btn">Reveal</button>
+        </div>
+        <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+      </div>
 
       <div v-else class="notes-split">
         <textarea
@@ -55,11 +68,14 @@
           placeholder="Add notes (Markdown supported)..."
           class="notes-editor split-editor"
         ></textarea>
-        <div
-          class="notes-preview markdown-body split-preview"
-          v-html="renderedNotes"
-          @click="handleMarkdownClick"
-        ></div>
+        <div class="notes-preview markdown-body split-preview">
+          <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
+            <div class="sensitive-icon">🔒</div>
+            <p>Sensitive content hidden</p>
+            <button @click="revealNotes" class="reveal-btn">Reveal</button>
+          </div>
+          <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+        </div>
       </div>
     </div>
 
@@ -325,7 +341,8 @@ export default {
       personResults: [],
       persons: [],
       theme: localStorage.getItem('todo-theme') || 'dark',
-      metaExpanded: false
+      metaExpanded: false,
+      notesRevealed: false
     }
   },
   computed: {
@@ -482,10 +499,17 @@ export default {
       this.linkResults = []
       this.showPersonSearch = false
       this.personQuery = ''
+      this.notesRevealed = false
 
       // Set active tab based on notes presence
       this.activeTab = this.todo.notes && this.todo.notes.trim() ? 'preview' : 'edit'
       this.personResults = []
+    },
+    revealNotes() {
+      // Show confirmation dialog
+      if (confirm('Are you sure you want to reveal the sensitive content?')) {
+        this.notesRevealed = true
+      }
     },
     toggleComplete() {
       this.todo.completed = !this.todo.completed
@@ -538,6 +562,8 @@ export default {
         console.log('Auto-saving todo:', this.todo.title)
         // Create a plain object copy to avoid Vue reactive issues
         const todoData = JSON.parse(JSON.stringify(this.todo))
+        // Ensure notes_sensitive is a number (0 or 1) for SQLite
+        todoData.notes_sensitive = todoData.notes_sensitive ? 1 : 0
         await window.api.updateTodo(todoData)
         window.api.notifyTodoUpdated()
         console.log('Auto-save complete')

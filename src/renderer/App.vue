@@ -416,7 +416,13 @@
                     </span>
                     <span v-if="element.importance && element.importance > 0" class="card-importance" :style="{ backgroundColor: getImportanceColor(element.importance) }">{{ element.importance }}</span>
                   </div>
-                  <div v-if="element.notes" class="card-notes-preview markdown-body" :key="'notes-' + element.id + '-' + (element.notes?.length || 0)" v-html="renderCardNotes(element.notes)"></div>
+                  <div v-if="element.notes" class="card-notes-preview markdown-body" :key="'notes-' + element.id + '-' + (element.notes?.length || 0)">
+                    <div v-if="element.notes_sensitive" class="sensitive-notes-card">
+                      <span class="sensitive-icon-small">🔒</span>
+                      <span class="sensitive-text">Sensitive content hidden</span>
+                    </div>
+                    <div v-else v-html="renderCardNotes(element.notes)"></div>
+                  </div>
                 </div>
               </template>
             </draggable>
@@ -478,7 +484,13 @@
                   </span>
                   <span v-if="element.importance" class="card-importance" :style="{ backgroundColor: getImportanceColor(element.importance) }">{{ element.importance }}</span>
                 </div>
-                <div v-if="element.notes" class="card-notes-preview markdown-body" :key="'notes-' + element.id + '-' + (element.notes?.length || 0)" v-html="renderCardNotes(element.notes)"></div>
+                <div v-if="element.notes" class="card-notes-preview markdown-body" :key="'notes-' + element.id + '-' + (element.notes?.length || 0)">
+                  <div v-if="element.notes_sensitive" class="sensitive-notes-card">
+                    <span class="sensitive-icon-small">🔒</span>
+                    <span class="sensitive-text">Sensitive content hidden</span>
+                  </div>
+                  <div v-else v-html="renderCardNotes(element.notes)"></div>
+                </div>
               </div>
             </template>
           </draggable>

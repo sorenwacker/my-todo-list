@@ -23,6 +23,13 @@
   --border-color: #555;
 }
 
+.light-theme {
+  /* Light mode colors */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666;
+  --text-tertiary: #888;
+  --border-color: #ddd;
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -37,8 +44,6 @@ body {
 .app {
   display: flex;
   height: 100vh;
-  border-left: 4px solid #333;
-  transition: border-left-color 0.3s;
 }
 
 /* Sidebar Toggle Button */
@@ -956,23 +961,6 @@ body {
   grid-column: span 2;
 }
 
-/* Persons Controls */
-.persons-item {
-  grid-column: span 2;
-  align-items: flex-start;
-}
-
-.persons-item .persons-inline {
-  flex: 1;
-}
-
-.persons-item .assigned-persons {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
 .recurrence-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1034,19 +1022,18 @@ body {
 .link-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
+  gap: 4px;
+  padding: 3px 6px;
   background: #1a1f2e;
   border: 1px solid #555;
-  border-radius: 10px;
-  font-size: 10px;
+  border-radius: 4px;
+  font-size: 11px;
   color: #4fc3f7;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 100px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
 }
 
 .link-chip:hover {
@@ -1129,8 +1116,31 @@ body {
   align-items: center;
 }
 
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 11px;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #e0e0e0;
+}
 
+.light-theme .person-chip {
+  color: #333;
+}
 
+.person-chip .person-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 .add-person-btn {
   padding: 3px 8px;
@@ -1159,6 +1169,63 @@ body {
   overflow-y: auto;
 }
 
+.person-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.person-option:hover {
+  background: #252a3d;
+}
+
+.person-option.assigned {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.person-option.assigned:hover {
+  background: transparent;
+}
+
+.person-option .person-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+}
+
+.person-option .person-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.light-theme .person-option .person-name {
+  color: #333;
+}
+
+.person-option .person-email {
+  color: #bbb;
+  font-size: 10px;
+  margin-left: auto;
+}
+
+.light-theme .person-option .person-email {
+  color: #ccc;
+}
+
+.person-picker-empty {
   text-align: center;
   padding: 16px;
   color: #ccc;
@@ -5474,24 +5541,18 @@ body {
   background: transparent;
 }
 
-.person-color-dot,
-.person-avatar {
-  width: 24px;
-  height: 24px;
+.person-color-dot {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 600;
   color: white;
   text-transform: uppercase;
-  padding: 0;
-  margin-right: 4px;
-  cursor: pointer;
-  overflow: hidden;
-  box-sizing: border-box;
 }
 
 .person-name {
@@ -5785,43 +5846,6 @@ body:not(.light-theme) .detail-section {
   border-color: #555 !important;
 }
 
-/* Light theme - person assignment UI */
-.light-theme .add-person-inline {
-  border-color: #ccc;
-  color: #666;
-}
-
-.light-theme .add-person-inline:hover {
-  border-color: #999;
-  color: #333;
-  background: rgba(0, 0, 0, 0.03);
-}
-
-.light-theme .person-search-inline input {
-  background: #f5f5f5;
-  border-color: #ccc;
-  color: #333;
-}
-
-.light-theme .person-search-inline input:focus {
-  border-color: #999;
-  background: #fff;
-}
-
-.light-theme .search-results-inline {
-  background: #fff;
-  border-color: #ccc;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.light-theme .search-result-inline {
-  border-bottom-color: #e5e5e5;
-}
-
-.light-theme .search-result-inline:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
 /* Inline persons in meta row */
 .meta-row.persons-row {
   align-items: flex-start;
@@ -5838,65 +5862,62 @@ body:not(.light-theme) .detail-section {
   background: transparent;
   border: 1px dashed #444;
   color: #aaa;
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
 }
 
 .add-person-inline:hover {
-  border-color: #888;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-  border-style: solid;
+  border-color: #666;
+  color: #ccc;
 }
 
 .person-search-inline input {
   width: 100%;
-  padding: 6px 10px;
+  padding: 4px 8px;
   font-size: 12px;
   background: #1a1a1a;
-  border: 1px solid #555;
+  border: 1px solid #444;
   color: #f0f0f0;
-  border-radius: 6px;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.person-search-inline input:focus {
-  border-color: #888;
-  background: #222;
+  border-radius: 4px;
 }
 
 .search-results-inline {
   background: #1a1a1a;
-  border: 1px solid #555;
-  border-radius: 6px;
-  margin-top: 6px;
-  max-height: 200px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  margin-top: 4px;
+  max-height: 150px;
   overflow-y: auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .search-result-inline {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 4px 8px;
   cursor: pointer;
   font-size: 12px;
-  transition: background 0.15s ease;
-  border-bottom: 1px solid #2a2a2a;
-}
-
-.search-result-inline:last-child {
-  border-bottom: none;
 }
 
 .search-result-inline:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #2a2a2a;
+}
+
+.person-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
 }
 
 .person-avatar:hover {
@@ -5910,6 +5931,11 @@ body:not(.light-theme) .detail-section {
   z-index: 1;
 }
 
+.search-results-inline {
+  position: absolute;
+  z-index: 100;
+  width: 100%;
+}
 
 /* Ensure select dropdowns appear above search results */
 select {
@@ -5918,6 +5944,10 @@ select {
 }
 
 /* Project color indicator for main window */
+.app {
+  border-left: 4px solid #333;
+  transition: border-top-color 0.3s;
+}
 
 /* Smaller text for sidebar projects */
 .project-item {
@@ -5927,105 +5957,4 @@ select {
 /* Add project color border to detail window */
 .detail-app {
   border-left: 4px solid #333;
-}
-
-/* Sensitive Notes Styles */
-.sensitive-checkbox {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.sensitive-checkbox:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.sensitive-checkbox input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.sensitive-notes-overlay {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px dashed var(--border-color);
-  border-radius: 8px;
-  min-height: 200px;
-}
-
-.sensitive-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.6;
-}
-
-.sensitive-notes-overlay p {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-bottom: 20px;
-}
-
-.reveal-btn {
-  padding: 10px 24px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.reveal-btn:hover {
-  background: #2980b9;
-}
-
-.reveal-btn:active {
-  transform: scale(0.98);
-}
-
-/* Light theme support */
-.light-theme .sensitive-checkbox:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.light-theme .sensitive-notes-overlay {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-/* Sensitive Notes in Cards */
-.sensitive-notes-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px dashed var(--border-color);
-  border-radius: 4px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.sensitive-icon-small {
-  font-size: 14px;
-  opacity: 0.6;
-}
-
-.sensitive-text {
-  font-style: italic;
-}
-
-/* Light theme support */
-.light-theme .sensitive-notes-card {
-  background: rgba(0, 0, 0, 0.05);
 }
