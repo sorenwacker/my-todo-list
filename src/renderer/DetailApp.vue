@@ -29,14 +29,6 @@
           :class="{ active: activeTab === 'split' }"
           @click="activeTab = 'split'"
         >Split</button>
-        <label class="sensitive-checkbox">
-          <input
-            type="checkbox"
-            v-model="todo.notes_sensitive"
-            @change="save"
-          />
-          <span>Sensitive</span>
-        </label>
       </div>
 
       <textarea
@@ -77,6 +69,18 @@
           <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
         </div>
       </div>
+    </div>
+
+    <div class="sensitive-notes-row" style="text-align: right; padding: 8px 0;">
+      <label class="sensitive-checkbox" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #bbb; cursor: pointer;">
+        <input
+          type="checkbox"
+          v-model="todo.notes_sensitive"
+          @change="save"
+        />
+        <span class="lock-icon">🔒</span>
+        <span>Sensitive Notes</span>
+      </label>
     </div>
 
     <div class="subtasks-section">

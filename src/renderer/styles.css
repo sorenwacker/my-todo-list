@@ -85,6 +85,10 @@ body {
 .sidebar-header {
   padding: var(--sidebar-header-padding);
   border-bottom: 1px solid #252a3d;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .sidebar-header h2 {
@@ -93,6 +97,21 @@ body {
   color: #bbb;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.sidebar-header .theme-toggle {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  line-height: 1;
+}
+
+.sidebar-header .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-header.category-header,
@@ -441,45 +460,63 @@ body {
 .main-content {
   flex: 1;
   min-width: 300px;
-  padding: 0 var(--spacing-xl) var(--spacing-lg) var(--spacing-xl);
+  padding: 0;
   overflow: auto;
 }
 
 .main-header {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  margin-bottom: var(--spacing-md);
   position: sticky;
   top: 0;
   background: #0a0e17;
-  z-index: 10;
-  margin: 0 calc(-1 * var(--spacing-xl)) var(--spacing-md) calc(-1 * var(--spacing-xl));
-  padding: 0 var(--spacing-lg) 10px var(--spacing-lg);
+  z-index: 101;
+  margin: 0 0 var(--spacing-md) 0;
+  padding: 6px var(--spacing-lg) 10px var(--spacing-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
 }
 
-.main-header h1 {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.main-header .header-controls {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-}
-
-.main-header .add-todo {
-  grid-column: 1 / -1;
-  grid-row: 2;
+.main-header .header-title-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .main-header h1 {
   font-size: 1.75rem;
   color: #fff;
+  margin: 0;
+}
+
+.main-header .header-title-row .theme-toggle {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  line-height: 1;
+  margin-left: auto;
+}
+
+.main-header .header-title-row .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.main-header .header-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.main-header .add-todo {
+  flex: 1;
+  margin-left: auto;
 }
 
 /* View Switcher */
@@ -489,6 +526,7 @@ body {
   background: #16213e;
   padding: 4px;
   border-radius: 8px;
+  margin-left: auto;
 }
 
 .view-switcher button {
@@ -515,19 +553,14 @@ body {
 .hide-completed-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #16213e;
-  border-radius: 8px;
+  gap: 6px;
   cursor: pointer;
   font-size: 13px;
   color: #bbb;
-  transition: all 0.15s;
-  user-select: none;
 }
 
 .hide-completed-toggle:hover {
-  color: #aaa;
+  color: #fff;
 }
 
 .hide-completed-toggle input[type="checkbox"] {
@@ -538,6 +571,41 @@ body {
 
 .hide-completed-toggle span {
   white-space: nowrap;
+}
+
+/* Card Size Control */
+.card-size-control {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+}
+
+.card-size-label {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 13px;
+  color: #bbb;
+  user-select: none;
+}
+
+.card-size-slider {
+  width: 100px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.card-size-value {
+  min-width: 45px;
+  text-align: right;
+  font-weight: 500;
+  color: #0f4c75;
 }
 
 /* Theme Toggle Button */
@@ -637,8 +705,10 @@ body {
 
 .add-todo {
   display: flex;
+  flex-direction: row;
   gap: 10px;
   width: 100%;
+  align-items: center;
 }
 
 .add-todo input {
@@ -1535,6 +1605,8 @@ body {
 
 .tabs {
   display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 4px;
   margin-bottom: 8px;
 }
@@ -1765,6 +1837,7 @@ body {
 .cards-group {
   margin-bottom: 24px;
   width: 100%;
+  overflow: visible;
 }
 
 .cards-grid {
@@ -3012,7 +3085,7 @@ body {
   }
 
   .main-content {
-    padding: 20px 24px;
+    padding: 0;
   }
 
   .detail-panel {
@@ -3063,7 +3136,7 @@ body {
   }
 
   .main-content {
-    padding: 16px 20px;
+    padding: 0;
   }
 
   .main-header {
@@ -3093,13 +3166,12 @@ body {
   }
 
   .add-todo {
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
+    flex-direction: row;
+    gap: 10px;
   }
 
   .add-todo button {
-    width: 100%;
+    flex-shrink: 0;
   }
 
   .detail-panel {
@@ -3248,7 +3320,7 @@ body {
   }
 
   .main-content {
-    padding: 12px 15px;
+    padding: 0;
     flex: 1;
     min-height: 0;
   }
@@ -5935,24 +6007,26 @@ select {
 }
 
 /* Sensitive Notes Styles */
+.sensitive-notes-row {
+  padding: 8px 0;
+  text-align: right !important;
+  width: 100%;
+}
+
 .sensitive-checkbox {
-  margin-left: auto;
-  display: flex;
+  display: inline-flex !important;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #ffc107;
+  gap: 6px;
+  font-size: 13px !important;
+  color: #bbb !important;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: rgba(255, 193, 7, 0.1);
-  border: 1px solid rgba(255, 193, 7, 0.2);
-  transition: all 0.2s ease;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
 }
 
 .sensitive-checkbox:hover {
-  background: rgba(255, 193, 7, 0.15);
-  border-color: rgba(255, 193, 7, 0.3);
+  color: #fff !important;
 }
 
 .sensitive-checkbox input[type="checkbox"] {
@@ -6101,4 +6175,101 @@ select {
 .light-theme .sensitive-notes-card:hover {
   background: linear-gradient(135deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 152, 0, 0.12) 100%);
   border-color: rgba(255, 152, 0, 0.4);
+}
+
+/* Sensitive checkbox styling */
+.sensitive-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--border-color);
+  border: 1px solid var(--border-color);
+}
+
+.sensitive-checkbox:hover {
+  background: var(--hover-bg);
+}
+
+.sensitive-checkbox.checked {
+  background: #ff6b6b33;
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.sensitive-checkbox input[type="checkbox"] {
+  margin: 0;
+}
+
+.sensitive-checkbox .lock-icon {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.sensitive-checkbox.checked .lock-icon {
+  opacity: 1;
+}
+
+/* Tabs row container - flexbox for right alignment of sensitive checkbox */
+.tabs-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: nowrap;
+}
+
+.tabs-row .tabs {
+  margin-bottom: 0;
+}
+
+.tabs-spacer {
+  flex: 1;
+}
+
+/* Bottom Bar */
+.bottom-bar {
+  position: sticky;
+  bottom: 0;
+  background: #0a0e17;
+  border-top: none;
+  padding: 8px 16px;
+  display: flex;
+  justify-content: flex-end;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.bottom-bar .card-size-control {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.bottom-bar .card-size-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 13px;
+  color: #bbb;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.bottom-bar .card-size-slider {
+  width: 150px;
+  cursor: pointer;
+  margin: 0;
+  pointer-events: auto;
 }

@@ -167,6 +167,12 @@
               <span class="preference-text">Open todos in new window</span>
             </label>
           </div>
+          <div class="preference-item">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="gridLock" @change="toggleGridLock" />
+              <span class="preference-text">Grid lock (cards view)</span>
+            </label>
+          </div>
           <button @click="handleExport" class="settings-btn">Export</button>
           <button @click="showImportDialog = true" class="settings-btn">Import</button>
           <div class="database-location">
@@ -302,11 +308,18 @@
     <div class="main-wrapper">
     <main class="main-content" :class="{ 'with-detail': selectedTodo }">
       <header class="main-header">
-        <h1>{{ currentTitle }}</h1>
+        <div class="header-title-row">
+          <h1 class="header-title">{{ currentTitle }}</h1>
+          <button class="theme-toggle" @click="toggleTheme" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+            <span v-if="theme === 'dark'">☀️</span>
+            <span v-else>🌙</span>
+          </button>
+        </div>
         <div class="header-controls">
           <div class="sort-controls">
             <select v-model="sortBy" class="sort-select">
               <option value="manual">Manual Order</option>
+              <option value="created">By Created</option>
               <option value="end_date">By End Date</option>
               <option value="alpha">Alphabetical</option>
             </select>
@@ -325,8 +338,12 @@
                 <option :value="5">5</option>
               </select>
             </div>
-            <label class="group-toggle">
-              <input type="checkbox" v-model="groupByProject" />
+            <label v-if="!isTrashView" class="hide-completed-toggle">
+              <input type="checkbox" v-model="hideCompleted" @change="toggleHideCompleted" />
+              <span>Hide completed</span>
+            </label>
+            <label v-if="!isProjectSelected" class="group-toggle">
+              <input type="checkbox" v-model="groupByProject" @change="onGroupByProjectChange" />
               <span>Group by Project</span>
             </label>
           </div>
@@ -337,18 +354,6 @@
             <button :class="{ active: currentView === 'timeline' }" @click="currentView = 'timeline'" :disabled="isTrashView">Timeline</button>
             <button :class="{ active: currentView === 'graph' }" @click="currentView = 'graph'" :disabled="isTrashView">Graph</button>
           </div>
-          <label v-if="!isTrashView" class="hide-completed-toggle">
-            <input type="checkbox" v-model="hideCompleted" @change="toggleHideCompleted" />
-            <span>Hide completed</span>
-          </label>
-          <label v-if="currentView === 'cards'" class="grid-lock-toggle">
-            <input type="checkbox" v-model="gridLock" @change="toggleGridLock" />
-            <span>Grid lock</span>
-          </label>
-          <button @click="toggleTheme" class="theme-toggle-btn" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
-            <span v-if="theme === 'dark'">☀️</span>
-            <span v-else>🌙</span>
-          </button>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
         <div v-if="!isTrashView" class="add-todo">
@@ -501,10 +506,6 @@
             </template>
           </draggable>
         </template>
-        <div class="card-size-control">
-          <label>Size:</label>
-          <input type="range" v-model.number="cardSize" min="200" max="500" step="20" />
-        </div>
       </div>
 
       <!-- Table View -->
@@ -534,80 +535,69 @@
                   <span class="group-count">{{ group.todos.length }}</span>
                 </td>
               </tr>
-              <draggable
-                :modelValue="group.todos"
-                @update:modelValue="updateGroupTodos(group.id, $event)"
-                item-key="id"
-                tag="template"
-                ghost-class="ghost"
-                :disabled="sortBy !== 'manual'"
-                @end="onGroupDragEnd(group.id, $event)"
+              <tr
+                v-for="todo in group.todos"
+                :key="todo.id"
+                :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, 'keyboard-focused': focusedTodo?.id === todo.id }"
+                @click="selectTodo(todo.id)"
               >
-                <template #item="{ element: todo }">
-                  <tr
-                    :key="todo.id"
-                    :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, 'keyboard-focused': focusedTodo?.id === todo.id }"
-                    @click="selectTodo(todo.id)"
-                  >
-                    <td class="col-check">
-                      <input
-                        v-if="!isTrashView"
-                        type="checkbox"
-                        :checked="todo.completed"
-                        @click.stop="toggleComplete(todo)"
-                      />
-                    </td>
-                    <td class="col-title">{{ todo.title }}</td>
-                    <td class="col-project">
-                      <span v-if="todo.project_name" class="project-badge" :style="{ background: todo.project_color }">
-                        {{ todo.project_name }}
-                      </span>
-                      <span v-else class="inbox-badge">-</span>
-                    </td>
-                    <td class="col-category">
-                      <span v-if="todo.category_name" class="category-badge">
-                        <span class="category-symbol">
-                          <component v-if="getIconComponent(todo.category_symbol)" :is="getIconComponent(todo.category_symbol)" :size="12" />
-                          <span v-else>{{ todo.category_symbol || '*' }}</span>
-                        </span>
-                        {{ todo.category_name }}
-                      </span>
-                      <span v-else>-</span>
-                    </td>
-                    <td class="col-status-col">
-                      <span v-if="todo.status_name" class="status-badge" :style="{ background: todo.status_color }">
-                        {{ todo.status_name }}
-                      </span>
-                      <span v-else>-</span>
-                    </td>
-                    <td class="col-importance">
-                      <span v-if="todo.importance" class="importance-badge" :style="{ color: getImportanceColor(todo.importance) }">
-                        {{ todo.importance }}
-                      </span>
-                      <span v-else>-</span>
-                    </td>
-                    <td class="col-subtasks">
-                      <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
-                      <span v-else>-</span>
-                    </td>
-                    <td class="col-notes">
-                      <span v-if="todo.notes" class="notes-indicator">✓</span>
-                      <span v-else>-</span>
-                    </td>
-                    <td class="col-start">{{ todo.start_date ? formatShortDate(todo.start_date) : '-' }}</td>
-                    <td class="col-end" :class="{ overdue: isOverdue(todo.end_date) }">
-                      {{ todo.end_date ? formatShortDate(todo.end_date) : '-' }}
-                    </td>
-                    <td class="col-actions">
-                      <template v-if="isTrashView">
-                        <button class="restore-btn" @click.stop="restoreTodo(todo.id)" title="Restore">R</button>
-                        <button class="permanent-delete-btn" @click.stop="permanentlyDeleteTodo(todo.id)" title="Delete permanently">x</button>
-                      </template>
-                      <button v-else @click.stop="deleteTodo(todo.id)">x</button>
-                    </td>
-                  </tr>
-                </template>
-              </draggable>
+                <td class="col-check">
+                  <input
+                    v-if="!isTrashView"
+                    type="checkbox"
+                    :checked="todo.completed"
+                    @click.stop="toggleComplete(todo)"
+                  />
+                </td>
+                <td class="col-title">{{ todo.title }}</td>
+                <td class="col-project">
+                  <span v-if="todo.project_name" class="project-badge" :style="{ background: todo.project_color }">
+                    {{ todo.project_name }}
+                  </span>
+                  <span v-else class="inbox-badge">-</span>
+                </td>
+                <td class="col-category">
+                  <span v-if="todo.category_name" class="category-badge">
+                    <span class="category-symbol">
+                      <component v-if="getIconComponent(todo.category_symbol)" :is="getIconComponent(todo.category_symbol)" :size="12" />
+                      <span v-else>{{ todo.category_symbol || '*' }}</span>
+                    </span>
+                    {{ todo.category_name }}
+                  </span>
+                  <span v-else>-</span>
+                </td>
+                <td class="col-status-col">
+                  <span v-if="todo.status_name" class="status-badge" :style="{ background: todo.status_color }">
+                    {{ todo.status_name }}
+                  </span>
+                  <span v-else>-</span>
+                </td>
+                <td class="col-importance">
+                  <span v-if="todo.importance" class="importance-badge" :style="{ color: getImportanceColor(todo.importance) }">
+                    {{ todo.importance }}
+                  </span>
+                  <span v-else>-</span>
+                </td>
+                <td class="col-subtasks">
+                  <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
+                  <span v-else>-</span>
+                </td>
+                <td class="col-notes">
+                  <span v-if="todo.notes" class="notes-indicator">✓</span>
+                  <span v-else>-</span>
+                </td>
+                <td class="col-start">{{ todo.start_date ? formatShortDate(todo.start_date) : '-' }}</td>
+                <td class="col-end" :class="{ overdue: isOverdue(todo.end_date) }">
+                  {{ todo.end_date ? formatShortDate(todo.end_date) : '-' }}
+                </td>
+                <td class="col-actions">
+                  <template v-if="isTrashView">
+                    <button class="restore-btn" @click.stop="restoreTodo(todo.id)" title="Restore">R</button>
+                    <button class="permanent-delete-btn" @click.stop="permanentlyDeleteTodo(todo.id)" title="Delete permanently">x</button>
+                  </template>
+                  <button v-else @click.stop="deleteTodo(todo.id)">x</button>
+                </td>
+              </tr>
             </tbody>
           </template>
           <tbody v-else>
@@ -1198,6 +1188,23 @@
       <div v-if="todos.length === 0 && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
         <p>No todos yet. Add one above.</p>
       </div>
+
+      <!-- Bottom Bar with Card Size Slider -->
+      <div v-if="!selectedTodo" class="bottom-bar">
+        <div class="card-size-control">
+          <label class="card-size-label">
+            <span>Card Size</span>
+            <input
+              type="range"
+              min="200"
+              max="600"
+              step="50"
+              v-model.number="cardSize"
+              class="card-size-slider"
+            />
+          </label>
+        </div>
+      </div>
     </main>
 
     <!-- Detail Panel -->
@@ -1275,9 +1282,14 @@
             v-else-if="activeTab === 'preview'"
             class="notes-preview markdown-body"
             :style="{ borderColor: selectedTodo.project_color || '#333' }"
-            v-html="renderedNotes"
-            @click="handleMarkdownClick"
-          ></div>
+          >
+            <div v-if="selectedTodo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
+              <div class="sensitive-icon">🔒</div>
+              <p>Sensitive content hidden</p>
+              <button @click="revealNotes" class="reveal-btn">Reveal</button>
+            </div>
+            <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+          </div>
 
           <div v-else class="notes-split">
             <textarea
@@ -1290,10 +1302,23 @@
             <div
               class="notes-preview markdown-body split-preview"
               :style="{ borderColor: selectedTodo.project_color || '#333' }"
-              v-html="renderedNotes"
-              @click="handleMarkdownClick"
-            ></div>
+            >
+              <div v-if="selectedTodo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
+                <div class="sensitive-icon">🔒</div>
+                <p>Sensitive content hidden</p>
+                <button @click="revealNotes" class="reveal-btn">Reveal</button>
+              </div>
+              <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+            </div>
           </div>
+        </div>
+
+        <div class="sensitive-notes-row" style="text-align: right; padding: 8px 0;">
+          <label class="sensitive-checkbox" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #bbb; cursor: pointer;">
+            <input type="checkbox" v-model="selectedTodo.notes_sensitive" @change="saveSelectedTodo" />
+            <span class="lock-icon">🔒</span>
+            <span>Sensitive Notes</span>
+          </label>
         </div>
 
         <div class="subtasks-section">
@@ -1671,6 +1696,7 @@ export default {
       // Theme
       theme: localStorage.getItem('todo-theme') || 'dark',
       openTodosInWindow: localStorage.getItem('todo-open-mode') === 'window',
+      notesRevealed: false,
       // Sidebar visibility
       sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') === 'true',
@@ -1792,7 +1818,11 @@ export default {
     },
     sortedTodos() {
       let sorted = [...this.filteredTodos]
-      if (this.sortBy === 'end_date') {
+      if (this.sortBy === 'created') {
+        sorted.sort((a, b) => {
+          return new Date(b.created_at) - new Date(a.created_at)
+        })
+      } else if (this.sortBy === 'end_date') {
         sorted.sort((a, b) => {
           if (!a.end_date && !b.end_date) return 0
           if (!a.end_date) return 1
@@ -2140,6 +2170,18 @@ export default {
     this.stopForceLayout()
   },
   methods: {
+    onGroupByProjectChange() {
+      if (this.currentView === 'cards') {
+        this.$nextTick(() => {
+          this.applyMasonryLayout()
+        })
+      }
+    },
+    revealNotes() {
+      if (confirm('Are you sure you want to reveal the sensitive content?')) {
+        this.notesRevealed = true
+      }
+    },
     isIconName(symbol) {
       return symbol && this.categorySymbols.includes(symbol)
     },
@@ -2485,8 +2527,7 @@ export default {
 
       this.saveTimeout = setTimeout(async () => {
         const todoData = this.toPlainTodo(this.selectedTodo)
-        const updated = await window.api.updateTodo(todoData)
-        this.selectedTodo = updated
+        await window.api.updateTodo(todoData)
         await this.loadAllTodos()
         await this.loadTodos()
       }, 300)
@@ -2496,6 +2537,7 @@ export default {
         id: todo.id,
         title: todo.title,
         notes: todo.notes,
+        notes_sensitive: todo.notes_sensitive,
         end_date: todo.end_date,
         start_date: todo.start_date,
         completed: todo.completed,
@@ -3762,7 +3804,9 @@ export default {
       } else if (oldVal === 'graph') {
         this.stopForceLayout()
       } else if (val === 'cards') {
-        this.applyMasonryLayout()
+        this.$nextTick(() => {
+          this.applyMasonryLayout()
+        })
       }
       localStorage.setItem('current-view', val)
     },
@@ -3781,6 +3825,11 @@ export default {
     },
     cardSize(val) {
       localStorage.setItem('card-size', val)
+    },
+    isProjectSelected(val) {
+      if (val && this.groupByProject) {
+        this.groupByProject = false
+      }
     },
     groupByProject(val) {
       localStorage.setItem('group-by-project', val)
