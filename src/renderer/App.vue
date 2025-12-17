@@ -315,7 +315,7 @@
             <span v-else>🌙</span>
           </button>
         </div>
-        <div class="header-controls">
+        <div v-if="currentFilter !== 'persons'" class="header-controls">
           <div class="sort-controls">
             <select v-model="sortBy" class="sort-select">
               <option value="manual">Manual Order</option>
@@ -356,7 +356,7 @@
           </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
-        <div v-if="!isTrashView" class="add-todo">
+        <div v-if="!isTrashView && currentFilter !== 'persons'" class="add-todo">
           <input
             ref="newTodoInput"
             v-model="newTodoTitle"
@@ -368,8 +368,16 @@
         </div>
       </header>
 
+      <!-- Persons View -->
+      <PersonsView
+        v-if="currentFilter === 'persons'"
+        :persons="persons"
+        :theme="theme"
+        @refresh="loadPersons"
+      />
+
       <!-- Cards View -->
-      <div v-if="currentView === 'cards'" class="cards-view">
+      <div v-if="currentFilter !== 'persons' && currentView === 'cards'" class="cards-view">
         <template v-if="groupByProject">
           <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
             <div class="group-header" :style="{ borderLeftColor: group.color || '#666' }">
@@ -509,7 +517,7 @@
       </div>
 
       <!-- Table View -->
-      <div v-if="currentView === 'table'" class="table-view compact">
+      <div v-if="currentFilter !== 'persons' && currentView === 'table'" class="table-view compact">
         <table>
           <thead>
             <tr>
@@ -669,7 +677,7 @@
       </div>
 
       <!-- Kanban View -->
-      <div v-if="currentView === 'kanban'" class="kanban-view-wrapper">
+      <div v-if="currentFilter !== 'persons' && currentView === 'kanban'" class="kanban-view-wrapper">
         <div class="kanban-group-toggle">
           <button v-if="!isProjectSelected" :class="{ active: kanbanGroupBy === 'project' }" @click="kanbanGroupBy = 'project'">By Project</button>
           <button :class="{ active: kanbanGroupBy === 'category' }" @click="kanbanGroupBy = 'category'">By Category</button>
@@ -1008,7 +1016,7 @@
       </div>
 
       <!-- Gantt/Timeline View -->
-      <div v-if="currentView === 'timeline'" class="gantt-view">
+      <div v-if="currentFilter !== 'persons' && currentView === 'timeline'" class="gantt-view">
         <div class="gantt-controls">
           <select v-model="ganttGroupBy" class="gantt-groupby">
             <option value="project">By Project</option>
@@ -1090,7 +1098,7 @@
       </div>
 
       <!-- Graph View -->
-      <div v-if="currentView === 'graph'" class="graph-view" ref="graphContainer"
+      <div v-if="currentFilter !== 'persons' && currentView === 'graph'" class="graph-view" ref="graphContainer"
         @wheel.prevent="onGraphWheel"
         @mousedown="onGraphMouseDown"
         @mousemove="onGraphMouseMove"
@@ -1185,7 +1193,7 @@
         </div>
       </div>
 
-      <div v-if="todos.length === 0 && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
+      <div v-if="todos.length === 0 && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
         <p>No todos yet. Add one above.</p>
       </div>
 
@@ -1524,6 +1532,7 @@ import draggable from 'vuedraggable'
 import { marked } from 'marked'
 import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
+import PersonsView from './PersonsView.vue'
 import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
@@ -1593,6 +1602,7 @@ export default {
   name: 'App',
   components: {
     draggable,
+    PersonsView,
     ...categoryIcons
   },
   data() {
@@ -1663,10 +1673,18 @@ export default {
       mousePos: { x: 0, y: 0 },
       isSimulating: false,
       projectColors: [
-        '#0f4c75', '#e74c3c', '#2ecc71', '#f39c12',
-        '#9b59b6', '#1abc9c', '#e91e63', '#00bcd4',
-        '#673ab7', '#ff5722', '#795548', '#607d8b',
-        '#4caf50', '#3f51b5', '#ff9800', '#009688'
+        // Blues
+        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
+        // Greens
+        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342',
+        // Reds & Pinks
+        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292',
+        // Oranges & Yellows
+        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300',
+        // Purples
+        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2',
+        // Neutrals
+        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
       ],
       categorySymbols: [
         'Folder', 'Home', 'Briefcase', 'ShoppingCart', 'Heart', 'BookOpen', 'Target', 'Star',
@@ -1675,9 +1693,18 @@ export default {
         'Bell', 'Gift', 'Award', 'Trophy', 'Crown', 'AlertCircle', 'Info', 'HelpCircle'
       ],
       statusColors: [
-        '#3498db', '#2ecc71', '#f39c12', '#e74c3c',
-        '#9b59b6', '#1abc9c', '#95a5a6', '#34495e',
-        '#00bcd4', '#ff5722', '#795548', '#607d8b'
+        // Blues
+        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
+        // Greens
+        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342',
+        // Reds & Pinks
+        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292',
+        // Oranges & Yellows
+        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300',
+        // Purples
+        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2',
+        // Neutrals
+        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
       ],
       // Resize state
       isResizing: false,
@@ -1742,6 +1769,7 @@ export default {
       if (this.currentFilter === null) return 'All Todos'
       if (this.currentFilter === 'inbox') return 'Inbox'
       if (this.currentFilter === 'trash') return 'Trash'
+      if (this.currentFilter === 'persons') return 'Persons'
       const project = this.projects.find(p => p.id === this.currentFilter)
       return project ? project.name : 'Todos'
     },
@@ -2497,7 +2525,8 @@ export default {
       this.showPersonPicker = false
       this.linkQuery = ''
       this.linkResults = []
-      this.activeTab = 'edit'
+      // Show preview if todo has notes, otherwise edit
+      this.activeTab = this.selectedTodo.notes && this.selectedTodo.notes.trim() ? 'preview' : 'edit'
     },
     async closeDetail() {
       // Flush any pending saves before closing
@@ -3573,11 +3602,11 @@ export default {
 
       this.searchResults = [...todoResults, ...personResults]
     },
-    selectSearchResult(result) {
+    async selectSearchResult(result) {
       if (result.type === 'person') {
-        // Open settings window for persons
+        // Navigate to persons view
+        await this.setFilter('persons')
         this.closeCommandPalette()
-        window.api.openSettings()
       } else {
         // Navigate to the todo's project and select it
         if (result.project_id) {
@@ -3691,7 +3720,7 @@ export default {
       localStorage.setItem('todo-open-mode', mode)
     },
     openSettings() {
-      window.api.openSettings()
+      this.setFilter('persons')
     },
     async loadPersons() {
       this.persons = await window.api.getPersons()

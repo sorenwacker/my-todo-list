@@ -6,7 +6,6 @@ import { Database } from './database.js'
 let mainWindow = null
 let detailWindow = null
 let detailWindowTodoId = null
-let settingsWindow = null
 let stakeholderWindow = null
 let database = null
 
@@ -113,33 +112,6 @@ function createDetailWindow(todoId) {
   detailWindow.on('closed', () => {
     detailWindow = null
     detailWindowTodoId = null
-  })
-}
-
-function createSettingsWindow() {
-  if (settingsWindow) {
-    settingsWindow.focus()
-    return
-  }
-
-  settingsWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
-
-  if (process.env.NODE_ENV === 'development') {
-    settingsWindow.loadURL('http://localhost:5173/settings.html')
-  } else {
-    settingsWindow.loadFile(join(__dirname, '../renderer/settings.html'))
-  }
-
-  settingsWindow.on('closed', () => {
-    settingsWindow = null
   })
 }
 
@@ -320,10 +292,6 @@ app.whenReady().then(() => {
     if (detailWindow && detailWindowTodoId === todoId && !detailWindow.isDestroyed()) {
       detailWindow.close()
     }
-  })
-
-  ipcMain.handle('open-settings', () => {
-    createSettingsWindow()
   })
 
   ipcMain.handle('open-stakeholder-register', (_, projectId) => {
