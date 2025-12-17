@@ -100,9 +100,35 @@
               <input v-model="editingPerson.github_name" placeholder="@username" />
             </div>
 
-            <div class="form-field full-width">
-              <label>Notes</label>
-              <textarea v-model="editingPerson.notes" placeholder="Additional notes..." rows="3"></textarea>
+            <div class="form-field full-width notes-field">
+              <div class="notes-header">
+                <label>Notes</label>
+                <div class="notes-tabs">
+                  <button
+                    :class="{ active: notesTab === 'edit' }"
+                    @click="notesTab = 'edit'"
+                    type="button"
+                  >Edit</button>
+                  <button
+                    :class="{ active: notesTab === 'preview' }"
+                    @click="notesTab = 'preview'"
+                    type="button"
+                  >Preview</button>
+                </div>
+              </div>
+              <textarea
+                v-if="notesTab === 'edit'"
+                v-model="editingPerson.notes"
+                placeholder="Add notes (Markdown supported)..."
+                rows="6"
+              ></textarea>
+              <div
+                v-else
+                class="notes-preview markdown-body"
+              >
+                <div v-if="!editingPerson.notes" class="placeholder">No notes yet...</div>
+                <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+              </div>
             </div>
           </div>
 
@@ -132,6 +158,8 @@
 </template>
 
 <script>
+import { marked } from 'marked'
+
 export default {
   name: 'PersonsView',
   props: {
@@ -148,6 +176,7 @@ export default {
   data() {
     return {
       editingPerson: null,
+      notesTab: 'edit',
       sortBy: 'name',
       sortDir: 'asc',
       currentPage: 1,
@@ -186,6 +215,10 @@ export default {
     paginatedPersons() {
       const start = (this.currentPage - 1) * this.pageSize
       return this.sortedPersons.slice(start, start + this.pageSize)
+    },
+    renderedNotes() {
+      if (!this.editingPerson?.notes) return ''
+      return marked(this.editingPerson.notes)
     }
   },
   watch: {
@@ -209,6 +242,7 @@ export default {
     },
 
     showAddPerson() {
+      this.notesTab = 'edit'
       this.editingPerson = {
         name: '',
         email: '',
@@ -222,7 +256,18 @@ export default {
     },
 
     editPerson(person) {
+      this.notesTab = person.notes ? 'preview' : 'edit'
       this.editingPerson = { ...person }
+    },
+
+    handleMarkdownClick(event) {
+      if (event.target.tagName === 'A') {
+        event.preventDefault()
+        const href = event.target.getAttribute('href')
+        if (href && window.api) {
+          window.api.openExternal(href)
+        }
+      }
     },
 
     async savePerson() {
@@ -696,5 +741,86 @@ export default {
 .person-modal .modal-actions button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Notes field with markdown */
+.person-modal .notes-field .notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.person-modal .notes-field .notes-header label {
+  margin-bottom: 0;
+}
+
+.person-modal .notes-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.person-modal .notes-tabs button {
+  background: #1a1a2e;
+  border: 1px solid #555;
+  color: #aaa;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+
+.person-modal .notes-tabs button:hover {
+  color: #fff;
+  border-color: #777;
+}
+
+.person-modal .notes-tabs button.active {
+  background: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.person-modal.light-theme .notes-tabs button {
+  background: #f5f5f5;
+  border-color: #ddd;
+  color: #666;
+}
+
+.person-modal.light-theme .notes-tabs button:hover {
+  color: #333;
+  border-color: #bbb;
+}
+
+.person-modal.light-theme .notes-tabs button.active {
+  background: #3498db;
+  border-color: #3498db;
+  color: white;
+}
+
+.person-modal .notes-preview {
+  background: #1a1a2e;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 10px 12px;
+  min-height: 140px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.person-modal.light-theme .notes-preview {
+  background: #fff;
+  border-color: #ddd;
+}
+
+.person-modal .notes-preview .placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+.person-modal.light-theme .notes-preview .placeholder {
+  color: #999;
 }
 </style>
