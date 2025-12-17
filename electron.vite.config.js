@@ -26,7 +26,6 @@ export default defineConfig({
         input: {
           main: resolve(__dirname, 'src/renderer/index.html'),
           detail: resolve(__dirname, 'src/renderer/detail.html'),
-          settings: resolve(__dirname, 'src/renderer/settings.html'),
           stakeholderRegister: resolve(__dirname, 'src/renderer/stakeholder-register.html')
         }
       }
