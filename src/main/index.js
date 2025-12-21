@@ -355,25 +355,67 @@ app.whenReady().then(() => {
     const validTitle = validateString(title, 'title', 500)
     const validProjectId = validateOptionalId(projectId)
     const todo = database.createTodo(validTitle, validProjectId)
+    const todoId = todo.id
 
     // Record in history
     history.push({
       type: 'create-todo',
       description: `Create "${validTitle}"`,
-      undo: () => database.permanentlyDeleteTodo(todo.id),
-      redo: () => database.createTodo(validTitle, validProjectId)
+      undo: () => database.deleteTodo(todoId),
+      redo: () => database.restoreTodo(todoId)
     })
+
+    // Notify UI of history change
+    if (mainWindow) {
+      mainWindow.webContents.send('history-changed', history.getState())
+    }
 
     return todo
   }))
   ipcMain.handle('update-todo', handleWithValidation((_, todo) => {
-    return database.updateTodo(validateTodo(todo))
+    const validTodo = validateTodo(todo)
+    const oldTodo = database.getTodo(validTodo.id)
+    const result = database.updateTodo(validTodo)
+
+    // Record in history (only if there was an actual change)
+    if (oldTodo && JSON.stringify(oldTodo) !== JSON.stringify(result)) {
+      history.push({
+        type: 'update-todo',
+        description: `Update "${result.title}"`,
+        undo: () => database.updateTodo(oldTodo),
+        redo: () => database.updateTodo(validTodo)
+      })
+
+      // Notify UI of history change
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
+    }
+
+    return result
   }))
   ipcMain.on('update-todo-sync', (event, todo) => {
     try {
       const validatedTodo = validateTodo(todo)
       console.log('Sync save requested for todo:', validatedTodo.id, validatedTodo.title)
+      const oldTodo = database.getTodo(validatedTodo.id)
       database.updateTodo(validatedTodo)
+
+      // Record in history
+      if (oldTodo && JSON.stringify(oldTodo) !== JSON.stringify(validatedTodo)) {
+        history.push({
+          type: 'update-todo',
+          description: `Update "${validatedTodo.title}"`,
+          undo: () => database.updateTodo(oldTodo),
+          redo: () => database.updateTodo(validatedTodo)
+        })
+
+        // Notify UI of history change
+        if (mainWindow) {
+          mainWindow.webContents.send('history-changed', history.getState())
+        }
+      }
+
       console.log('Sync save completed')
       event.returnValue = true
     } catch (error) {
@@ -394,6 +436,11 @@ app.whenReady().then(() => {
         undo: () => database.restoreTodo(validId),
         redo: () => database.deleteTodo(validId)
       })
+
+      // Notify UI of history change
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
     }
 
     return result
@@ -565,16 +612,22 @@ app.whenReady().then(() => {
   // Undo/Redo handlers
   ipcMain.handle('undo', async () => {
     const action = await history.undo()
-    if (action && mainWindow) {
-      mainWindow.webContents.send('refresh-todos')
+    if (mainWindow) {
+      if (action) {
+        mainWindow.webContents.send('refresh-todos')
+      }
+      mainWindow.webContents.send('history-changed', history.getState())
     }
     return history.getState()
   })
 
   ipcMain.handle('redo', async () => {
     const action = await history.redo()
-    if (action && mainWindow) {
-      mainWindow.webContents.send('refresh-todos')
+    if (mainWindow) {
+      if (action) {
+        mainWindow.webContents.send('refresh-todos')
+      }
+      mainWindow.webContents.send('history-changed', history.getState())
     }
     return history.getState()
   })

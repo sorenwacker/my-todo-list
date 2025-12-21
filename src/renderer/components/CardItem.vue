@@ -37,6 +37,12 @@
         {{ todo.category_name }}
       </span>
     </div>
+    <div v-if="todo.subtask_count > 0" class="card-subtasks">
+      <div class="subtask-progress">
+        <div class="subtask-bar" :style="{ width: subtaskProgress + '%' }"></div>
+      </div>
+      <span class="subtask-count">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
+    </div>
     <div v-if="todo.start_date || todo.end_date || todo.importance" class="card-footer">
       <span v-if="todo.start_date" class="card-start">Start: {{ formatDeadline(todo.start_date) }}</span>
       <span v-if="todo.end_date" class="card-deadline" :class="{ overdue: isOverdue(todo.end_date) }">
@@ -99,6 +105,12 @@ export default {
     }
   },
   emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'delete', 'restore', 'permanent-delete'],
+  computed: {
+    subtaskProgress() {
+      if (!this.todo.subtask_count) return 0
+      return Math.round((this.todo.subtask_completed / this.todo.subtask_count) * 100)
+    }
+  },
   methods: {
     getIconComponent(name) {
       return iconMap[name] || null

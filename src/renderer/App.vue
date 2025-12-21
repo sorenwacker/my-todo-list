@@ -52,6 +52,39 @@
       </div>
     </div>
 
+    <!-- Help Modal -->
+    <div v-if="showHelpModal" class="project-modal" @click.self="showHelpModal = false">
+      <div class="modal-content help-modal" @click.stop>
+        <h3>Keyboard Shortcuts</h3>
+        <div class="shortcuts-grid">
+          <div class="shortcut-section">
+            <h4>Navigation</h4>
+            <div class="shortcut-item"><kbd>j</kbd> / <kbd>↓</kbd><span>Move down</span></div>
+            <div class="shortcut-item"><kbd>k</kbd> / <kbd>↑</kbd><span>Move up</span></div>
+            <div class="shortcut-item"><kbd>Enter</kbd> / <kbd>e</kbd><span>Open/Edit todo</span></div>
+            <div class="shortcut-item"><kbd>Esc</kbd><span>Close detail / Clear selection</span></div>
+          </div>
+          <div class="shortcut-section">
+            <h4>Actions</h4>
+            <div class="shortcut-item"><kbd>n</kbd><span>New todo</span></div>
+            <div class="shortcut-item"><kbd>x</kbd> / <kbd>Space</kbd><span>Toggle complete</span></div>
+            <div class="shortcut-item"><kbd>Delete</kbd><span>Delete todo</span></div>
+            <div class="shortcut-item"><kbd>/</kbd><span>Open search</span></div>
+          </div>
+          <div class="shortcut-section">
+            <h4>Global</h4>
+            <div class="shortcut-item"><kbd>Cmd</kbd>+<kbd>K</kbd><span>Command palette</span></div>
+            <div class="shortcut-item"><kbd>Cmd</kbd>+<kbd>Z</kbd><span>Undo</span></div>
+            <div class="shortcut-item"><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd><span>Redo</span></div>
+            <div class="shortcut-item"><kbd>?</kbd><span>Show this help</span></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="primary" @click="showHelpModal = false">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modals -->
     <CategoryModal
       :category="editingCategory"
@@ -86,10 +119,45 @@
       <header class="main-header">
         <div class="header-title-row">
           <h1 class="header-title">{{ currentTitle }}</h1>
-          <button class="theme-toggle" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'" @click="toggleTheme">
-            <span v-if="theme === 'dark'">☀️</span>
-            <span v-else>🌙</span>
-          </button>
+          <div class="header-actions">
+            <button
+              class="header-btn"
+              :class="{ disabled: !historyState.canUndo }"
+              :disabled="!historyState.canUndo"
+              :title="historyState.undoDescription ? `Undo: ${historyState.undoDescription}` : 'Nothing to undo'"
+              @click="undo"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 10h10a5 5 0 0 1 5 5v2"/>
+                <polyline points="3,10 7,6"/>
+                <polyline points="3,10 7,14"/>
+              </svg>
+            </button>
+            <button
+              class="header-btn"
+              :class="{ disabled: !historyState.canRedo }"
+              :disabled="!historyState.canRedo"
+              :title="historyState.redoDescription ? `Redo: ${historyState.redoDescription}` : 'Nothing to redo'"
+              @click="redo"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10H11a5 5 0 0 0-5 5v2"/>
+                <polyline points="21,10 17,6"/>
+                <polyline points="21,10 17,14"/>
+              </svg>
+            </button>
+            <button class="header-btn" title="Keyboard shortcuts (?)" @click="showHelpModal = true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </button>
+            <button class="theme-toggle" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'" @click="toggleTheme">
+              <span v-if="theme === 'dark'">☀️</span>
+              <span v-else>🌙</span>
+            </button>
+          </div>
         </div>
         <div v-if="currentFilter !== 'persons'" class="header-controls">
           <div class="sort-controls">
@@ -768,7 +836,19 @@ export default {
       // Persons/Stakeholders
       persons: [],
       projectPersons: {},
-      showProjectPersonPicker: false
+      showProjectPersonPicker: false,
+      // History state
+      historyState: {
+        canUndo: false,
+        canRedo: false,
+        undoDescription: null,
+        redoDescription: null
+      },
+      // Help modal
+      showHelpModal: false,
+      // ResizeObserver
+      cardResizeObserver: null,
+      resizeObserverTimeout: null
     }
   },
   computed: {
@@ -1282,6 +1362,12 @@ export default {
     // Keyboard shortcuts
     window.addEventListener('keydown', this.handleKeyDown)
 
+    // Listen for history state changes (undo/redo)
+    this.historyState = await window.api.getHistoryState()
+    window.api.onHistoryChanged((state) => {
+      this.historyState = state
+    })
+
     // Add native event listener for links in markdown
     document.addEventListener('click', (event) => {
       const link = event.target.closest('a')
@@ -1296,12 +1382,33 @@ export default {
         }
       }
     })
+
+    // Set up ResizeObserver to watch for card size changes
+    this.cardResizeObserver = new ResizeObserver((entries) => {
+      // Debounce the layout update
+      if (this.resizeObserverTimeout) {
+        clearTimeout(this.resizeObserverTimeout)
+      }
+      this.resizeObserverTimeout = setTimeout(() => {
+        if (this.currentView === 'cards') {
+          this.applyMasonryLayout()
+        }
+      }, 100)
+    })
+
+    // Start observing cards after initial render
+    this.$nextTick(() => {
+      this.observeCards()
+    })
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.checkLayout)
     window.removeEventListener('resize', this.updateGraphSize)
     window.removeEventListener('keydown', this.handleKeyDown)
     this.stopForceLayout()
+    if (this.cardResizeObserver) {
+      this.cardResizeObserver.disconnect()
+    }
   },
   methods: {
     onGroupByProjectChange() {
@@ -2194,6 +2301,16 @@ export default {
       // Otherwise let the card size naturally based on content (no min-height)
       return style
     },
+    observeCards() {
+      if (!this.cardResizeObserver) return
+      // Disconnect existing observations
+      this.cardResizeObserver.disconnect()
+      // Observe all cards
+      const cards = document.querySelectorAll('.todo-card')
+      cards.forEach(card => {
+        this.cardResizeObserver.observe(card)
+      })
+    },
     applyMasonryLayout() {
       // Apply masonry layout to all card grids
       this.$nextTick(() => {
@@ -2221,6 +2338,8 @@ export default {
                 card.style.gridRowEnd = `span ${rowSpan}`
               })
             })
+            // Re-observe cards in case new ones were added
+            this.observeCards()
           }, 200)
         }, 150)
       })
@@ -2685,6 +2804,10 @@ export default {
           e.preventDefault()
           this.openCommandPalette()
           return
+        case '?': // Show help
+          e.preventDefault()
+          this.showHelpModal = true
+          return
       }
 
       // Navigation shortcuts only work in list/table/cards view with todos
@@ -2887,6 +3010,18 @@ export default {
         el.removeAttribute('data-processed')
       })
       this.renderMermaid()
+    },
+    async undo() {
+      if (!this.historyState.canUndo) return
+      await window.api.undo()
+      await this.loadTodos()
+      await this.loadAllTodos()
+    },
+    async redo() {
+      if (!this.historyState.canRedo) return
+      await window.api.redo()
+      await this.loadTodos()
+      await this.loadAllTodos()
     },
     toggleCategoriesCollapsed() {
       this.categoriesCollapsed = !this.categoriesCollapsed
