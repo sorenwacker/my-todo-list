@@ -122,79 +122,79 @@ export class Database {
     // Migration: add importance and category_id if missing
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN importance INTEGER DEFAULT NULL')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN category_id INTEGER')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN start_date TEXT')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE persons ADD COLUMN github_name TEXT DEFAULT \'\'')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN status_id INTEGER')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: rename deadline to end_date
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN end_date TEXT')
       // Migrate data from deadline to end_date
       this.db.exec('UPDATE todos SET end_date = deadline WHERE deadline IS NOT NULL AND end_date IS NULL')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: add deleted_at for soft delete (trashbin)
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN deleted_at TEXT')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: add deleted_at for projects soft delete
     try {
       this.db.exec('ALTER TABLE projects ADD COLUMN deleted_at TEXT')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: add symbol column to categories (replacing color)
     try {
       this.db.exec('ALTER TABLE categories ADD COLUMN symbol TEXT DEFAULT \'*\'')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: add recurrence fields to todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_type TEXT')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_interval INTEGER DEFAULT 1')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_end_date TEXT')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: fix importance default - update any default 3 values to NULL
     try {
       this.db.exec('UPDATE todos SET importance = NULL WHERE importance = 3 AND title NOT LIKE \'%importance%\'')
-    } catch (e) { /* ignore errors */ }
+    } catch { /* ignore errors */ }
 
     // Migration: add stakeholder analysis fields to project_persons
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN influence_level INTEGER DEFAULT 3')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN interest_level INTEGER DEFAULT 3')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN stakeholder_type TEXT DEFAULT \'Internal\'')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN engagement_strategy TEXT DEFAULT \'Keep Informed\'')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
     try {
       this.db.exec('ALTER TABLE project_persons ADD COLUMN notes TEXT DEFAULT \'\'')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
 
     // Migration: add notes_sensitive flag for todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN notes_sensitive INTEGER DEFAULT 0')
-    } catch (e) { /* column exists */ }
+    } catch { /* column exists */ }
   }
 
   // Project operations

@@ -1,17 +1,17 @@
 <template>
-  <div class="detail-app" :class="{ 'light-theme': theme === 'light' }" :style="{ borderLeftColor: todo.project_color || '#333' }" v-if="todo">
+  <div v-if="todo" class="detail-app" :class="{ 'light-theme': theme === 'light' }" :style="{ borderLeftColor: todo.project_color || '#333' }">
     <div class="title-row">
       <input
         type="checkbox"
         :checked="todo.completed"
-        @change="toggleComplete"
         class="title-checkbox"
+        @change="toggleComplete"
       />
       <input
         v-model="todo.title"
         class="title-input"
-        @input="save"
         placeholder="Todo title"
+        @input="save"
       />
     </div>
 
@@ -34,10 +34,10 @@
       <textarea
         v-if="activeTab === 'edit'"
         v-model="todo.notes"
-        @input="save"
-        @keydown="handleNotesKeydown"
         placeholder="Add notes (Markdown supported)..."
         class="notes-editor"
+        @input="save"
+        @keydown="handleNotesKeydown"
       ></textarea>
 
       <div
@@ -47,26 +47,26 @@
         <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
           <div class="sensitive-icon">🔒</div>
           <p>Sensitive content hidden</p>
-          <button @click="revealNotes" class="reveal-btn">Reveal</button>
+          <button class="reveal-btn" @click="revealNotes">Reveal</button>
         </div>
-        <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+        <div v-else @click="handleMarkdownClick" v-html="renderedNotes"></div>
       </div>
 
       <div v-else class="notes-split">
         <textarea
           v-model="todo.notes"
-          @input="save"
-          @keydown="handleNotesKeydown"
           placeholder="Add notes (Markdown supported)..."
           class="notes-editor split-editor"
+          @input="save"
+          @keydown="handleNotesKeydown"
         ></textarea>
         <div class="notes-preview markdown-body split-preview">
           <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
             <div class="sensitive-icon">🔒</div>
             <p>Sensitive content hidden</p>
-            <button @click="revealNotes" class="reveal-btn">Reveal</button>
+            <button class="reveal-btn" @click="revealNotes">Reveal</button>
           </div>
-          <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+          <div v-else @click="handleMarkdownClick" v-html="renderedNotes"></div>
         </div>
       </div>
     </div>
@@ -74,8 +74,8 @@
     <div class="sensitive-notes-row" style="text-align: right; padding: 8px 0;">
       <label class="sensitive-checkbox" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #bbb; cursor: pointer;">
         <input
-          type="checkbox"
           v-model="todo.notes_sensitive"
+          type="checkbox"
           @change="save"
         />
         <span class="lock-icon">🔒</span>
@@ -92,17 +92,17 @@
         <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item" :class="{ completed: subtask.completed }">
           <input type="checkbox" :checked="subtask.completed" @change="toggleSubtask(subtask)" />
           <span class="subtask-title">{{ subtask.title }}</span>
-          <button @click="deleteSubtask(subtask.id)" class="subtask-delete">x</button>
+          <button class="subtask-delete" @click="deleteSubtask(subtask.id)">x</button>
         </div>
       </div>
       <div class="subtask-add">
         <input
           v-model="newSubtaskTitle"
-          @keyup.enter="addSubtask"
           placeholder="Add subtask..."
           class="subtask-input"
+          @keyup.enter="addSubtask"
         />
-        <button @click="addSubtask" :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn">+</button>
+        <button :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn" @click="addSubtask">+</button>
       </div>
     </div>
 
@@ -119,15 +119,15 @@
         <div class="links-subsection">
           <div class="subsection-header">
             <h4>Linked Items <span v-if="linkedTodos.length" class="count-badge">{{ linkedTodos.length }}</span></h4>
-            <button @click.stop="showLinkSearch = !showLinkSearch" class="link-btn">+ Link</button>
+            <button class="link-btn" @click.stop="showLinkSearch = !showLinkSearch">+ Link</button>
           </div>
 
           <div v-if="showLinkSearch" class="link-search">
             <input
-              v-model="linkQuery"
-              @input="searchForLinks"
-              placeholder="Search todos to link..."
               ref="linkInput"
+              v-model="linkQuery"
+              placeholder="Search todos to link..."
+              @input="searchForLinks"
             />
             <div v-if="linkResults.length" class="link-results">
               <div
@@ -152,7 +152,7 @@
               <span v-if="linked.project_name" class="linked-project">
                 {{ linked.project_name }}
               </span>
-              <button @click="unlinkFrom(linked)" class="unlink-btn">x</button>
+              <button class="unlink-btn" @click="unlinkFrom(linked)">x</button>
             </div>
             <p v-if="!linkedTodos.length" class="no-links">No linked items</p>
           </div>
@@ -195,15 +195,15 @@
         <div class="meta-item">
           <label>Start</label>
           <div class="date-field">
-            <input type="date" v-model="startDate" @change="save" lang="sv-SE" />
-            <button v-if="startDate" @click="clearStartDate" class="clear-btn">x</button>
+            <input v-model="startDate" type="date" lang="sv-SE" @change="save" />
+            <button v-if="startDate" class="clear-btn" @click="clearStartDate">x</button>
           </div>
         </div>
         <div class="meta-item">
           <label>End</label>
           <div class="date-field">
-            <input type="date" v-model="endDate" @change="save" lang="sv-SE" />
-            <button v-if="endDate" @click="clearEndDate" class="clear-btn">x</button>
+            <input v-model="endDate" type="date" lang="sv-SE" @change="save" />
+            <button v-if="endDate" class="clear-btn" @click="clearEndDate">x</button>
           </div>
         </div>
         <div class="meta-item recurrence-item">
@@ -219,12 +219,12 @@
             <div v-if="todo.recurrence_type" class="recurrence-interval">
               <span>every</span>
               <input
-                type="number"
                 v-model.number="todo.recurrence_interval"
-                @change="save"
+                type="number"
                 min="1"
                 max="99"
                 class="interval-input"
+                @change="save"
               />
               <span>{{ recurrenceUnit }}</span>
             </div>
@@ -242,14 +242,14 @@
                 :title="person.name"
                 @click="unassignPerson(person)"
               >{{ getInitials(person.name) }}</span>
-              <button @click.stop="showPersonSearch = !showPersonSearch" class="add-person-inline">{{ assignedPersons.length ? '+' : '+ Assign' }}</button>
+              <button class="add-person-inline" @click.stop="showPersonSearch = !showPersonSearch">{{ assignedPersons.length ? '+' : '+ Assign' }}</button>
             </div>
             <div v-if="showPersonSearch" class="person-search-inline">
               <input
-                v-model="personQuery"
-                @input="searchPersons"
-                placeholder="Search..."
                 ref="personInput"
+                v-model="personQuery"
+                placeholder="Search..."
+                @input="searchPersons"
               />
               <div v-if="personResults.length" class="search-results-inline">
                 <div
@@ -276,7 +276,7 @@
 </template>
 
 <script>
-import { marked } from 'marked'
+import { renderMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
 
 const savedTheme = localStorage.getItem('todo-theme') || 'dark'
@@ -370,7 +370,7 @@ export default {
     },
     renderedNotes() {
       if (!this.todo?.notes) return '<p class="placeholder">No notes yet</p>'
-      return marked(this.todo.notes)
+      return renderMarkdown(this.todo.notes)
     },
     completedSubtasksCount() {
       return this.subtasks.filter(s => s.completed).length
@@ -384,6 +384,25 @@ export default {
         yearly: 'year(s)'
       }
       return units[this.todo.recurrence_type] || ''
+    }
+  },
+  watch: {
+    showLinkSearch(val) {
+      if (val) {
+        this.$nextTick(() => {
+          this.$refs.linkInput?.focus()
+        })
+      }
+    },
+    activeTab(val) {
+      if (val === 'preview' || val === 'split') {
+        this.renderMermaid()
+      }
+    },
+    renderedNotes() {
+      if (this.activeTab === 'preview' || this.activeTab === 'split') {
+        this.renderMermaid()
+      }
     }
   },
   async mounted() {
@@ -695,25 +714,6 @@ export default {
       await window.api.unlinkTodoPerson(this.todo.id, person.id)
       await this.loadAssignedPersons()
       window.api.notifyTodoUpdated()
-    }
-  },
-  watch: {
-    showLinkSearch(val) {
-      if (val) {
-        this.$nextTick(() => {
-          this.$refs.linkInput?.focus()
-        })
-      }
-    },
-    activeTab(val) {
-      if (val === 'preview' || val === 'split') {
-        this.renderMermaid()
-      }
-    },
-    renderedNotes() {
-      if (this.activeTab === 'preview' || this.activeTab === 'split') {
-        this.renderMermaid()
-      }
     }
   }
 }

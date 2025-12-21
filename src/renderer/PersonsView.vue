@@ -2,7 +2,7 @@
   <div class="persons-view" :class="{ 'light-theme': theme === 'light' }">
     <div class="persons-header">
       <h2>Manage Persons</h2>
-      <button @click="showAddPerson" class="add-btn">+ Add Person</button>
+      <button class="add-btn" @click="showAddPerson">+ Add Person</button>
     </div>
 
     <div class="table-container">
@@ -12,19 +12,19 @@
             <th class="col-color"></th>
             <th class="col-name sortable" @click="toggleSort('name')">
               Name
-              <span class="sort-icon" v-if="sortBy === 'name'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              <span v-if="sortBy === 'name'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th class="col-email sortable" @click="toggleSort('email')">
               Email
-              <span class="sort-icon" v-if="sortBy === 'email'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              <span v-if="sortBy === 'email'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th class="col-company sortable" @click="toggleSort('company')">
               Company
-              <span class="sort-icon" v-if="sortBy === 'company'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              <span v-if="sortBy === 'company'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th class="col-role sortable" @click="toggleSort('role')">
               Role
-              <span class="sort-icon" v-if="sortBy === 'role'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              <span v-if="sortBy === 'role'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th class="col-actions"></th>
           </tr>
@@ -50,11 +50,11 @@
     </div>
 
     <div v-if="totalPages > 1" class="pagination">
-      <button @click="currentPage = 1" :disabled="currentPage === 1">First</button>
-      <button @click="currentPage--" :disabled="currentPage === 1">Prev</button>
+      <button :disabled="currentPage === 1" @click="currentPage = 1">First</button>
+      <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
       <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
-      <button @click="currentPage++" :disabled="currentPage === totalPages">Next</button>
-      <button @click="currentPage = totalPages" :disabled="currentPage === totalPages">Last</button>
+      <button :disabled="currentPage === totalPages" @click="currentPage++">Next</button>
+      <button :disabled="currentPage === totalPages" @click="currentPage = totalPages">Last</button>
       <select v-model.number="pageSize" class="page-size">
         <option :value="10">10</option>
         <option :value="25">25</option>
@@ -106,13 +106,13 @@
                 <div class="notes-tabs">
                   <button
                     :class="{ active: notesTab === 'edit' }"
-                    @click="notesTab = 'edit'"
                     type="button"
+                    @click="notesTab = 'edit'"
                   >Edit</button>
                   <button
                     :class="{ active: notesTab === 'preview' }"
-                    @click="notesTab = 'preview'"
                     type="button"
+                    @click="notesTab = 'preview'"
                   >Preview</button>
                 </div>
               </div>
@@ -127,7 +127,7 @@
                 class="notes-preview markdown-body"
               >
                 <div v-if="!editingPerson.notes" class="placeholder">No notes yet...</div>
-                <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
+                <div v-else @click="handleMarkdownClick" v-html="renderedNotes"></div>
               </div>
             </div>
           </div>
@@ -149,7 +149,7 @@
           <div class="modal-actions">
             <button v-if="editingPerson.id" class="delete-btn" @click="deletePerson">Delete</button>
             <button @click="cancelEdit">Cancel</button>
-            <button class="primary" @click="savePerson" :disabled="!editingPerson.name.trim()">Save</button>
+            <button class="primary" :disabled="!editingPerson.name.trim()" @click="savePerson">Save</button>
           </div>
         </div>
       </div>
@@ -158,7 +158,7 @@
 </template>
 
 <script>
-import { marked } from 'marked'
+import { renderMarkdown } from './utils/markdown.js'
 
 export default {
   name: 'PersonsView',
@@ -218,7 +218,7 @@ export default {
     },
     renderedNotes() {
       if (!this.editingPerson?.notes) return ''
-      return marked(this.editingPerson.notes)
+      return renderMarkdown(this.editingPerson.notes)
     }
   },
   watch: {

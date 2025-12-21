@@ -3,12 +3,12 @@
     <header class="register-header">
       <h1>Stakeholder Register - {{ projectName }}</h1>
       <div class="header-actions">
-        <button @click="showAddStakeholder = !showAddStakeholder" class="add-stakeholder-btn">
+        <button class="add-stakeholder-btn" @click="showAddStakeholder = !showAddStakeholder">
           + Add Stakeholder
         </button>
         <div class="view-toggle">
-          <button @click="currentView = 'table'" :class="{ active: currentView === 'table' }">Table</button>
-          <button @click="currentView = 'matrix'" :class="{ active: currentView === 'matrix' }">Matrix</button>
+          <button :class="{ active: currentView === 'table' }" @click="currentView = 'table'">Table</button>
+          <button :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Matrix</button>
         </div>
       </div>
     </header>
@@ -17,10 +17,11 @@
     <div v-if="showAddStakeholder" class="stakeholder-picker">
       <div class="picker-header">
         <h3>Select Person to Add as Stakeholder</h3>
-        <button @click="showCreatePerson = true" class="create-person-btn">+ Create New Person</button>
+        <button class="create-person-btn" @click="showCreatePerson = true">+ Create New Person</button>
       </div>
       <div class="person-list">
-        <div v-for="person in availablePersons" :key="person.id"
+        <div
+v-for="person in availablePersons" :key="person.id"
              class="person-option"
              @click="addStakeholder(person)">
           <span class="color-dot" :style="{ background: person.color }"></span>
@@ -50,8 +51,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="stakeholder in stakeholders" :key="stakeholder.id"
-                @click="editStakeholder(stakeholder)" class="clickable-row">
+            <tr
+v-for="stakeholder in stakeholders" :key="stakeholder.id"
+                class="clickable-row" @click="editStakeholder(stakeholder)">
               <td>
                 <div class="name-cell">
                   <span class="color-dot" :style="{ background: stakeholder.color }"></span>
@@ -63,19 +65,21 @@
               <td>{{ stakeholder.stakeholder_type }}</td>
               <td>
                 <div class="level-indicator">
-                  <span v-for="n in 5" :key="n" class="level-dot"
+                  <span
+v-for="n in 5" :key="n" class="level-dot"
                         :class="{ filled: n <= stakeholder.influence_level }"></span>
                 </div>
               </td>
               <td>
                 <div class="level-indicator">
-                  <span v-for="n in 5" :key="n" class="level-dot"
+                  <span
+v-for="n in 5" :key="n" class="level-dot"
                         :class="{ filled: n <= stakeholder.interest_level }"></span>
                 </div>
               </td>
               <td>{{ stakeholder.engagement_strategy }}</td>
               <td @click.stop>
-                <button @click="removeStakeholder(stakeholder)" class="remove-btn">Remove</button>
+                <button class="remove-btn" @click="removeStakeholder(stakeholder)">Remove</button>
               </td>
             </tr>
           </tbody>
@@ -133,38 +137,39 @@
         <div class="form-grid">
           <div class="form-field">
             <label>Name *</label>
-            <input type="text" v-model="newPerson.name" required placeholder="Enter name" />
+            <input v-model="newPerson.name" type="text" required placeholder="Enter name" />
           </div>
 
           <div class="form-field">
             <label>Email</label>
-            <input type="email" v-model="newPerson.email" placeholder="email@example.com" />
+            <input v-model="newPerson.email" type="email" placeholder="email@example.com" />
           </div>
 
           <div class="form-field">
             <label>Phone</label>
-            <input type="tel" v-model="newPerson.phone" placeholder="+1234567890" />
+            <input v-model="newPerson.phone" type="tel" placeholder="+1234567890" />
           </div>
 
           <div class="form-field">
             <label>Institution/Company</label>
-            <input type="text" v-model="newPerson.company" placeholder="Institution or company name" />
+            <input v-model="newPerson.company" type="text" placeholder="Institution or company name" />
           </div>
 
           <div class="form-field full-width">
             <label>Role</label>
-            <input type="text" v-model="newPerson.role" placeholder="Job title or role" />
+            <input v-model="newPerson.role" type="text" placeholder="Job title or role" />
           </div>
 
           <div class="form-field full-width">
             <label>GitHub Username</label>
-            <input type="text" v-model="newPerson.github_name" placeholder="@username" />
+            <input v-model="newPerson.github_name" type="text" placeholder="@username" />
           </div>
 
           <div class="form-field full-width">
             <label>Color</label>
             <div class="color-picker">
-              <div v-for="color in personColors" :key="color"
+              <div
+v-for="color in personColors" :key="color"
                    class="color-option"
                    :class="{ selected: newPerson.color === color }"
                    :style="{ background: color }"
@@ -175,14 +180,15 @@
 
           <div class="form-field full-width">
             <label>Notes</label>
-            <textarea v-model="newPerson.notes" rows="3"
+            <textarea
+v-model="newPerson.notes" rows="3"
                       placeholder="General notes about this person..."></textarea>
           </div>
         </div>
 
         <div class="modal-actions">
           <button @click="cancelCreatePerson">Cancel</button>
-          <button class="primary" @click="createPerson" :disabled="!newPerson.name">Create Person</button>
+          <button class="primary" :disabled="!newPerson.name" @click="createPerson">Create Person</button>
         </div>
       </div>
     </div>
@@ -198,38 +204,39 @@
           <div class="form-grid">
             <div class="form-field">
               <label>Name *</label>
-              <input type="text" v-model="editingStakeholder.name" required />
+              <input v-model="editingStakeholder.name" type="text" required />
             </div>
 
             <div class="form-field">
               <label>Email</label>
-              <input type="email" v-model="editingStakeholder.email" />
+              <input v-model="editingStakeholder.email" type="email" />
             </div>
 
             <div class="form-field">
               <label>Phone</label>
-              <input type="tel" v-model="editingStakeholder.phone" />
+              <input v-model="editingStakeholder.phone" type="tel" />
             </div>
 
             <div class="form-field">
               <label>Institution/Company</label>
-              <input type="text" v-model="editingStakeholder.company" />
+              <input v-model="editingStakeholder.company" type="text" />
             </div>
 
             <div class="form-field full-width">
               <label>Role</label>
-              <input type="text" v-model="editingStakeholder.role" />
+              <input v-model="editingStakeholder.role" type="text" />
             </div>
 
             <div class="form-field full-width">
               <label>GitHub Username</label>
-              <input type="text" v-model="editingStakeholder.github_name" placeholder="@username" />
+              <input v-model="editingStakeholder.github_name" type="text" placeholder="@username" />
             </div>
 
             <div class="form-field full-width">
               <label>Color</label>
               <div class="color-picker">
-                <div v-for="color in personColors" :key="color"
+                <div
+v-for="color in personColors" :key="color"
                      class="color-option"
                      :class="{ selected: editingStakeholder.color === color }"
                      :style="{ background: color }"
@@ -240,7 +247,8 @@
 
             <div class="form-field full-width">
               <label>General Notes</label>
-              <textarea v-model="editingStakeholder.notes" rows="3"
+              <textarea
+v-model="editingStakeholder.notes" rows="3"
                         placeholder="General notes about this person..."></textarea>
             </div>
           </div>
@@ -265,7 +273,7 @@
             <div class="form-field">
               <label>Influence Level (1-5)</label>
               <div class="level-slider">
-                <input type="range" v-model.number="editingStakeholder.influence_level" min="1" max="5" />
+                <input v-model.number="editingStakeholder.influence_level" type="range" min="1" max="5" />
                 <span class="level-value">{{ editingStakeholder.influence_level }}</span>
               </div>
             </div>
@@ -273,7 +281,7 @@
             <div class="form-field">
               <label>Interest Level (1-5)</label>
               <div class="level-slider">
-                <input type="range" v-model.number="editingStakeholder.interest_level" min="1" max="5" />
+                <input v-model.number="editingStakeholder.interest_level" type="range" min="1" max="5" />
                 <span class="level-value">{{ editingStakeholder.interest_level }}</span>
               </div>
             </div>
@@ -290,7 +298,8 @@
 
             <div class="form-field full-width">
               <label>Project-Specific Notes</label>
-              <textarea v-model="editingStakeholder.stakeholder_notes" rows="3"
+              <textarea
+v-model="editingStakeholder.stakeholder_notes" rows="3"
                         placeholder="Notes specific to this person's involvement in this project..."></textarea>
             </div>
           </div>

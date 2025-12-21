@@ -1,5 +1,5 @@
 def main():
-    print("Hello from my-todo-list!")
+    print("Hello from todo!")
 
 
 if __name__ == "__main__":

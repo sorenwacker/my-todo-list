@@ -1,7 +1,54 @@
-import { app, BrowserWindow, ipcMain, screen, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog, shell, globalShortcut, session } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { Database } from './database.js'
+import logger from './logger.js'
+import { initAutoUpdater, checkForUpdates } from './updater.js'
+import history from './history.js'
+import {
+  ValidationError,
+  validateId,
+  validateOptionalId,
+  validateString,
+  validateOptionalColor,
+  validateIdArray,
+  validateTodo,
+  validateProject,
+  validateCategory,
+  validateStatus,
+  validatePerson,
+  validateSubtask,
+  validateStakeholderData,
+  validateSearchQuery,
+  validateImportMode,
+  validateUrl
+} from './validators.js'
+
+const log = logger.child({ module: 'main' })
+
+/**
+ * Wrapper for IPC handlers that adds validation and error handling with logging
+ */
+function handleWithValidation(handler, handlerName = 'unknown') {
+  return async (...args) => {
+    try {
+      return await handler(...args)
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        log.warn('Validation error in IPC handler', {
+          handler: handlerName,
+          message: error.message
+        })
+        throw error
+      }
+      log.error('Error in IPC handler', {
+        handler: handlerName,
+        error
+      })
+      throw error
+    }
+  }
+}
 
 let mainWindow = null
 let detailWindow = null
@@ -21,7 +68,7 @@ function createMainWindow() {
     height,
     icon: iconPath,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -57,7 +104,7 @@ function createDetailWindow(todoId) {
     width: 600,
     height: 700,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -125,7 +172,7 @@ function createStakeholderWindow(projectId) {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -145,92 +192,274 @@ function createStakeholderWindow(projectId) {
 }
 
 app.whenReady().then(() => {
+  log.info('Application starting')
   database = new Database()
+  log.info('Database initialized')
+
+  // Configure Content Security Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self';" +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
+          "style-src 'self' 'unsafe-inline';" +
+          "img-src 'self' data: blob:;" +
+          "font-src 'self' data:;" +
+          "connect-src 'self' https://api.github.com https://github.com;" +
+          "frame-src 'none';" +
+          "object-src 'none';" +
+          "base-uri 'self';"
+        ]
+      }
+    })
+  })
+  log.info('Content Security Policy configured')
 
   // External links
-  ipcMain.handle('open-external', (_, url) => shell.openExternal(url))
+  ipcMain.handle('open-external', handleWithValidation((_, url) => {
+    return shell.openExternal(validateUrl(url))
+  }))
 
   // Project operations
   ipcMain.handle('get-projects', () => database.getAllProjects())
-  ipcMain.handle('get-project', (_, id) => database.getProject(id))
-  ipcMain.handle('create-project', (_, name, color) => database.createProject(name, color))
-  ipcMain.handle('update-project', (_, project) => database.updateProject(project))
-  ipcMain.handle('delete-project', (_, id) => database.deleteProject(id))
-  ipcMain.handle('restore-project', (_, id) => database.restoreProject(id))
-  ipcMain.handle('permanently-delete-project', (_, id) => database.permanentlyDeleteProject(id))
+  ipcMain.handle('get-project', handleWithValidation((_, id) => {
+    return database.getProject(validateId(id))
+  }))
+  ipcMain.handle('create-project', handleWithValidation((_, name, color) => {
+    return database.createProject(
+      validateString(name, 'name', 200),
+      validateOptionalColor(color)
+    )
+  }))
+  ipcMain.handle('update-project', handleWithValidation((_, project) => {
+    return database.updateProject(validateProject(project))
+  }))
+  ipcMain.handle('delete-project', handleWithValidation((_, id) => {
+    return database.deleteProject(validateId(id))
+  }))
+  ipcMain.handle('restore-project', handleWithValidation((_, id) => {
+    return database.restoreProject(validateId(id))
+  }))
+  ipcMain.handle('permanently-delete-project', handleWithValidation((_, id) => {
+    return database.permanentlyDeleteProject(validateId(id))
+  }))
   ipcMain.handle('get-deleted-projects', () => database.getDeletedProjects())
 
   // Category operations
   ipcMain.handle('get-categories', () => database.getAllCategories())
-  ipcMain.handle('get-category', (_, id) => database.getCategory(id))
-  ipcMain.handle('create-category', (_, name, color) => database.createCategory(name, color))
-  ipcMain.handle('update-category', (_, category) => database.updateCategory(category))
-  ipcMain.handle('delete-category', (_, id) => database.deleteCategory(id))
+  ipcMain.handle('get-category', handleWithValidation((_, id) => {
+    return database.getCategory(validateId(id))
+  }))
+  ipcMain.handle('create-category', handleWithValidation((_, name, color) => {
+    return database.createCategory(
+      validateString(name, 'name', 100),
+      validateOptionalColor(color)
+    )
+  }))
+  ipcMain.handle('update-category', handleWithValidation((_, category) => {
+    return database.updateCategory(validateCategory(category))
+  }))
+  ipcMain.handle('delete-category', handleWithValidation((_, id) => {
+    return database.deleteCategory(validateId(id))
+  }))
 
   // Status operations
   ipcMain.handle('get-statuses', () => database.getAllStatuses())
-  ipcMain.handle('get-status', (_, id) => database.getStatus(id))
-  ipcMain.handle('create-status', (_, name, color) => database.createStatus(name, color))
-  ipcMain.handle('update-status', (_, status) => database.updateStatus(status))
-  ipcMain.handle('delete-status', (_, id) => database.deleteStatus(id))
+  ipcMain.handle('get-status', handleWithValidation((_, id) => {
+    return database.getStatus(validateId(id))
+  }))
+  ipcMain.handle('create-status', handleWithValidation((_, name, color) => {
+    return database.createStatus(
+      validateString(name, 'name', 100),
+      validateOptionalColor(color)
+    )
+  }))
+  ipcMain.handle('update-status', handleWithValidation((_, status) => {
+    return database.updateStatus(validateStatus(status))
+  }))
+  ipcMain.handle('delete-status', handleWithValidation((_, id) => {
+    return database.deleteStatus(validateId(id))
+  }))
 
   // Person operations
   ipcMain.handle('get-persons', () => database.getAllPersons())
-  ipcMain.handle('get-person', (_, id) => database.getPerson(id))
-  ipcMain.handle('create-person', (_, person) => database.createPerson(person))
-  ipcMain.handle('update-person', (_, person) => database.updatePerson(person))
-  ipcMain.handle('delete-person', (_, id) => database.deletePerson(id))
-  ipcMain.handle('reorder-persons', (_, ids) => database.reorderPersons(ids))
+  ipcMain.handle('get-person', handleWithValidation((_, id) => {
+    return database.getPerson(validateId(id))
+  }))
+  ipcMain.handle('create-person', handleWithValidation((_, person) => {
+    return database.createPerson(validatePerson(person))
+  }))
+  ipcMain.handle('update-person', handleWithValidation((_, person) => {
+    return database.updatePerson(validatePerson(person))
+  }))
+  ipcMain.handle('delete-person', handleWithValidation((_, id) => {
+    return database.deletePerson(validateId(id))
+  }))
+  ipcMain.handle('reorder-persons', handleWithValidation((_, ids) => {
+    return database.reorderPersons(validateIdArray(ids))
+  }))
 
   // Todo-Person linking
-  ipcMain.handle('get-todo-persons', (_, todoId) => database.getTodoPersons(todoId))
-  ipcMain.handle('link-todo-person', (_, todoId, personId) => database.linkTodoPerson(todoId, personId))
-  ipcMain.handle('unlink-todo-person', (_, todoId, personId) => database.unlinkTodoPerson(todoId, personId))
-  ipcMain.handle('get-person-todos', (_, personId) => database.getPersonTodos(personId))
+  ipcMain.handle('get-todo-persons', handleWithValidation((_, todoId) => {
+    return database.getTodoPersons(validateId(todoId))
+  }))
+  ipcMain.handle('link-todo-person', handleWithValidation((_, todoId, personId) => {
+    return database.linkTodoPerson(validateId(todoId), validateId(personId))
+  }))
+  ipcMain.handle('unlink-todo-person', handleWithValidation((_, todoId, personId) => {
+    return database.unlinkTodoPerson(validateId(todoId), validateId(personId))
+  }))
+  ipcMain.handle('get-person-todos', handleWithValidation((_, personId) => {
+    return database.getPersonTodos(validateId(personId))
+  }))
 
   // Project-Person linking
-  ipcMain.handle('get-project-persons', (_, projectId) => database.getProjectPersons(projectId))
-  ipcMain.handle('link-project-person', (_, projectId, personId, stakeholderData) => database.linkProjectPerson(projectId, personId, stakeholderData))
-  ipcMain.handle('update-project-person-stakeholder', (_, projectId, personId, stakeholderData) => database.updateProjectPersonStakeholder(projectId, personId, stakeholderData))
-  ipcMain.handle('unlink-project-person', (_, projectId, personId) => database.unlinkProjectPerson(projectId, personId))
-  ipcMain.handle('get-person-projects', (_, personId) => database.getPersonProjects(personId))
+  ipcMain.handle('get-project-persons', handleWithValidation((_, projectId) => {
+    return database.getProjectPersons(validateId(projectId))
+  }))
+  ipcMain.handle('link-project-person', handleWithValidation((_, projectId, personId, stakeholderData) => {
+    return database.linkProjectPerson(
+      validateId(projectId),
+      validateId(personId),
+      validateStakeholderData(stakeholderData)
+    )
+  }))
+  ipcMain.handle('update-project-person-stakeholder', handleWithValidation((_, projectId, personId, stakeholderData) => {
+    return database.updateProjectPersonStakeholder(
+      validateId(projectId),
+      validateId(personId),
+      validateStakeholderData(stakeholderData)
+    )
+  }))
+  ipcMain.handle('unlink-project-person', handleWithValidation((_, projectId, personId) => {
+    return database.unlinkProjectPerson(validateId(projectId), validateId(personId))
+  }))
+  ipcMain.handle('get-person-projects', handleWithValidation((_, personId) => {
+    return database.getPersonProjects(validateId(personId))
+  }))
 
   // Todo operations
-  ipcMain.handle('get-todos', (_, projectId) => database.getAllTodos(projectId))
-  ipcMain.handle('get-todo', (_, id) => database.getTodo(id))
-  ipcMain.handle('create-todo', (_, title, projectId) => database.createTodo(title, projectId))
-  ipcMain.handle('update-todo', (_, todo) => database.updateTodo(todo))
+  ipcMain.handle('get-todos', handleWithValidation((_, projectId) => {
+    // projectId can be null, 'inbox', or a number
+    if (projectId === null || projectId === 'inbox') {
+      return database.getAllTodos(projectId)
+    }
+    return database.getAllTodos(validateId(projectId))
+  }))
+  ipcMain.handle('get-todo', handleWithValidation((_, id) => {
+    return database.getTodo(validateId(id))
+  }))
+  ipcMain.handle('create-todo', handleWithValidation((_, title, projectId) => {
+    const validTitle = validateString(title, 'title', 500)
+    const validProjectId = validateOptionalId(projectId)
+    const todo = database.createTodo(validTitle, validProjectId)
+
+    // Record in history
+    history.push({
+      type: 'create-todo',
+      description: `Create "${validTitle}"`,
+      undo: () => database.permanentlyDeleteTodo(todo.id),
+      redo: () => database.createTodo(validTitle, validProjectId)
+    })
+
+    return todo
+  }))
+  ipcMain.handle('update-todo', handleWithValidation((_, todo) => {
+    return database.updateTodo(validateTodo(todo))
+  }))
   ipcMain.on('update-todo-sync', (event, todo) => {
-    console.log('Sync save requested for todo:', todo.id, todo.title)
-    database.updateTodo(todo)
-    console.log('Sync save completed')
-    event.returnValue = true
+    try {
+      const validatedTodo = validateTodo(todo)
+      console.log('Sync save requested for todo:', validatedTodo.id, validatedTodo.title)
+      database.updateTodo(validatedTodo)
+      console.log('Sync save completed')
+      event.returnValue = true
+    } catch (error) {
+      console.error('Sync save validation error:', error.message)
+      event.returnValue = false
+    }
   })
-  ipcMain.handle('delete-todo', (_, id) => database.deleteTodo(id))
-  ipcMain.handle('restore-todo', (_, id) => database.restoreTodo(id))
-  ipcMain.handle('permanently-delete-todo', (_, id) => database.permanentlyDeleteTodo(id))
+  ipcMain.handle('delete-todo', handleWithValidation((_, id) => {
+    const validId = validateId(id)
+    const todo = database.getTodo(validId)
+    const result = database.deleteTodo(validId)
+
+    // Record in history
+    if (todo) {
+      history.push({
+        type: 'delete-todo',
+        description: `Delete "${todo.title}"`,
+        undo: () => database.restoreTodo(validId),
+        redo: () => database.deleteTodo(validId)
+      })
+    }
+
+    return result
+  }))
+  ipcMain.handle('restore-todo', handleWithValidation((_, id) => {
+    return database.restoreTodo(validateId(id))
+  }))
+  ipcMain.handle('permanently-delete-todo', handleWithValidation((_, id) => {
+    return database.permanentlyDeleteTodo(validateId(id))
+  }))
   ipcMain.handle('empty-trash', () => database.emptyTrash())
   ipcMain.handle('get-trash-count', () => database.getTrashCount())
-  ipcMain.handle('reorder-todos', (_, ids) => database.reorderTodos(ids))
-  ipcMain.handle('reorder-projects', (_, ids) => database.reorderProjects(ids))
-  ipcMain.handle('reorder-categories', (_, ids) => database.reorderCategories(ids))
-  ipcMain.handle('reorder-statuses', (_, ids) => database.reorderStatuses(ids))
+  ipcMain.handle('reorder-todos', handleWithValidation((_, ids) => {
+    return database.reorderTodos(validateIdArray(ids))
+  }))
+  ipcMain.handle('reorder-projects', handleWithValidation((_, ids) => {
+    return database.reorderProjects(validateIdArray(ids))
+  }))
+  ipcMain.handle('reorder-categories', handleWithValidation((_, ids) => {
+    return database.reorderCategories(validateIdArray(ids))
+  }))
+  ipcMain.handle('reorder-statuses', handleWithValidation((_, ids) => {
+    return database.reorderStatuses(validateIdArray(ids))
+  }))
 
   // Link operations
-  ipcMain.handle('get-linked-todos', (_, todoId) => database.getLinkedTodos(todoId))
-  ipcMain.handle('link-todos', (_, sourceId, targetId) => database.linkTodos(sourceId, targetId))
-  ipcMain.handle('unlink-todos', (_, sourceId, targetId) => database.unlinkTodos(sourceId, targetId))
-  ipcMain.handle('search-todos', (_, query, excludeId) => database.searchTodos(query, excludeId))
+  ipcMain.handle('get-linked-todos', handleWithValidation((_, todoId) => {
+    return database.getLinkedTodos(validateId(todoId))
+  }))
+  ipcMain.handle('link-todos', handleWithValidation((_, sourceId, targetId) => {
+    return database.linkTodos(validateId(sourceId), validateId(targetId))
+  }))
+  ipcMain.handle('unlink-todos', handleWithValidation((_, sourceId, targetId) => {
+    return database.unlinkTodos(validateId(sourceId), validateId(targetId))
+  }))
+  ipcMain.handle('search-todos', handleWithValidation((_, query, excludeId) => {
+    return database.searchTodos(
+      validateSearchQuery(query),
+      validateOptionalId(excludeId)
+    )
+  }))
 
   // Subtask handlers
-  ipcMain.handle('get-subtasks', (_, todoId) => database.getSubtasks(todoId))
-  ipcMain.handle('create-subtask', (_, todoId, title) => database.createSubtask(todoId, title))
-  ipcMain.handle('update-subtask', (_, subtask) => database.updateSubtask(subtask))
-  ipcMain.handle('delete-subtask', (_, id) => database.deleteSubtask(id))
-  ipcMain.handle('reorder-subtasks', (_, ids) => database.reorderSubtasks(ids))
+  ipcMain.handle('get-subtasks', handleWithValidation((_, todoId) => {
+    return database.getSubtasks(validateId(todoId))
+  }))
+  ipcMain.handle('create-subtask', handleWithValidation((_, todoId, title) => {
+    return database.createSubtask(
+      validateId(todoId),
+      validateString(title, 'title', 500)
+    )
+  }))
+  ipcMain.handle('update-subtask', handleWithValidation((_, subtask) => {
+    return database.updateSubtask(validateSubtask(subtask))
+  }))
+  ipcMain.handle('delete-subtask', handleWithValidation((_, id) => {
+    return database.deleteSubtask(validateId(id))
+  }))
+  ipcMain.handle('reorder-subtasks', handleWithValidation((_, ids) => {
+    return database.reorderSubtasks(validateIdArray(ids))
+  }))
 
   // Recurrence handler
-  ipcMain.handle('create-next-recurrence', (_, todoId) => database.createNextRecurrence(todoId))
+  ipcMain.handle('create-next-recurrence', handleWithValidation((_, todoId) => {
+    return database.createNextRecurrence(validateId(todoId))
+  }))
 
   // Export/Import handlers
   ipcMain.handle('export-data', async () => {
@@ -244,14 +473,21 @@ app.whenReady().then(() => {
     })
 
     if (filePath) {
-      const data = database.exportData()
-      writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
-      return { success: true, path: filePath }
+      try {
+        const data = database.exportData()
+        writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+        log.info('Data exported successfully', { path: filePath })
+        return { success: true, path: filePath }
+      } catch (error) {
+        log.error('Failed to export data', { error, path: filePath })
+        return { success: false, error: error.message }
+      }
     }
     return { success: false }
   })
 
   ipcMain.handle('import-data', async (_, mode = 'merge') => {
+    const validatedMode = validateImportMode(mode)
     const { filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Import Todo List Data',
       filters: [
@@ -262,12 +498,20 @@ app.whenReady().then(() => {
     })
 
     if (filePaths && filePaths.length > 0) {
+      const importPath = filePaths[0]
       try {
-        const fileContent = readFileSync(filePaths[0], 'utf-8')
+        const fileContent = readFileSync(importPath, 'utf-8')
+        // Limit file size to 50MB
+        if (fileContent.length > 50 * 1024 * 1024) {
+          log.warn('Import file too large', { path: importPath, size: fileContent.length })
+          return { success: false, error: 'File too large (max 50MB)' }
+        }
         const importData = JSON.parse(fileContent)
-        database.importData(importData, mode)
+        database.importData(importData, validatedMode)
+        log.info('Data imported successfully', { path: importPath, mode: validatedMode })
         return { success: true }
       } catch (error) {
+        log.error('Failed to import data', { error, path: importPath })
         return { success: false, error: error.message }
       }
     }
@@ -279,24 +523,26 @@ app.whenReady().then(() => {
   })
 
   // Window management
-  ipcMain.handle('open-detail', (_, todoId) => {
-    createDetailWindow(todoId)
+  ipcMain.handle('open-detail', handleWithValidation((_, todoId) => {
+    const validatedId = validateId(todoId)
+    createDetailWindow(validatedId)
     // Notify main window that detail was opened in a window
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('detail-opened-in-window', todoId)
+      mainWindow.webContents.send('detail-opened-in-window', validatedId)
     }
-  })
+  }))
 
-  ipcMain.handle('close-detail-window', (_, todoId) => {
+  ipcMain.handle('close-detail-window', handleWithValidation((_, todoId) => {
+    const validatedId = validateId(todoId)
     // Close the detail window if it's open for this todo
-    if (detailWindow && detailWindowTodoId === todoId && !detailWindow.isDestroyed()) {
+    if (detailWindow && detailWindowTodoId === validatedId && !detailWindow.isDestroyed()) {
       detailWindow.close()
     }
-  })
+  }))
 
-  ipcMain.handle('open-stakeholder-register', (_, projectId) => {
-    createStakeholderWindow(projectId)
-  })
+  ipcMain.handle('open-stakeholder-register', handleWithValidation((_, projectId) => {
+    createStakeholderWindow(validateId(projectId))
+  }))
 
   // Notify main window of updates
   ipcMain.on('todo-updated', () => {
@@ -306,16 +552,82 @@ app.whenReady().then(() => {
   })
 
   createMainWindow()
+  log.info('Main window created')
+
+  // Initialize auto-updater
+  initAutoUpdater(mainWindow)
+
+  // IPC handler for manual update check
+  ipcMain.handle('check-for-updates', () => {
+    checkForUpdates()
+  })
+
+  // Undo/Redo handlers
+  ipcMain.handle('undo', async () => {
+    const action = await history.undo()
+    if (action && mainWindow) {
+      mainWindow.webContents.send('refresh-todos')
+    }
+    return history.getState()
+  })
+
+  ipcMain.handle('redo', async () => {
+    const action = await history.redo()
+    if (action && mainWindow) {
+      mainWindow.webContents.send('refresh-todos')
+    }
+    return history.getState()
+  })
+
+  ipcMain.handle('get-history-state', () => {
+    return history.getState()
+  })
+
+  // Register global keyboard shortcuts
+  app.whenReady().then(() => {
+    // Cmd/Ctrl+Z for undo
+    globalShortcut.register('CommandOrControl+Z', async () => {
+      if (mainWindow && mainWindow.isFocused()) {
+        const action = await history.undo()
+        if (action) {
+          mainWindow.webContents.send('refresh-todos')
+          mainWindow.webContents.send('history-changed', history.getState())
+        }
+      }
+    })
+
+    // Cmd/Ctrl+Shift+Z for redo
+    globalShortcut.register('CommandOrControl+Shift+Z', async () => {
+      if (mainWindow && mainWindow.isFocused()) {
+        const action = await history.redo()
+        if (action) {
+          mainWindow.webContents.send('refresh-todos')
+          mainWindow.webContents.send('history-changed', history.getState())
+        }
+      }
+    })
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
+      log.info('Reactivating application')
       createMainWindow()
     }
   })
 })
 
 app.on('window-all-closed', () => {
+  log.info('All windows closed')
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  log.error('Uncaught exception', { error })
+})
+
+process.on('unhandledRejection', (reason) => {
+  log.error('Unhandled rejection', { reason: String(reason) })
 })

@@ -1,316 +1,92 @@
 <template>
   <div class="app" :class="{ 'light-theme': theme === 'light', 'sidebar-collapsed': !sidebarVisible, 'vertical-layout': isVerticalLayout }" :style="{ borderLeftColor: currentProjectColor }">
-    <button class="sidebar-toggle" @click="sidebarVisible = !sidebarVisible" :title="sidebarVisible ? 'Hide sidebar' : 'Show sidebar'">
+    <button class="sidebar-toggle" :title="sidebarVisible ? 'Hide sidebar' : 'Show sidebar'" @click="sidebarVisible = !sidebarVisible">
       <span v-if="sidebarVisible">&lt;</span>
       <span v-else>&gt;</span>
     </button>
-    <aside class="sidebar" v-show="sidebarVisible">
-      <div class="sidebar-header">
-        <h2>Projects</h2>
-      </div>
+    <AppSidebar
+      :visible="sidebarVisible"
+      :current-filter="currentFilter"
+      :projects="projects"
+      :statuses="statuses"
+      :categories="categories"
+      :all-count="allCount"
+      :inbox-count="inboxCount"
+      :trash-count="trashCount"
+      :project-counts="projectCounts"
+      :status-counts="statusCounts"
+      :category-counts="categoryCounts"
+      :open-todos-in-window="openTodosInWindow"
+      :grid-lock="gridLock"
+      :database-path="databasePath"
+      @set-filter="setFilter"
+      @update:projects="projects = $event"
+      @projects-reorder="onProjectDragEnd"
+      @add-project="addProjectFromSidebar"
+      @edit-project="editProject"
+      @update:statuses="statuses = $event"
+      @statuses-reorder="onStatusDragEnd"
+      @add-status="addStatusFromSidebar"
+      @edit-status="editStatus"
+      @update:categories="categories = $event"
+      @categories-reorder="onCategoryDragEnd"
+      @add-category="addCategoryFromSidebar"
+      @edit-category="editCategory"
+      @update:open-todos-in-window="onOpenTodosInWindowChange"
+      @update:grid-lock="onGridLockChange"
+      @export="handleExport"
+      @show-import="showImportDialog = true"
+      @manage-persons="openSettings"
+    />
 
-      <nav class="project-nav">
-        <div
-          class="nav-item"
-          :class="{ active: currentFilter === null }"
-          @click="setFilter(null)"
-        >
-          <span class="nav-icon">*</span>
-          <span>All Todos</span>
-          <span class="count">{{ allCount }}</span>
-        </div>
-
-        <div
-          class="nav-item"
-          :class="{ active: currentFilter === 'inbox' }"
-          @click="setFilter('inbox')"
-        >
-          <span class="nav-icon">></span>
-          <span>Inbox</span>
-          <span class="count">{{ inboxCount }}</span>
-        </div>
-
-        <div
-          class="nav-item trash-nav"
-          :class="{ active: currentFilter === 'trash' }"
-          @click="setFilter('trash')"
-        >
-          <span class="nav-icon">x</span>
-          <span>Trash</span>
-          <span class="count" v-if="trashCount > 0">{{ trashCount }}</span>
-        </div>
-
-        <div class="nav-divider"></div>
-
-        <div class="add-project">
-          <input
-            v-if="showProjectInput"
-            v-model="newProjectName"
-            @keyup.enter="addProject"
-            @blur="cancelAddProject"
-            placeholder="Project name..."
-            ref="projectInput"
-            type="text"
-          />
-          <button v-else @click="showAddProject">+ Add Project</button>
-        </div>
-
-        <draggable
-          v-model="projects"
-          item-key="id"
-          @end="onProjectDragEnd"
-          class="projects-list"
-        >
-          <template #item="{ element: project }">
-            <div
-              class="nav-item project-item"
-              :class="{ active: currentFilter === project.id, filtered: currentFilter === null && filterProjectId === project.id }"
-              @click="setFilter(project.id)"
-            >
-              <span class="project-dot" :style="{ background: project.color }"></span>
-              <span class="project-name">{{ project.name }}</span>
-              <span class="count">{{ getProjectCount(project.id) }}</span>
-              <button class="edit-btn" @click.stop="editProject(project)">...</button>
-            </div>
-          </template>
-        </draggable>
-      </nav>
-
-      <div class="sidebar-header status-header" @click="toggleStatusesCollapsed">
-        <span class="collapse-indicator">{{ statusesCollapsed ? '+' : '-' }}</span>
-        <h2>Statuses</h2>
-      </div>
-
-      <nav class="status-nav" v-show="!statusesCollapsed">
-        <draggable
-          v-model="statuses"
-          item-key="id"
-          @end="onStatusDragEnd"
-          class="statuses-list"
-        >
-          <template #item="{ element: status }">
-            <div
-              class="nav-item status-item"
-              @click="editStatus(status)"
-            >
-              <span class="status-dot" :style="{ background: status.color }"></span>
-              <span class="status-name">{{ status.name }}</span>
-              <span class="count">{{ getStatusCount(status.id) }}</span>
-            </div>
-          </template>
-        </draggable>
-      </nav>
-
-      <div class="add-status" v-show="!statusesCollapsed">
-        <input
-          v-if="showStatusInput"
-          v-model="newStatusName"
-          @keyup.enter="addStatus"
-          @blur="cancelAddStatus"
-          placeholder="Status name..."
-          ref="statusInput"
-          type="text"
-        />
-        <button v-else @click="showAddStatus">+ Add Status</button>
-      </div>
-
-      <div class="sidebar-header category-header" @click="toggleCategoriesCollapsed">
-        <span class="collapse-indicator">{{ categoriesCollapsed ? '+' : '-' }}</span>
-        <h2>Categories</h2>
-      </div>
-
-      <nav class="category-nav" v-show="!categoriesCollapsed">
-        <draggable
-          v-model="categories"
-          item-key="id"
-          @end="onCategoryDragEnd"
-          class="categories-list"
-        >
-          <template #item="{ element: category }">
-            <div
-              class="nav-item category-item"
-              @click="editCategory(category)"
-            >
-              <span class="category-symbol-icon">
-                <component v-if="getIconComponent(category.symbol)" :is="getIconComponent(category.symbol)" :size="16" />
-                <span v-else>{{ category.symbol || '*' }}</span>
-              </span>
-              <span class="category-name">{{ category.name }}</span>
-              <span class="count">{{ getCategoryCount(category.id) }}</span>
-            </div>
-          </template>
-        </draggable>
-      </nav>
-
-      <div class="add-category" v-show="!categoriesCollapsed">
-        <input
-          v-if="showCategoryInput"
-          v-model="newCategoryName"
-          @keyup.enter="addCategory"
-          @blur="cancelAddCategory"
-          placeholder="Category name..."
-          ref="categoryInput"
-          type="text"
-        />
-        <button v-else @click="showAddCategory">+ Add Category</button>
-      </div>
-
-      <div class="settings-section">
-        <div class="sidebar-header settings-header" @click="toggleSettingsCollapsed">
-          <span class="collapse-indicator">{{ settingsCollapsed ? '+' : '-' }}</span>
-          <h2>Settings</h2>
-        </div>
-        <div v-show="!settingsCollapsed" class="settings-content">
-          <div class="preference-item">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="openTodosInWindow" @change="saveOpenModePreference" />
-              <span class="preference-text">Open todos in new window</span>
-            </label>
-          </div>
-          <div class="preference-item">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="gridLock" @change="toggleGridLock" />
-              <span class="preference-text">Grid lock (cards view)</span>
-            </label>
-          </div>
-          <button @click="handleExport" class="settings-btn">Export</button>
-          <button @click="showImportDialog = true" class="settings-btn">Import</button>
-          <div class="database-location">
-            <small>Database: {{ databasePath }}</small>
-          </div>
+    <!-- Import Dialog -->
+    <div v-if="showImportDialog" class="project-modal" @click.self="showImportDialog = false">
+      <div class="modal-content" @click.stop>
+        <h3>Import Backup</h3>
+        <p>Choose how to import the backup:</p>
+        <div class="modal-actions">
+          <button class="primary" @click.stop="handleImport('merge')">Merge with Existing</button>
+          <button class="delete-btn" @click.stop="handleImport('replace')">Replace All Data</button>
+          <button @click.stop="showImportDialog = false">Cancel</button>
         </div>
       </div>
+    </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-header persons-header" @click="togglePersonsCollapsed">
-          <span class="collapse-indicator">{{ personsCollapsed ? '+' : '-' }}</span>
-          <h2>Persons</h2>
-        </div>
-        <div v-show="!personsCollapsed">
-          <button @click="openSettings" class="manage-persons-btn">Manage Persons</button>
-        </div>
-      </div>
+    <!-- Modals -->
+    <CategoryModal
+      :category="editingCategory"
+      @save="saveCategoryFromModal"
+      @cancel="cancelEditCategory"
+      @delete="deleteCategoryConfirm"
+    />
 
-      <div v-if="showImportDialog" class="project-modal" @click.self="showImportDialog = false">
-        <div class="modal-content" @click.stop>
-          <h3>Import Backup</h3>
-          <p>Choose how to import the backup:</p>
-          <div class="modal-actions">
-            <button @click.stop="handleImport('merge')" class="primary">Merge with Existing</button>
-            <button @click.stop="handleImport('replace')" class="delete-btn">Replace All Data</button>
-            <button @click.stop="showImportDialog = false">Cancel</button>
-          </div>
-        </div>
-      </div>
+    <StatusModal
+      :status="editingStatus"
+      :colors="statusColors"
+      @save="saveStatusFromModal"
+      @cancel="cancelEditStatus"
+      @delete="deleteStatusConfirm"
+    />
 
-      <div v-if="editingCategory" class="project-modal" @click.self="cancelEditCategory">
-        <div class="modal-content" @click.stop>
-          <h3>Edit Category</h3>
-          <input v-model="editingCategory.name" placeholder="Category name" />
-          <div class="symbol-picker">
-            <div
-              v-for="symbol in categorySymbols"
-              :key="symbol"
-              class="symbol-option"
-              :class="{ selected: editingCategory.symbol === symbol }"
-              @click="editingCategory.symbol = symbol"
-            >
-              <component :is="getIconComponent(symbol)" :size="20" />
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="delete-btn" @click.stop="deleteCategoryConfirm">Delete</button>
-            <button @click.stop="cancelEditCategory">Cancel</button>
-            <button class="primary" @click.stop="saveCategory">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="editingStatus" class="project-modal" @click.self="cancelEditStatus">
-        <div class="modal-content" @click.stop>
-          <h3>Edit Status</h3>
-          <input v-model="editingStatus.name" placeholder="Status name" />
-          <div class="color-picker">
-            <div
-              v-for="color in statusColors"
-              :key="color"
-              class="color-option"
-              :class="{ selected: editingStatus.color === color }"
-              :style="{ background: color }"
-              @click="editingStatus.color = color"
-            ></div>
-          </div>
-          <div class="modal-actions">
-            <button class="delete-btn" @click.stop="deleteStatusConfirm">Delete</button>
-            <button @click.stop="cancelEditStatus">Cancel</button>
-            <button class="primary" @click.stop="saveStatus">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="editingProject" class="project-modal" @click.self="cancelEditProject">
-        <div class="modal-content" @click.stop>
-          <h3>Edit Project</h3>
-          <input v-model="editingProject.name" placeholder="Project name" />
-          <div class="color-picker">
-            <div
-              v-for="color in projectColors"
-              :key="color"
-              class="color-option"
-              :class="{ selected: editingProject.color === color }"
-              :style="{ background: color }"
-              @click="editingProject.color = color"
-            ></div>
-          </div>
-
-          <div class="stakeholders-section">
-            <div class="section-header">
-              <label>Stakeholders</label>
-              <button @click.stop="showProjectPersonPicker = !showProjectPersonPicker" class="picker-toggle-btn">
-                {{ showProjectPersonPicker ? 'Hide' : '+ Assign' }}
-              </button>
-            </div>
-
-            <div v-if="showProjectPersonPicker" class="stakeholder-picker">
-              <div v-for="person in persons" :key="person.id" class="person-option"
-                   @click.stop="assignProjectPerson(person)">
-                <span class="person-color-dot" :style="{ background: person.color }"></span>
-                <span class="person-name">{{ person.name }}</span>
-              </div>
-            </div>
-
-            <div class="assigned-stakeholders">
-              <div v-for="person in currentProjectPersons" :key="person.id"
-                   class="stakeholder-badge"
-                   :style="{ background: person.color + '33', borderColor: person.color }">
-                {{ person.name }}
-                <button @click.stop="unassignProjectPerson(person)" class="stakeholder-remove">×</button>
-              </div>
-              <p v-if="!currentProjectPersons.length" class="no-stakeholders">No stakeholders assigned</p>
-            </div>
-          </div>
-
-          <div class="stakeholder-register-link">
-            <button @click.stop="openStakeholderRegister" class="register-btn" v-if="editingProject && editingProject.id">
-              View Stakeholder Register
-            </button>
-          </div>
-
-          <div class="modal-actions">
-            <button class="delete-btn" @click.stop="deleteProjectConfirm">Delete</button>
-            <button @click.stop="cancelEditProject">Cancel</button>
-            <button class="primary" @click.stop="saveProject">Save</button>
-          </div>
-        </div>
-      </div>
-    </aside>
+    <ProjectModal
+      :project="editingProject"
+      :colors="projectColors"
+      :available-persons="persons"
+      :assigned-persons="currentProjectPersons"
+      @save="saveProjectFromModal"
+      @cancel="cancelEditProject"
+      @delete="deleteProjectConfirm"
+      @assign-person="assignProjectPerson"
+      @unassign-person="unassignProjectPerson"
+      @open-register="openStakeholderRegister"
+    />
 
     <div class="main-wrapper">
     <main class="main-content" :class="{ 'with-detail': selectedTodo }">
       <header class="main-header">
         <div class="header-title-row">
           <h1 class="header-title">{{ currentTitle }}</h1>
-          <button class="theme-toggle" @click="toggleTheme" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+          <button class="theme-toggle" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'" @click="toggleTheme">
             <span v-if="theme === 'dark'">☀️</span>
             <span v-else>🌙</span>
           </button>
@@ -327,7 +103,7 @@
               <select v-model="importanceFilterOp" class="sort-select filter-op">
                 <option value="none">Importance</option>
                 <option value="gte">>=</option>
-                <option value="lte"><=</option>
+                <option value="lte">&lt;=</option>
                 <option value="eq">=</option>
               </select>
               <select v-if="importanceFilterOp !== 'none'" v-model.number="importanceFilterValue" class="sort-select filter-val">
@@ -339,20 +115,20 @@
               </select>
             </div>
             <label v-if="!isTrashView" class="hide-completed-toggle">
-              <input type="checkbox" v-model="hideCompleted" @change="toggleHideCompleted" />
+              <input v-model="hideCompleted" type="checkbox" @change="toggleHideCompleted" />
               <span>Hide completed</span>
             </label>
             <label v-if="!isProjectSelected" class="group-toggle">
-              <input type="checkbox" v-model="groupByProject" @change="onGroupByProjectChange" />
+              <input v-model="groupByProject" type="checkbox" @change="onGroupByProjectChange" />
               <span>Group by Project</span>
             </label>
           </div>
           <div class="view-switcher">
             <button :class="{ active: currentView === 'cards' }" @click="currentView = 'cards'">Cards</button>
             <button :class="{ active: currentView === 'table' }" @click="currentView = 'table'">Table</button>
-            <button :class="{ active: currentView === 'kanban' }" @click="currentView = 'kanban'" :disabled="isTrashView">Kanban</button>
-            <button :class="{ active: currentView === 'timeline' }" @click="currentView = 'timeline'" :disabled="isTrashView">Timeline</button>
-            <button :class="{ active: currentView === 'graph' }" @click="currentView = 'graph'" :disabled="isTrashView">Graph</button>
+            <button :class="{ active: currentView === 'kanban' }" :disabled="isTrashView" @click="currentView = 'kanban'">Kanban</button>
+            <button :class="{ active: currentView === 'timeline' }" :disabled="isTrashView" @click="currentView = 'timeline'">Timeline</button>
+            <button :class="{ active: currentView === 'graph' }" :disabled="isTrashView" @click="currentView = 'graph'">Graph</button>
           </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
@@ -360,9 +136,9 @@
           <input
             ref="newTodoInput"
             v-model="newTodoTitle"
-            @keyup.enter="addTodo"
             placeholder="Add a new todo... (press 'n')"
             type="text"
+            @keyup.enter="addTodo"
           />
           <button @click="addTodo">Add</button>
         </div>
@@ -377,643 +153,76 @@
       />
 
       <!-- Cards View -->
-      <div v-if="currentFilter !== 'persons' && currentView === 'cards'" class="cards-view">
-        <template v-if="groupByProject">
-          <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
-            <div class="group-header" :style="{ borderLeftColor: group.color || '#666' }">
-              <span class="group-dot" :style="{ background: group.color || '#666' }"></span>
-              <span class="group-name">{{ group.name }}</span>
-              <span class="group-count">{{ group.todos.length }}</span>
-            </div>
-            <draggable
-              :modelValue="group.todos"
-              @update:modelValue="updateGroupTodos(group.id, $event)"
-              item-key="id"
-              class="cards-grid masonry"
-              :style="{ '--card-width': cardSize + 'px' }"
-              ghost-class="ghost"
-              :disabled="sortBy !== 'manual'"
-              @end="onGroupDragEnd(group.id, $event)"
-            >
-              <template #item="{ element }">
-                <div
-                  class="todo-card resizable"
-                  :class="{ completed: element.completed, selected: selectedTodo?.id === element.id, 'keyboard-focused': focusedTodo?.id === element.id }"
-                  :style="getCardStyle(element.id, element.project_color)"
-                  @click="handleCardClick($event, element.id)"
-                  @mousedown="onCardMouseDown($event, element.id)"
-                  @mouseup="onCardResize($event, element.id)"
-                >
-                  <div class="card-header">
-                    <input
-                      v-if="!isTrashView"
-                      type="checkbox"
-                      :checked="element.completed"
-                      @click.stop="toggleComplete(element)"
-                    />
-                    <span class="card-title">{{ element.title }}</span>
-                    <template v-if="isTrashView">
-                      <button class="restore-btn" @click.stop="restoreTodo(element.id)" title="Restore">R</button>
-                      <button class="delete-btn permanent" @click.stop="permanentlyDeleteTodo(element.id)" title="Delete permanently">x</button>
-                    </template>
-                    <button v-else class="delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                  </div>
-                  <div v-if="element.category_name" class="card-meta">
-                    <span class="card-category">
-                      <span class="category-symbol">
-                        <component v-if="getIconComponent(element.category_symbol)" :is="getIconComponent(element.category_symbol)" :size="12" />
-                        <span v-else>{{ element.category_symbol || '*' }}</span>
-                      </span>
-                      {{ element.category_name }}
-                    </span>
-                  </div>
-                  <div v-if="element.start_date || element.end_date || (element.importance && element.importance > 0)" class="card-footer">
-                    <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                    <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                      Due: {{ formatDeadline(element.end_date) }}
-                    </span>
-                    <span v-if="element.importance && element.importance > 0" class="card-importance" :style="{ backgroundColor: getImportanceColor(element.importance) }">{{ element.importance }}</span>
-                  </div>
-                  <div v-if="element.notes" class="card-notes-preview markdown-body" :key="'notes-' + element.id + '-' + (element.notes?.length || 0)">
-                    <div v-if="element.notes_sensitive" class="sensitive-notes-card">
-                      <span class="sensitive-icon-small">🔒</span>
-                      <span class="sensitive-text">Sensitive content hidden</span>
-                    </div>
-                    <div v-else v-html="renderCardNotes(element.notes)"></div>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-          </div>
-        </template>
-        <template v-else>
-          <draggable
-            :modelValue="sortedTodos"
-            @update:modelValue="updateSortedTodos"
-            item-key="id"
-            class="cards-grid masonry"
-            :style="{ '--card-width': cardSize + 'px' }"
-            ghost-class="ghost"
-            :disabled="sortBy !== 'manual'"
-            @end="onDragEnd"
-          >
-            <template #item="{ element }">
-              <div
-                class="todo-card resizable"
-                :class="{ completed: element.completed, selected: selectedTodo?.id === element.id, 'keyboard-focused': focusedTodo?.id === element.id }"
-                :style="getCardStyle(element.id, element.project_color)"
-                @click="handleCardClick($event, element.id)"
-                @mousedown="onCardMouseDown($event, element.id)"
-                @mouseup="onCardResize($event, element.id)"
-              >
-                <div class="card-header">
-                  <input
-                    v-if="!isTrashView"
-                    type="checkbox"
-                    :checked="element.completed"
-                    @click.stop="toggleComplete(element)"
-                  />
-                  <span class="card-title">{{ element.title }}</span>
-                  <template v-if="isTrashView">
-                    <button class="restore-btn" @click.stop="restoreTodo(element.id)" title="Restore">R</button>
-                    <button class="delete-btn permanent" @click.stop="permanentlyDeleteTodo(element.id)" title="Delete permanently">x</button>
-                  </template>
-                  <button v-else class="delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                </div>
-                <div v-if="(element.project_name && currentFilter === null) || element.category_name" class="card-meta">
-                  <span
-                    v-if="element.project_name && currentFilter === null"
-                    class="card-project"
-                    :style="{ background: element.project_color + '33', color: element.project_color }"
-                  >
-                    {{ element.project_name }}
-                  </span>
-                  <span v-if="element.category_name" class="card-category">
-                    <span class="category-symbol">
-                      <component v-if="getIconComponent(element.category_symbol)" :is="getIconComponent(element.category_symbol)" :size="12" />
-                      <span v-else>{{ element.category_symbol || '*' }}</span>
-                    </span>
-                    {{ element.category_name }}
-                  </span>
-                </div>
-                <div v-if="element.start_date || element.end_date || element.importance" class="card-footer">
-                  <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                  <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                    Due: {{ formatDeadline(element.end_date) }}
-                  </span>
-                  <span v-if="element.importance" class="card-importance" :style="{ backgroundColor: getImportanceColor(element.importance) }">{{ element.importance }}</span>
-                </div>
-                <div v-if="element.notes" class="card-notes-preview markdown-body" :key="'notes-' + element.id + '-' + (element.notes?.length || 0)">
-                  <div v-if="element.notes_sensitive" class="sensitive-notes-card">
-                    <span class="sensitive-icon-small">🔒</span>
-                    <span class="sensitive-text">Sensitive content hidden</span>
-                  </div>
-                  <div v-else v-html="renderCardNotes(element.notes)"></div>
-                </div>
-              </div>
-            </template>
-          </draggable>
-        </template>
-      </div>
+      <CardsView
+        v-if="currentFilter !== 'persons' && currentView === 'cards'"
+        :sorted-todos="sortedTodos"
+        :grouped-todos="groupedTodos"
+        :group-by-project="groupByProject"
+        :selected-todo-id="selectedTodo?.id"
+        :focused-todo-id="focusedTodo?.id"
+        :is-trash-view="isTrashView"
+        :card-size="cardSize"
+        :sort-by="sortBy"
+        :current-filter="currentFilter"
+        :card-widths="cardWidths"
+        :grid-lock="gridLock"
+        @card-click="handleCardClick"
+        @card-mousedown="onCardMouseDown"
+        @card-resize="onCardResize"
+        @toggle-complete="toggleComplete"
+        @delete-todo="deleteTodo"
+        @restore-todo="restoreTodo"
+        @permanent-delete-todo="permanentlyDeleteTodo"
+        @update-sorted-todos="updateSortedTodos"
+        @drag-end="onDragEnd"
+        @update-group-todos="updateGroupTodos"
+        @group-drag-end="onGroupDragEnd"
+      />
 
       <!-- Table View -->
-      <div v-if="currentFilter !== 'persons' && currentView === 'table'" class="table-view compact">
-        <table>
-          <thead>
-            <tr>
-              <th class="col-check resizable"></th>
-              <th class="col-title resizable">Title</th>
-              <th class="col-project resizable">Project</th>
-              <th class="col-category resizable">Category</th>
-              <th class="col-status-col resizable">Status</th>
-              <th class="col-importance resizable">Imp</th>
-              <th class="col-subtasks resizable">Tasks</th>
-              <th class="col-notes resizable">Notes</th>
-              <th class="col-start resizable">Start</th>
-              <th class="col-end resizable">End</th>
-              <th class="col-actions"></th>
-            </tr>
-          </thead>
-          <template v-if="groupByProject">
-            <tbody v-for="group in groupedTodos" :key="group.id">
-              <tr class="group-row">
-                <td colspan="11">
-                  <span class="group-dot" :style="{ background: group.color }"></span>
-                  <span class="group-name">{{ group.name }}</span>
-                  <span class="group-count">{{ group.todos.length }}</span>
-                </td>
-              </tr>
-              <tr
-                v-for="todo in group.todos"
-                :key="todo.id"
-                :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, 'keyboard-focused': focusedTodo?.id === todo.id }"
-                @click="selectTodo(todo.id)"
-              >
-                <td class="col-check">
-                  <input
-                    v-if="!isTrashView"
-                    type="checkbox"
-                    :checked="todo.completed"
-                    @click.stop="toggleComplete(todo)"
-                  />
-                </td>
-                <td class="col-title">{{ todo.title }}</td>
-                <td class="col-project">
-                  <span v-if="todo.project_name" class="project-badge" :style="{ background: todo.project_color }">
-                    {{ todo.project_name }}
-                  </span>
-                  <span v-else class="inbox-badge">-</span>
-                </td>
-                <td class="col-category">
-                  <span v-if="todo.category_name" class="category-badge">
-                    <span class="category-symbol">
-                      <component v-if="getIconComponent(todo.category_symbol)" :is="getIconComponent(todo.category_symbol)" :size="12" />
-                      <span v-else>{{ todo.category_symbol || '*' }}</span>
-                    </span>
-                    {{ todo.category_name }}
-                  </span>
-                  <span v-else>-</span>
-                </td>
-                <td class="col-status-col">
-                  <span v-if="todo.status_name" class="status-badge" :style="{ background: todo.status_color }">
-                    {{ todo.status_name }}
-                  </span>
-                  <span v-else>-</span>
-                </td>
-                <td class="col-importance">
-                  <span v-if="todo.importance" class="importance-badge" :style="{ color: getImportanceColor(todo.importance) }">
-                    {{ todo.importance }}
-                  </span>
-                  <span v-else>-</span>
-                </td>
-                <td class="col-subtasks">
-                  <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
-                  <span v-else>-</span>
-                </td>
-                <td class="col-notes">
-                  <span v-if="todo.notes" class="notes-indicator">✓</span>
-                  <span v-else>-</span>
-                </td>
-                <td class="col-start">{{ todo.start_date ? formatShortDate(todo.start_date) : '-' }}</td>
-                <td class="col-end" :class="{ overdue: isOverdue(todo.end_date) }">
-                  {{ todo.end_date ? formatShortDate(todo.end_date) : '-' }}
-                </td>
-                <td class="col-actions">
-                  <template v-if="isTrashView">
-                    <button class="restore-btn" @click.stop="restoreTodo(todo.id)" title="Restore">R</button>
-                    <button class="permanent-delete-btn" @click.stop="permanentlyDeleteTodo(todo.id)" title="Delete permanently">x</button>
-                  </template>
-                  <button v-else @click.stop="deleteTodo(todo.id)">x</button>
-                </td>
-              </tr>
-            </tbody>
-          </template>
-          <tbody v-else>
-            <tr
-              v-for="todo in sortedTodos"
-              :key="todo.id"
-              :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, 'keyboard-focused': focusedTodo?.id === todo.id }"
-              @click="selectTodo(todo.id)"
-            >
-              <td class="col-check">
-                <input
-                  v-if="!isTrashView"
-                  type="checkbox"
-                  :checked="todo.completed"
-                  @click.stop="toggleComplete(todo)"
-                />
-              </td>
-              <td class="col-title">{{ todo.title }}</td>
-              <td class="col-project">
-                <span v-if="todo.project_name" class="project-badge" :style="{ background: todo.project_color }">
-                  {{ todo.project_name }}
-                </span>
-                <span v-else class="inbox-badge">-</span>
-              </td>
-              <td class="col-category">
-                <span v-if="todo.category_name" class="category-badge">
-                  <span class="category-symbol">
-                    <component v-if="getIconComponent(todo.category_symbol)" :is="getIconComponent(todo.category_symbol)" :size="12" />
-                    <span v-else>{{ todo.category_symbol || '*' }}</span>
-                  </span>
-                  {{ todo.category_name }}
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td class="col-status-col">
-                <span v-if="todo.status_name" class="status-badge" :style="{ background: todo.status_color }">
-                  {{ todo.status_name }}
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td class="col-importance">
-                <span v-if="todo.importance" class="importance-badge" :style="{ color: getImportanceColor(todo.importance) }">
-                  {{ todo.importance }}
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td class="col-subtasks">
-                <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="col-notes">
-                <span v-if="todo.notes" class="notes-indicator">✓</span>
-                <span v-else>-</span>
-              </td>
-              <td class="col-start">{{ todo.start_date ? formatShortDate(todo.start_date) : '-' }}</td>
-              <td class="col-end" :class="{ overdue: isOverdue(todo.end_date) }">
-                {{ todo.end_date ? formatShortDate(todo.end_date) : '-' }}
-              </td>
-              <td class="col-actions">
-                <template v-if="isTrashView">
-                  <button class="restore-btn" @click.stop="restoreTodo(todo.id)" title="Restore">R</button>
-                  <button class="permanent-delete-btn" @click.stop="permanentlyDeleteTodo(todo.id)" title="Delete permanently">x</button>
-                </template>
-                <button v-else @click.stop="deleteTodo(todo.id)">x</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <TableView
+        v-if="currentFilter !== 'persons' && currentView === 'table'"
+        :sorted-todos="sortedTodos"
+        :grouped-todos="groupedTodos"
+        :group-by-project="groupByProject"
+        :selected-todo-id="selectedTodo?.id"
+        :focused-todo-id="focusedTodo?.id"
+        :is-trash-view="isTrashView"
+        @select-todo="selectTodo"
+        @toggle-complete="toggleComplete"
+        @delete-todo="deleteTodo"
+        @restore-todo="restoreTodo"
+        @permanent-delete-todo="permanentlyDeleteTodo"
+      />
 
       <!-- Kanban View -->
-      <div v-if="currentFilter !== 'persons' && currentView === 'kanban'" class="kanban-view-wrapper">
-        <div class="kanban-group-toggle">
-          <button v-if="!isProjectSelected" :class="{ active: kanbanGroupBy === 'project' }" @click="kanbanGroupBy = 'project'">By Project</button>
-          <button :class="{ active: kanbanGroupBy === 'category' }" @click="kanbanGroupBy = 'category'">By Category</button>
-          <button :class="{ active: kanbanGroupBy === 'status' }" @click="kanbanGroupBy = 'status'">By Status</button>
-        </div>
-
-        <div class="kanban-view">
-          <!-- Project-based Kanban -->
-          <template v-if="effectiveKanbanGroupBy === 'project'">
-            <div class="kanban-column inbox-column">
-              <div class="column-header">
-                <span class="column-dot" style="background: #666"></span>
-                <h3>Inbox</h3>
-                <span class="column-count">{{ inboxTodos.length }}</span>
-              </div>
-              <draggable
-                v-model="inboxTodos"
-                item-key="id"
-                class="kanban-cards"
-                group="kanban"
-                ghost-class="ghost"
-                @end="onKanbanDrop($event, null)"
-              >
-                <template #item="{ element }">
-                  <div
-                    class="kanban-card"
-                    :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
-                    :style="{ borderLeftColor: element.category_color || '#666' }"
-                    :data-todo-id="element.id"
-                    @click="selectTodo(element.id)"
-                  >
-                    <div class="card-header">
-                      <input
-                        type="checkbox"
-                        :checked="element.completed"
-                        @click.stop="toggleComplete(element)"
-                      />
-                      <span class="card-title">{{ element.title }}</span>
-                      <button class="card-delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                    </div>
-                    <div class="card-meta">
-                      <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
-                      <span v-if="element.category_name" class="card-category" :style="{ color: element.category_color }">{{ element.category_name }}</span>
-                    </div>
-                    <div v-if="element.start_date || element.end_date" class="card-dates">
-                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                        Due: {{ formatDeadline(element.end_date) }}
-                      </span>
-                    </div>
-                    <div v-if="element.subtask_count > 0" class="card-subtasks">
-                      {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <button class="kanban-add-btn" @click="addTodoToProject(null)">+ Add</button>
-            </div>
-
-            <div
-              v-for="project in projects"
-              :key="project.id"
-              class="kanban-column"
-              :style="{ borderTopColor: project.color }"
-            >
-              <div class="column-header">
-                <span class="column-dot" :style="{ background: project.color }"></span>
-                <h3>{{ project.name }}</h3>
-                <span class="column-count">{{ getProjectTodos(project.id).length }}</span>
-              </div>
-              <draggable
-                :modelValue="getProjectTodos(project.id)"
-                @update:modelValue="updateProjectTodos(project.id, $event)"
-                item-key="id"
-                class="kanban-cards"
-                group="kanban"
-                ghost-class="ghost"
-                @end="onKanbanDrop($event, project.id)"
-              >
-                <template #item="{ element }">
-                  <div
-                    class="kanban-card"
-                    :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
-                    :style="{ borderLeftColor: project.color }"
-                    :data-todo-id="element.id"
-                    @click="selectTodo(element.id)"
-                  >
-                    <div class="card-header">
-                      <input
-                        type="checkbox"
-                        :checked="element.completed"
-                        @click.stop="toggleComplete(element)"
-                      />
-                      <span class="card-title">{{ element.title }}</span>
-                      <button class="card-delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                    </div>
-                    <div class="card-meta">
-                      <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
-                      <span v-if="element.category_name" class="card-category" :style="{ color: element.category_color }">{{ element.category_name }}</span>
-                    </div>
-                    <div v-if="element.start_date || element.end_date" class="card-dates">
-                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                        Due: {{ formatDeadline(element.end_date) }}
-                      </span>
-                    </div>
-                    <div v-if="element.subtask_count > 0" class="card-subtasks">
-                      {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <button class="kanban-add-btn" @click="addTodoToProject(project.id)">+ Add</button>
-            </div>
-          </template>
-
-          <!-- Category-based Kanban -->
-          <template v-else-if="effectiveKanbanGroupBy === 'category'">
-            <div class="kanban-column uncategorized-column">
-              <div class="column-header">
-                <span class="column-dot" style="background: #fff; border: 1px solid #ccc"></span>
-                <h3>Uncategorized</h3>
-                <span class="column-count">{{ uncategorizedTodos.length }}</span>
-              </div>
-              <draggable
-                :modelValue="uncategorizedTodos"
-                @update:modelValue="updateCategoryTodos(null, $event)"
-                item-key="id"
-                class="kanban-cards"
-                group="kanban-category"
-                ghost-class="ghost"
-                data-category-id=""
-                @end="onKanbanDropCategory"
-              >
-                <template #item="{ element }">
-                  <div
-                    class="kanban-card"
-                    :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
-                    :style="{ borderLeftColor: element.project_color || '#333' }"
-                    @click="selectTodo(element.id)"
-                  >
-                    <div class="card-header">
-                      <input
-                        type="checkbox"
-                        :checked="element.completed"
-                        @click.stop="toggleComplete(element)"
-                      />
-                      <span class="card-title">{{ element.title }}</span>
-                      <button class="card-delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                    </div>
-                    <div class="card-meta">
-                      <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
-                      <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
-                    </div>
-                    <div v-if="element.start_date || element.end_date" class="card-dates">
-                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                        Due: {{ formatDeadline(element.end_date) }}
-                      </span>
-                    </div>
-                    <div v-if="element.subtask_count > 0" class="card-subtasks">
-                      {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <button class="kanban-add-btn" @click="addTodoToCategory(null)">+ Add</button>
-            </div>
-
-            <div
-              v-for="category in categories"
-              :key="category.id"
-              class="kanban-column"
-            >
-              <div class="column-header">
-                <span class="column-symbol">{{ category.symbol || '*' }}</span>
-                <h3>{{ category.name }}</h3>
-                <span class="column-count">{{ getCategoryTodos(category.id).length }}</span>
-              </div>
-              <draggable
-                :modelValue="getCategoryTodos(category.id)"
-                @update:modelValue="updateCategoryTodos(category.id, $event)"
-                item-key="id"
-                class="kanban-cards"
-                group="kanban-category"
-                ghost-class="ghost"
-                :data-category-id="category.id"
-                @end="onKanbanDropCategory"
-              >
-                <template #item="{ element }">
-                  <div
-                    class="kanban-card"
-                    :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
-                    :style="{ borderLeftColor: element.project_color || '#666' }"
-                    @click="selectTodo(element.id)"
-                  >
-                    <div class="card-header">
-                      <input
-                        type="checkbox"
-                        :checked="element.completed"
-                        @click.stop="toggleComplete(element)"
-                      />
-                      <span class="card-title">{{ element.title }}</span>
-                      <button class="card-delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                    </div>
-                    <div class="card-meta">
-                      <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
-                      <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
-                    </div>
-                    <div v-if="element.start_date || element.end_date" class="card-dates">
-                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                        Due: {{ formatDeadline(element.end_date) }}
-                      </span>
-                    </div>
-                    <div v-if="element.subtask_count > 0" class="card-subtasks">
-                      {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <button class="kanban-add-btn" @click="addTodoToCategory(category.id)">+ Add</button>
-            </div>
-          </template>
-
-          <!-- Status-based Kanban -->
-          <template v-else-if="effectiveKanbanGroupBy === 'status'">
-            <div class="kanban-column no-status-column">
-              <div class="column-header">
-                <span class="column-dot" style="background: #666"></span>
-                <h3>No Status</h3>
-                <span class="column-count">{{ noStatusTodos.length }}</span>
-              </div>
-              <draggable
-                :modelValue="noStatusTodos"
-                @update:modelValue="updateStatusTodos(null, $event)"
-                item-key="id"
-                class="kanban-cards"
-                group="kanban-status"
-                ghost-class="ghost"
-                data-status-id=""
-                @end="onKanbanDropStatus"
-              >
-                <template #item="{ element }">
-                  <div
-                    class="kanban-card"
-                    :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
-                    :style="{ borderLeftColor: element.project_color || '#333' }"
-                    @click="selectTodo(element.id)"
-                  >
-                    <div class="card-header">
-                      <input
-                        type="checkbox"
-                        :checked="element.completed"
-                        @click.stop="toggleComplete(element)"
-                      />
-                      <span class="card-title">{{ element.title }}</span>
-                      <button class="card-delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                    </div>
-                    <div class="card-meta">
-                      <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
-                      <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
-                    </div>
-                    <div v-if="element.start_date || element.end_date" class="card-dates">
-                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                        Due: {{ formatDeadline(element.end_date) }}
-                      </span>
-                    </div>
-                    <div v-if="element.subtask_count > 0" class="card-subtasks">
-                      {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <button class="kanban-add-btn" @click="addTodoToStatus(null)">+ Add</button>
-            </div>
-
-            <div
-              v-for="status in statuses"
-              :key="status.id"
-              class="kanban-column"
-              :style="{ borderTopColor: status.color }"
-            >
-              <div class="column-header">
-                <span class="column-dot" :style="{ background: status.color }"></span>
-                <h3>{{ status.name }}</h3>
-                <span class="column-count">{{ getStatusTodos(status.id).length }}</span>
-              </div>
-              <draggable
-                :modelValue="getStatusTodos(status.id)"
-                @update:modelValue="updateStatusTodos(status.id, $event)"
-                item-key="id"
-                class="kanban-cards"
-                group="kanban-status"
-                ghost-class="ghost"
-                :data-status-id="status.id"
-                @end="onKanbanDropStatus"
-              >
-                <template #item="{ element }">
-                  <div
-                    class="kanban-card"
-                    :class="{ completed: element.completed, selected: selectedTodo?.id === element.id }"
-                    :style="{ borderLeftColor: element.project_color || status.color }"
-                    @click="selectTodo(element.id)"
-                  >
-                    <div class="card-header">
-                      <input
-                        type="checkbox"
-                        :checked="element.completed"
-                        @click.stop="toggleComplete(element)"
-                      />
-                      <span class="card-title">{{ element.title }}</span>
-                      <button class="card-delete-btn" @click.stop="deleteTodo(element.id)">x</button>
-                    </div>
-                    <div class="card-meta">
-                      <span v-if="element.importance && element.importance > 0" class="card-importance">{{ element.importance }}</span>
-                      <span v-if="element.project_name" class="card-project" :style="{ color: element.project_color }">{{ element.project_name }}</span>
-                    </div>
-                    <div v-if="element.start_date || element.end_date" class="card-dates">
-                      <span v-if="element.start_date" class="card-start">Start: {{ formatDeadline(element.start_date) }}</span>
-                      <span v-if="element.end_date" class="card-deadline" :class="{ overdue: isOverdue(element.end_date) }">
-                        Due: {{ formatDeadline(element.end_date) }}
-                      </span>
-                    </div>
-                    <div v-if="element.subtask_count > 0" class="card-subtasks">
-                      {{ element.subtask_completed }}/{{ element.subtask_count }} subtasks
-                    </div>
-                  </div>
-                </template>
-              </draggable>
-              <button class="kanban-add-btn" @click="addTodoToStatus(status.id)">+ Add</button>
-            </div>
-          </template>
-        </div>
-      </div>
+      <KanbanView
+        v-if="currentFilter !== 'persons' && currentView === 'kanban'"
+        :kanban-group-by="kanbanGroupBy"
+        :effective-kanban-group-by="effectiveKanbanGroupBy"
+        :is-project-selected="isProjectSelected"
+        :projects="projects"
+        :categories="categories"
+        :statuses="statuses"
+        :inbox-todos="inboxTodos"
+        :uncategorized-todos="uncategorizedTodos"
+        :no-status-todos="noStatusTodos"
+        :selected-todo-id="selectedTodo?.id"
+        :all-todos="allTodos"
+        @update:kanban-group-by="kanbanGroupBy = $event"
+        @select-todo="selectTodo"
+        @toggle-complete="toggleComplete"
+        @delete-todo="deleteTodo"
+        @add-todo-to-project="addTodoToProject"
+        @add-todo-to-category="addTodoToCategory"
+        @add-todo-to-status="addTodoToStatus"
+        @update-project-todos="updateProjectTodos"
+        @update-category-todos="updateCategoryTodos"
+        @update-status-todos="updateStatusTodos"
+        @kanban-drop="onKanbanDrop"
+        @kanban-drop-category="onKanbanDropCategory"
+        @kanban-drop-status="onKanbanDropStatus"
+      />
 
       <!-- Gantt/Timeline View -->
       <div v-if="currentFilter !== 'persons' && currentView === 'timeline'" class="gantt-view">
@@ -1028,7 +237,7 @@
           <span class="timeline-scale-label">{{ timelineScale }}px/day</span>
           <button @click="timelineScale = Math.min(500, timelineScale + 20)">+</button>
           <button @click="timelineOffset += 200">&#8594;</button>
-          <button @click="timelineOffset = 0; timelineScale = 100" class="reset-btn">Reset</button>
+          <button class="reset-btn" @click="timelineOffset = 0; timelineScale = 100">Reset</button>
         </div>
         <div class="gantt-container">
           <div class="gantt-sidebar">
@@ -1043,7 +252,7 @@
               <span class="row-count">{{ row.todos.length }}</span>
             </div>
           </div>
-          <div class="gantt-chart-area" ref="ganttChartArea" @wheel.prevent="onTimelineWheel">
+          <div ref="ganttChartArea" class="gantt-chart-area" @wheel.prevent="onTimelineWheel">
             <div class="gantt-scroll" :style="{ transform: `translateX(${-timelineOffset}px)` }">
               <div class="gantt-header" :style="{ width: timelineRange.days * timelineScale + 'px' }">
                 <div
@@ -1098,7 +307,8 @@
       </div>
 
       <!-- Graph View -->
-      <div v-if="currentFilter !== 'persons' && currentView === 'graph'" class="graph-view" ref="graphContainer"
+      <div
+v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContainer" class="graph-view"
         @wheel.prevent="onGraphWheel"
         @mousedown="onGraphMouseDown"
         @mousemove="onGraphMouseMove"
@@ -1123,7 +333,7 @@
             <!-- Nodes -->
             <g class="graph-nodes">
               <g
-                v-for="(todo, index) in graphNodes"
+                v-for="todo in graphNodes"
                 :key="todo.id"
                 class="graph-node"
                 :class="{
@@ -1163,7 +373,7 @@
             :class="{ active: isSimulating }"
             @click="runForceLayout"
           >{{ isSimulating ? 'Stop' : 'Auto Layout' }}</button>
-          <button @click="showGraphSettings = !showGraphSettings" :class="{ active: showGraphSettings }">Settings</button>
+          <button :class="{ active: showGraphSettings }" @click="showGraphSettings = !showGraphSettings">Settings</button>
           <div class="control-divider"></div>
           <button
             :class="{ active: graphLinkMode }"
@@ -1175,21 +385,21 @@
         <div v-if="showGraphSettings" class="graph-settings">
           <div class="setting-row">
             <label>
-              <input type="checkbox" v-model="showPersonsInGraph" @change="updateGraphData" />
+              <input v-model="showPersonsInGraph" type="checkbox" @change="updateGraphData" />
               Show Persons
             </label>
           </div>
           <div class="setting-row">
             <label>Repulsion:</label>
-            <input type="range" min="-1000" max="-50" step="50" v-model.number="graphRepulsion" @input="onGraphSettingChange" />
+            <input v-model.number="graphRepulsion" type="range" min="-1000" max="-50" step="50" @input="onGraphSettingChange" />
             <span>{{ Math.abs(graphRepulsion) }}</span>
           </div>
           <div class="setting-row">
             <label>Link Distance:</label>
-            <input type="range" min="30" max="300" step="10" v-model.number="graphEdgeLength" @input="onGraphSettingChange" />
+            <input v-model.number="graphEdgeLength" type="range" min="30" max="300" step="10" @input="onGraphSettingChange" />
             <span>{{ graphEdgeLength }}px</span>
           </div>
-          <button @click="resetGraphSettings" class="reset-settings-btn">Reset Defaults</button>
+          <button class="reset-settings-btn" @click="resetGraphSettings">Reset Defaults</button>
         </div>
       </div>
 
@@ -1203,11 +413,11 @@
           <label class="card-size-label">
             <span>Card Size</span>
             <input
+              v-model.number="cardSize"
               type="range"
               min="200"
               max="600"
               step="50"
-              v-model.number="cardSize"
               class="card-size-slider"
             />
           </label>
@@ -1216,261 +426,65 @@
     </main>
 
     <!-- Detail Panel -->
-    <aside v-if="selectedTodo" class="detail-panel" :style="detailPanelStyle" ref="detailPanel">
-      <div
-        class="resize-handle"
-        :class="{ dragging: isResizing }"
-        @mousedown="startResize"
-      ></div>
-      <div class="detail-panel-header">
-        <div class="header-actions">
-          <button @click="toggleDetailLayout" class="layout-btn" :title="layoutButtonTitle">
-            <span v-if="detailLayoutPreference === 'auto'">A</span>
-            <span v-else-if="detailLayoutPreference === 'horizontal'">|</span>
-            <span v-else>-</span>
-          </button>
-          <button @click="detachDetail" class="detach-btn" title="Open in new window">^</button>
-          <button @click="closeDetail" class="close-btn">x</button>
-        </div>
-      </div>
-
-      <div class="detail-panel-content">
-        <div class="title-row">
-          <input
-            type="checkbox"
-            :checked="selectedTodo.completed"
-            @change="toggleSelectedComplete"
-            class="title-checkbox"
-          />
-          <input
-            v-model="selectedTodo.title"
-            class="title-input"
-            @change="saveSelectedTodo"
-            placeholder="Todo title"
-            :style="{ borderBottomColor: selectedTodo.project_color || '#333' }"
-          />
-        </div>
-
-        <div class="meta-row project-row">
-          <label>Project:</label>
-          <select v-model="selectedTodo.project_id" @change="saveProjectChange">
-            <option :value="null">Inbox (No Project)</option>
-            <option v-for="project in projects" :key="project.id" :value="project.id">
-              {{ project.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="notes-section">
-          <div class="tabs">
-            <button
-              :class="{ active: activeTab === 'edit' }"
-              @click="activeTab = 'edit'"
-            >Edit</button>
-            <button
-              :class="{ active: activeTab === 'preview' }"
-              @click="activeTab = 'preview'"
-            >Preview</button>
-            <button
-              :class="{ active: activeTab === 'split' }"
-              @click="activeTab = 'split'"
-            >Split</button>
-          </div>
-
-          <textarea
-            v-if="activeTab === 'edit'"
-            v-model="selectedTodo.notes"
-            @input="saveSelectedTodo"
-            placeholder="Add notes (Markdown supported)..."
-            class="notes-editor"
-            :style="{ borderColor: selectedTodo.project_color || '#333' }"
-          ></textarea>
-
-          <div
-            v-else-if="activeTab === 'preview'"
-            class="notes-preview markdown-body"
-            :style="{ borderColor: selectedTodo.project_color || '#333' }"
-          >
-            <div v-if="selectedTodo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
-              <div class="sensitive-icon">🔒</div>
-              <p>Sensitive content hidden</p>
-              <button @click="revealNotes" class="reveal-btn">Reveal</button>
-            </div>
-            <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
-          </div>
-
-          <div v-else class="notes-split">
-            <textarea
-              v-model="selectedTodo.notes"
-              @input="saveSelectedTodo"
-              placeholder="Add notes (Markdown supported)..."
-              class="notes-editor split-editor"
-              :style="{ borderColor: selectedTodo.project_color || '#333' }"
-            ></textarea>
-            <div
-              class="notes-preview markdown-body split-preview"
-              :style="{ borderColor: selectedTodo.project_color || '#333' }"
-            >
-              <div v-if="selectedTodo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
-                <div class="sensitive-icon">🔒</div>
-                <p>Sensitive content hidden</p>
-                <button @click="revealNotes" class="reveal-btn">Reveal</button>
-              </div>
-              <div v-else v-html="renderedNotes" @click="handleMarkdownClick"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="sensitive-notes-row" style="text-align: right; padding: 8px 0;">
-          <label class="sensitive-checkbox" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #bbb; cursor: pointer;">
-            <input type="checkbox" v-model="selectedTodo.notes_sensitive" @change="saveSelectedTodo" />
-            <span class="lock-icon">🔒</span>
-            <span>Sensitive Notes</span>
-          </label>
-        </div>
-
-        <div class="subtasks-section">
-          <div class="subtasks-header">
-            <label>Subtasks</label>
-            <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
-          </div>
-          <div class="subtasks-list">
-            <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item" :class="{ completed: subtask.completed }">
-              <input type="checkbox" :checked="subtask.completed" @change="toggleSubtask(subtask)" />
-              <span class="subtask-title">{{ subtask.title }}</span>
-              <button @click="deleteSubtask(subtask.id)" class="subtask-delete">x</button>
-            </div>
-          </div>
-          <div class="subtask-add">
-            <input
-              v-model="newSubtaskTitle"
-              @keyup.enter="addSubtask"
-              placeholder="Add subtask..."
-              class="subtask-input"
-            />
-            <button @click="addSubtask" :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn">+</button>
-          </div>
-        </div>
-
-        <div class="meta-section compact">
-          <div class="meta-grid">
-            <div class="meta-item">
-              <label>Category</label>
-              <select v-model="selectedTodo.category_id" @change="saveCategoryChange">
-                <option :value="null">None</option>
-                <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
-              </select>
-            </div>
-            <div class="meta-item">
-              <label>Status</label>
-              <select v-model="selectedTodo.status_id" @change="saveStatusChange">
-                <option :value="null">None</option>
-                <option v-for="status in statuses" :key="status.id" :value="status.id">{{ status.name }}</option>
-              </select>
-            </div>
-            <div class="meta-item">
-              <label>Importance</label>
-              <div class="importance-picker compact">
-                <button v-for="level in 5" :key="level" class="importance-btn" :class="{ active: selectedTodo.importance == level && selectedTodo.importance > 0 }" @click="setImportance(level)">{{ level }}</button>
-              </div>
-            </div>
-            <div class="meta-item">
-              <label>Created</label>
-              <span class="created-value">{{ formatCreatedDate(selectedTodo.created_at) }}</span>
-            </div>
-            <div class="meta-item">
-              <label>Start</label>
-              <div class="date-field">
-                <input type="date" :value="selectedTodoStartDate" @change="updateStartDate($event)" lang="sv-SE" />
-                <button v-if="selectedTodo.start_date" @click="clearStartDate" class="clear-btn">x</button>
-              </div>
-            </div>
-            <div class="meta-item">
-              <label>End</label>
-              <div class="date-field">
-                <input type="date" :value="selectedTodoEndDate" @change="updateEndDate($event)" lang="sv-SE" />
-                <button v-if="selectedTodo.end_date" @click="clearEndDate" class="clear-btn">x</button>
-              </div>
-            </div>
-            <div class="meta-item recurrence-item">
-              <label>Repeat</label>
-              <div class="recurrence-controls">
-                <select v-model="selectedTodo.recurrence_type" @change="saveRecurrence">
-                  <option :value="null">None</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                <div v-if="selectedTodo.recurrence_type" class="recurrence-interval">
-                  <span>every</span>
-                  <input
-                    type="number"
-                    v-model.number="selectedTodo.recurrence_interval"
-                    @change="saveRecurrence"
-                    min="1"
-                    max="99"
-                    class="interval-input"
-                  />
-                  <span>{{ recurrenceUnit }}</span>
-                </div>
-              </div>
-            </div>
-            <div v-if="selectedTodo.recurrence_type" class="meta-item">
-              <label>Until</label>
-              <div class="date-field">
-                <input type="date" :value="selectedTodo.recurrence_end_date || ''" @change="updateRecurrenceEndDate($event)" lang="sv-SE" />
-                <button v-if="selectedTodo.recurrence_end_date" @click="clearRecurrenceEndDate" class="clear-btn">x</button>
-              </div>
-            </div>
-            <div class="meta-item links-item">
-              <label>Links</label>
-              <div class="inline-links">
-                <span v-for="linked in linkedTodos" :key="linked.id" class="link-chip" @click="selectTodo(linked.id)">
-                  {{ linked.title }}<button @click.stop="unlinkFrom(linked)" class="chip-x">x</button>
-                </span>
-                <button @click="showLinkSearch = !showLinkSearch" class="add-link-btn">+</button>
-              </div>
-            </div>
-            <div class="meta-item persons-item">
-              <label>Persons</label>
-              <div class="inline-persons">
-                <span
-                  v-for="person in assignedPersons"
-                  :key="person.id"
-                  class="person-avatar"
-                  :style="{ background: person.color }"
-                  :title="person.name"
-                  @click="unassignPerson(person)"
-                >{{ getInitials(person.name) }}</span>
-                <button @click="showPersonPicker = !showPersonPicker" class="add-person-btn">+</button>
-              </div>
-            </div>
-          </div>
-          <div v-if="showLinkSearch" class="link-search-popup">
-            <input v-model="linkQuery" @input="searchForLinks" placeholder="Search todos..." ref="linkInput" />
-            <div v-if="linkResults.length" class="link-results">
-              <div v-for="result in linkResults" :key="result.id" class="link-result" @click="linkTo(result)">
-                {{ result.title }}
-              </div>
-            </div>
-          </div>
-          <div v-if="showPersonPicker" class="person-picker-popup">
-            <div class="person-picker-list">
-              <div v-for="person in persons" :key="person.id" class="person-option" :class="{ assigned: assignedPersons.some(p => p.id === person.id) }" @click="assignPerson(person)">
-                <span class="person-color-dot" :style="{ background: person.color }"></span>
-                <span class="person-name">{{ person.name }}</span>
-                <span v-if="person.email" class="person-email">{{ person.email }}</span>
-              </div>
-              <div v-if="!persons.length" class="person-picker-empty">
-                <p>No persons available</p>
-                <button @click="openSettings">Manage Persons</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </aside>
+    <DetailPanel
+      :todo="selectedTodo"
+      :projects="projects"
+      :categories="categories"
+      :statuses="statuses"
+      :persons="persons"
+      :subtasks="subtasks"
+      :linked-todos="linkedTodos"
+      :assigned-persons="assignedPersons"
+      :active-tab="activeTab"
+      :new-subtask-title="newSubtaskTitle"
+      :link-query="linkQuery"
+      :link-results="linkResults"
+      :show-link-search="showLinkSearch"
+      :show-person-picker="showPersonPicker"
+      :notes-revealed="notesRevealed"
+      :is-resizing="isResizing"
+      :layout-preference="detailLayoutPreference"
+      :is-vertical-layout="isVerticalLayout"
+      :detail-width="detailWidth"
+      :detail-height="detailHeight"
+      @close="closeDetail"
+      @detach="detachDetail"
+      @toggle-layout="toggleDetailLayout"
+      @resize-start="startResize"
+      @toggle-complete="toggleSelectedComplete"
+      @save="saveSelectedTodo"
+      @update:title="selectedTodo.title = $event; saveSelectedTodo()"
+      @update:notes="selectedTodo.notes = $event; saveSelectedTodo()"
+      @update:notes-sensitive="selectedTodo.notes_sensitive = $event; saveSelectedTodo()"
+      @update:active-tab="activeTab = $event"
+      @project-change="handleProjectChange"
+      @category-change="handleCategoryChange"
+      @status-change="handleStatusChange"
+      @set-importance="setImportance"
+      @update-start-date="updateStartDateFromPanel"
+      @clear-start-date="clearStartDate"
+      @update-end-date="updateEndDateFromPanel"
+      @clear-end-date="clearEndDate"
+      @update-recurrence-type="handleRecurrenceTypeChange"
+      @update-recurrence-interval="handleRecurrenceIntervalChange"
+      @update-recurrence-end-date="updateRecurrenceEndDateFromPanel"
+      @clear-recurrence-end-date="clearRecurrenceEndDate"
+      @toggle-subtask="toggleSubtask"
+      @delete-subtask="deleteSubtask"
+      @add-subtask="addSubtask"
+      @update:new-subtask-title="newSubtaskTitle = $event"
+      @select-linked="selectTodo"
+      @unlink="unlinkFrom"
+      @toggle-link-search="showLinkSearch = !showLinkSearch"
+      @update:link-query="linkQuery = $event; searchForLinks()"
+      @link-to="linkTo"
+      @assign-person="assignPerson"
+      @unassign-person="unassignPerson"
+      @toggle-person-picker="showPersonPicker = !showPersonPicker"
+      @open-settings="openSettings"
+      @reveal-notes="revealNotes"
+      @markdown-click="handleMarkdownClick"
+    />
     </div>
 
     <!-- Command Palette / Global Search -->
@@ -1480,16 +494,16 @@
           <input
             ref="searchInput"
             v-model="searchQuery"
-            @input="onSearchInput"
-            @keydown.esc="closeCommandPalette"
             placeholder="Search todos and persons... (Esc to close)"
             class="command-palette-input"
             autofocus
+            @input="onSearchInput"
+            @keydown.esc="closeCommandPalette"
           />
         </div>
-        <div class="command-palette-results" v-if="searchResults.length > 0">
+        <div v-if="searchResults.length > 0" class="command-palette-results">
           <div
-            v-for="(result, index) in searchResults"
+            v-for="result in searchResults"
             :key="result.type + '-' + result.id"
             class="command-palette-result"
             :class="{ 'is-completed': result.completed, 'is-person': result.type === 'person' }"
@@ -1510,10 +524,10 @@
             </template>
           </div>
         </div>
-        <div class="command-palette-empty" v-else-if="searchQuery && searchQuery.length > 0">
+        <div v-else-if="searchQuery && searchQuery.length > 0" class="command-palette-empty">
           <p>No results found</p>
         </div>
-        <div class="command-palette-hint" v-else>
+        <div v-else class="command-palette-hint">
           <p>Type to search across all todos and persons</p>
           <div class="keyboard-hints">
             <span><kbd>j</kbd>/<kbd>k</kbd> Navigate</span>
@@ -1529,10 +543,11 @@
 
 <script>
 import draggable from 'vuedraggable'
-import { marked } from 'marked'
+import { renderMarkdown, renderCardMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
 import PersonsView from './PersonsView.vue'
+import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView, TodoCard } from './components/index.js'
 import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
@@ -1603,6 +618,15 @@ export default {
   components: {
     draggable,
     PersonsView,
+    AppSidebar,
+    CardsView,
+    CategoryModal,
+    DetailPanel,
+    KanbanView,
+    StatusModal,
+    ProjectModal,
+    TableView,
+    TodoCard,
     ...categoryIcons
   },
   data() {
@@ -1801,6 +825,27 @@ export default {
     inboxCount() {
       return this.allTodos.filter(t => !t.project_id).length
     },
+    projectCounts() {
+      const counts = {}
+      for (const project of this.projects) {
+        counts[project.id] = this.allTodos.filter(t => t.project_id === project.id).length
+      }
+      return counts
+    },
+    statusCounts() {
+      const counts = {}
+      for (const status of this.statuses) {
+        counts[status.id] = this.allTodos.filter(t => t.status_id === status.id).length
+      }
+      return counts
+    },
+    categoryCounts() {
+      const counts = {}
+      for (const category of this.categories) {
+        counts[category.id] = this.allTodos.filter(t => t.category_id === category.id).length
+      }
+      return counts
+    },
     inboxTodos() {
       return this.filteredTodos.filter(t => !t.project_id)
     },
@@ -1826,7 +871,7 @@ export default {
     },
     renderedNotes() {
       if (!this.selectedTodo?.notes) return '<p class="placeholder">No notes yet</p>'
-      return marked(this.selectedTodo.notes)
+      return renderMarkdown(this.selectedTodo.notes)
     },
     layoutButtonTitle() {
       if (this.detailLayoutPreference === 'auto') return 'Layout: Auto (click to change)'
@@ -2133,6 +1178,67 @@ export default {
       return rows
     }
   },
+  watch: {
+    showLinkSearch(val) {
+      if (val) {
+        this.$nextTick(() => {
+          this.$refs.linkInput?.focus()
+        })
+      }
+    },
+    currentView(val, oldVal) {
+      if (val === 'graph') {
+        this.$nextTick(() => {
+          this.updateGraphSize()
+          this.initializeNodePositions()
+        })
+      } else if (oldVal === 'graph') {
+        this.stopForceLayout()
+      } else if (val === 'cards') {
+        this.$nextTick(() => {
+          this.applyMasonryLayout()
+        })
+      }
+      localStorage.setItem('current-view', val)
+    },
+    sortedTodos() {
+      if (this.currentView === 'cards') {
+        this.applyMasonryLayout()
+      }
+    },
+    groupedTodos() {
+      if (this.currentView === 'cards') {
+        this.applyMasonryLayout()
+      }
+    },
+    sidebarVisible(val) {
+      localStorage.setItem('sidebar-visible', val)
+    },
+    cardSize(val) {
+      localStorage.setItem('card-size', val)
+    },
+    isProjectSelected(val) {
+      if (val && this.groupByProject) {
+        this.groupByProject = false
+      }
+    },
+    groupByProject(val) {
+      localStorage.setItem('group-by-project', val)
+    },
+    sortBy(val) {
+      localStorage.setItem('sort-by', val)
+    },
+    activeTab(val) {
+      if (val === 'preview' || val === 'split') {
+        this.renderMermaid()
+      }
+    },
+    renderedNotes() {
+      if (this.activeTab === 'preview' || this.activeTab === 'split') {
+        this.renderMermaid()
+      }
+    }
+  },
   async mounted() {
     await this.loadProjects()
     await this.loadCategories()
@@ -2230,6 +1336,15 @@ export default {
     toggleGridLock() {
       localStorage.setItem('grid-lock', this.gridLock.toString())
     },
+    onGridLockChange(value) {
+      this.gridLock = value
+      localStorage.setItem('grid-lock', value.toString())
+    },
+    onOpenTodosInWindowChange(value) {
+      this.openTodosInWindow = value
+      const mode = value ? 'window' : 'sidebar'
+      localStorage.setItem('todo-open-mode', mode)
+    },
     async loadProjects() {
       this.projects = await window.api.getProjects()
     },
@@ -2254,9 +1369,9 @@ export default {
     renderCardNotes(notes) {
       if (!notes) return ''
       // Strip mermaid code blocks and replace with placeholder (for performance)
-      let processed = notes.replace(/```mermaid[\s\S]*?```/g, '[diagram]')
+      const processed = notes.replace(/```mermaid[\s\S]*?```/g, '[diagram]')
       // Render full notes - CSS handles overflow with scrolling for resizable cards
-      return marked(processed)
+      return renderCardMarkdown(processed)
     },
     getCategoryCount(categoryId) {
       return this.allTodos.filter(t => t.category_id === categoryId).length
@@ -2276,13 +1391,13 @@ export default {
     getProjectTodos(projectId) {
       return this.filteredTodos.filter(t => t.project_id === projectId)
     },
-    updateProjectTodos(projectId, todos) {
+    updateProjectTodos(_projectId, _todos) {
       // Used by draggable for reactive updates
     },
-    updateCategoryTodos(categoryId, todos) {
+    updateCategoryTodos(_categoryId, _todos) {
       // Used by draggable for reactive updates
     },
-    updateStatusTodos(statusId, todos) {
+    updateStatusTodos(_statusId, _todos) {
       // Used by draggable for reactive updates
     },
     updateSortedTodos(todos) {
@@ -2428,7 +1543,7 @@ export default {
         group.todos = todos
       }
     },
-    async onGroupDragEnd(groupId, event) {
+    async onGroupDragEnd(groupId, _event) {
       // Get the todos from this specific group and reorder them
       const group = this.groupedTodos.find(g => g.id === groupId)
       if (group && group.todos) {
@@ -2744,6 +1859,12 @@ export default {
       this.showProjectInput = false
       await this.loadProjects()
     },
+    async addProjectFromSidebar(name) {
+      if (!name.trim()) return
+      const randomColor = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
+      await window.api.createProject(name.trim(), randomColor)
+      await this.loadProjects()
+    },
     cancelAddProject() {
       this.newProjectName = ''
       this.showProjectInput = false
@@ -2777,6 +1898,10 @@ export default {
         console.error('Error saving project:', error)
       }
     },
+    async saveProjectFromModal(projectData) {
+      this.editingProject = projectData
+      await this.saveProject()
+    },
     async deleteProjectConfirm() {
       if (confirm(`Delete project "${this.editingProject.name}"? Todos will be moved to Inbox.`)) {
         await window.api.deleteProject(this.editingProject.id)
@@ -2807,6 +1932,12 @@ export default {
       this.showCategoryInput = false
       await this.loadCategories()
     },
+    async addCategoryFromSidebar(name) {
+      if (!name.trim()) return
+      const randomSymbol = this.categorySymbols[Math.floor(Math.random() * this.categorySymbols.length)]
+      await window.api.createCategory(name.trim(), randomSymbol)
+      await this.loadCategories()
+    },
     cancelAddCategory() {
       this.newCategoryName = ''
       this.showCategoryInput = false
@@ -2835,6 +1966,10 @@ export default {
         console.error('Error saving category:', error)
       }
     },
+    async saveCategoryFromModal(categoryData) {
+      this.editingCategory = categoryData
+      await this.saveCategory()
+    },
     async deleteCategoryConfirm() {
       if (confirm(`Delete category "${this.editingCategory.name}"?`)) {
         await window.api.deleteCategory(this.editingCategory.id)
@@ -2860,6 +1995,12 @@ export default {
       await window.api.createStatus(this.newStatusName.trim(), randomColor)
       this.newStatusName = ''
       this.showStatusInput = false
+      await this.loadStatuses()
+    },
+    async addStatusFromSidebar(name) {
+      if (!name.trim()) return
+      const randomColor = this.statusColors[Math.floor(Math.random() * this.statusColors.length)]
+      await window.api.createStatus(name.trim(), randomColor)
       await this.loadStatuses()
     },
     cancelAddStatus() {
@@ -2889,6 +2030,10 @@ export default {
         console.error('Error saving status:', error)
       }
     },
+    async saveStatusFromModal(statusData) {
+      this.editingStatus = statusData
+      await this.saveStatus()
+    },
     async deleteStatusConfirm() {
       if (confirm(`Delete status "${this.editingStatus.name}"?`)) {
         await window.api.deleteStatus(this.editingStatus.id)
@@ -2904,6 +2049,50 @@ export default {
       this.selectedTodo = updated
       await this.loadAllTodos()
       await this.loadTodos()
+    },
+    // DetailPanel wrapper methods
+    async handleProjectChange(projectId) {
+      this.selectedTodo.project_id = projectId
+      await this.saveProjectChange()
+    },
+    async handleCategoryChange(categoryId) {
+      this.selectedTodo.category_id = categoryId
+      await this.saveCategoryChange()
+    },
+    async handleStatusChange(statusId) {
+      this.selectedTodo.status_id = statusId
+      await this.saveStatusChange()
+    },
+    async updateStartDateFromPanel(value) {
+      this.selectedTodo.start_date = value || null
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async updateEndDateFromPanel(value) {
+      this.selectedTodo.end_date = value || null
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    handleRecurrenceTypeChange(type) {
+      this.selectedTodo.recurrence_type = type
+      if (!this.selectedTodo.recurrence_interval) {
+        this.selectedTodo.recurrence_interval = 1
+      }
+      this.saveSelectedTodo()
+    },
+    handleRecurrenceIntervalChange(interval) {
+      this.selectedTodo.recurrence_interval = interval
+      this.saveSelectedTodo()
+    },
+    updateRecurrenceEndDateFromPanel(value) {
+      this.selectedTodo.recurrence_end_date = value || null
+      this.saveSelectedTodo()
     },
     // Importance method
     async setImportance(level) {
@@ -3036,7 +2225,7 @@ export default {
         }, 150)
       })
     },
-    onCardMouseDown(event, todoId) {
+    onCardMouseDown(event, _todoId) {
       // Store the initial height when mouse goes down
       const card = event.currentTarget
       if (card) {
@@ -3735,7 +2924,7 @@ export default {
         for (const todo of this.filteredTodos) {
           const persons = await window.api.getTodoPersons(todo.id)
           if (persons && persons.length > 0) {
-            this.$set(this.todoPersons, todo.id, persons)
+            this.todoPersons[todo.id] = persons
           }
         }
       } else {
@@ -3744,7 +2933,7 @@ export default {
     },
     async loadProjectPersons(projectId) {
       const persons = await window.api.getProjectPersons(projectId)
-      this.$set(this.projectPersons, projectId, persons)
+      this.projectPersons[projectId] = persons
     },
     async assignProjectPerson(person) {
       if (!this.editingProject || !this.editingProject.id) return
@@ -3777,9 +2966,12 @@ export default {
       }
     },
     async handleImport(mode) {
+      console.log('handleImport called with mode:', mode)
       try {
         this.showImportDialog = false
+        console.log('Calling window.api.importData...')
         const result = await window.api.importData(mode)
+        console.log('Import result:', result)
         if (result.success) {
           alert('Backup imported successfully! Reloading data...')
           await this.loadData()
@@ -3813,67 +3005,6 @@ export default {
         })
       } catch (e) {
         console.error('Mermaid render error:', e)
-      }
-    }
-  },
-  watch: {
-    showLinkSearch(val) {
-      if (val) {
-        this.$nextTick(() => {
-          this.$refs.linkInput?.focus()
-        })
-      }
-    },
-    currentView(val, oldVal) {
-      if (val === 'graph') {
-        this.$nextTick(() => {
-          this.updateGraphSize()
-          this.initializeNodePositions()
-        })
-      } else if (oldVal === 'graph') {
-        this.stopForceLayout()
-      } else if (val === 'cards') {
-        this.$nextTick(() => {
-          this.applyMasonryLayout()
-        })
-      }
-      localStorage.setItem('current-view', val)
-    },
-    sortedTodos() {
-      if (this.currentView === 'cards') {
-        this.applyMasonryLayout()
-      }
-    },
-    groupedTodos() {
-      if (this.currentView === 'cards') {
-        this.applyMasonryLayout()
-      }
-    },
-    sidebarVisible(val) {
-      localStorage.setItem('sidebar-visible', val)
-    },
-    cardSize(val) {
-      localStorage.setItem('card-size', val)
-    },
-    isProjectSelected(val) {
-      if (val && this.groupByProject) {
-        this.groupByProject = false
-      }
-    },
-    groupByProject(val) {
-      localStorage.setItem('group-by-project', val)
-    },
-    sortBy(val) {
-      localStorage.setItem('sort-by', val)
-    },
-    activeTab(val) {
-      if (val === 'preview' || val === 'split') {
-        this.renderMermaid()
-      }
-    },
-    renderedNotes() {
-      if (this.activeTab === 'preview' || this.activeTab === 'split') {
-        this.renderMermaid()
       }
     }
   }

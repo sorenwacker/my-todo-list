@@ -1,6 +1,6 @@
-# Todo List
+# Todo
 
-A feature-rich desktop todo list application built with Electron and Vue 3. Designed for project management with support for hierarchical organization, markdown notes, and visual data representation.
+A feature-rich desktop todo application built with Electron and Vue 3. Designed for project management with support for hierarchical organization, markdown notes, and visual data representation.
 
 ## Features
 
@@ -39,8 +39,8 @@ A feature-rich desktop todo list application built with Electron and Vue 3. Desi
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/sorenwacker/my-todo-list.git
-cd my-todo-list
+git clone https://github.com/sorenwacker/todo.git
+cd todo
 
 # Install dependencies
 npm install
@@ -155,9 +155,9 @@ The application uses SQLite with the following main tables:
 ## Configuration
 
 The application stores data in the following locations:
-- **macOS**: `~/Library/Application Support/todo-list/`
-- **Windows**: `%APPDATA%/todo-list/`
-- **Linux**: `~/.config/todo-list/`
+- **macOS**: `~/Library/Application Support/todo/`
+- **Windows**: `%APPDATA%/todo/`
+- **Linux**: `~/.config/todo/`
 
 Database file: `todos.db`
 

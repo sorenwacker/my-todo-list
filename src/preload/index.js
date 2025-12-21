@@ -108,5 +108,21 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('detail-opened-in-window', (_, todoId) => callback(todoId))
     return () => ipcRenderer.removeListener('detail-opened-in-window', callback)
   },
-  notifyTodoUpdated: () => ipcRenderer.send('todo-updated')
+  notifyTodoUpdated: () => ipcRenderer.send('todo-updated'),
+
+  // Update operations
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('update-status', (_, data) => callback(data))
+    return () => ipcRenderer.removeListener('update-status', callback)
+  },
+
+  // Undo/Redo operations
+  undo: () => ipcRenderer.invoke('undo'),
+  redo: () => ipcRenderer.invoke('redo'),
+  getHistoryState: () => ipcRenderer.invoke('get-history-state'),
+  onHistoryChanged: (callback) => {
+    ipcRenderer.on('history-changed', (_, state) => callback(state))
+    return () => ipcRenderer.removeListener('history-changed', callback)
+  }
 })

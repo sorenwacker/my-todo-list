@@ -45,11 +45,10 @@ body {
 .sidebar-toggle {
   position: fixed;
   left: 260px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 8px;
   z-index: 100;
   width: 24px;
-  height: 48px;
+  height: 24px;
   background: #252a3d;
   border: 1px solid #555;
   border-left: none;
@@ -59,6 +58,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
   transition: all 0.2s;
 }
 
@@ -3018,8 +3018,8 @@ body {
 }
 
 .todo-card.resizable .card-notes-preview {
-  flex: 0 1 auto;
-  max-height: none;
+  flex: 1 1 auto;
+  max-height: 150px;
   overflow-y: auto;
   min-height: 0;
 }
