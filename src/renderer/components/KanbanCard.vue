@@ -27,7 +27,10 @@
       </span>
     </div>
     <div v-if="todo.subtask_count > 0" class="card-subtasks">
-      {{ todo.subtask_completed }}/{{ todo.subtask_count }} subtasks
+      <div class="subtask-progress">
+        <div class="subtask-bar" :style="{ width: subtaskProgress + '%' }"></div>
+      </div>
+      <span class="subtask-count">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
     </div>
   </div>
 </template>
@@ -54,6 +57,12 @@ export default {
     }
   },
   emits: ['select', 'toggle-complete', 'delete'],
+  computed: {
+    subtaskProgress() {
+      if (!this.todo.subtask_count) return 0
+      return Math.round((this.todo.subtask_completed / this.todo.subtask_count) * 100)
+    }
+  },
   methods: {
     formatDeadline(dateString) {
       if (!dateString) return ''

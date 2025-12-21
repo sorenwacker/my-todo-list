@@ -2563,14 +2563,32 @@ body {
   background: rgba(255, 107, 107, 0.1);
 }
 
-.card-subtasks {
+.kanban-card .card-subtasks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.kanban-card .subtask-progress {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.kanban-card .subtask-bar {
+  height: 100%;
+  background: #2ecc71;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.kanban-card .subtask-count {
   font-size: 11px;
-  color: #bbb;
-  padding: 3px 8px;
-  background: #252a3d;
-  border-radius: 4px;
-  display: inline-block;
+  color: #888;
+  white-space: nowrap;
 }
 
 /* Detail Panel */

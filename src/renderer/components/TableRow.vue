@@ -41,7 +41,7 @@
       <span v-else>-</span>
     </td>
     <td class="col-subtasks">
-      <span v-if="todo.subtask_info">{{ todo.subtask_info.completed }}/{{ todo.subtask_info.total }}</span>
+      <span v-if="todo.subtask_count > 0">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
       <span v-else>-</span>
     </td>
     <td class="col-notes">
