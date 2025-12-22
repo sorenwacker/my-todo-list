@@ -217,7 +217,9 @@
         v-if="currentFilter === 'persons'"
         :persons="persons"
         :theme="theme"
+        :pending-edit="pendingPersonEdit"
         @refresh="loadPersons"
+        @edit-opened="pendingPersonEdit = null"
       />
 
       <!-- Cards View -->
@@ -540,6 +542,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       @toggle-subtask="toggleSubtask"
       @delete-subtask="deleteSubtask"
       @add-subtask="addSubtask"
+      @reorder-subtasks="reorderSubtasks"
       @update:new-subtask-title="newSubtaskTitle = $event"
       @select-linked="selectTodo"
       @unlink="unlinkFrom"
@@ -550,6 +553,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       @unassign-person="unassignPerson"
       @toggle-person-picker="showPersonPicker = !showPersonPicker"
       @open-settings="openSettings"
+      @open-person="openPersonDetails"
       @reveal-notes="revealNotes"
       @markdown-click="handleMarkdownClick"
     />
@@ -837,6 +841,7 @@ export default {
       persons: [],
       projectPersons: {},
       showProjectPersonPicker: false,
+      pendingPersonEdit: null,
       // History state
       historyState: {
         canUndo: false,
@@ -1352,6 +1357,11 @@ export default {
       if (this.selectedTodo && this.selectedTodo.id === todoId) {
         this.selectedTodo = null
       }
+    })
+
+    // Open todo in embedded view when requested from detached window
+    window.api.onEmbedTodo(async (todoId) => {
+      await this.selectTodo(todoId)
     })
 
     // Check layout on mount and resize
@@ -1905,6 +1915,8 @@ export default {
       await window.api.createSubtask(this.selectedTodo.id, this.newSubtaskTitle.trim())
       this.newSubtaskTitle = ''
       await this.loadSubtasks()
+      await this.loadAllTodos()
+      await this.loadTodos()
     },
     async toggleSubtask(subtask) {
       await window.api.updateSubtask({
@@ -1913,9 +1925,17 @@ export default {
         completed: !subtask.completed
       })
       await this.loadSubtasks()
+      await this.loadAllTodos()
+      await this.loadTodos()
     },
     async deleteSubtask(id) {
       await window.api.deleteSubtask(id)
+      await this.loadSubtasks()
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async reorderSubtasks(ids) {
+      await window.api.reorderSubtasks(ids)
       await this.loadSubtasks()
     },
     async saveRecurrence() {
@@ -3044,6 +3064,10 @@ export default {
       localStorage.setItem('todo-open-mode', mode)
     },
     openSettings() {
+      this.setFilter('persons')
+    },
+    openPersonDetails(person) {
+      this.pendingPersonEdit = person
       this.setFilter('persons')
     },
     async loadPersons() {

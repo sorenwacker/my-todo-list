@@ -76,7 +76,7 @@
           :style="{ borderColor: todo.project_color || '#333' }"
         >
           <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
-            <div class="sensitive-icon">*</div>
+            <div class="sensitive-icon">🔒</div>
             <p>Sensitive content hidden</p>
             <button class="reveal-btn" @click="$emit('reveal-notes')">Reveal</button>
           </div>
@@ -96,21 +96,21 @@
             :style="{ borderColor: todo.project_color || '#333' }"
           >
             <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
-              <div class="sensitive-icon">*</div>
+              <div class="sensitive-icon">🔒</div>
               <p>Sensitive content hidden</p>
               <button class="reveal-btn" @click="$emit('reveal-notes')">Reveal</button>
             </div>
             <div v-else @click="$emit('markdown-click', $event)" v-html="renderedNotes"></div>
           </div>
         </div>
-      </div>
 
-      <div class="sensitive-notes-row" style="text-align: right; padding: 8px 0;">
-        <label class="sensitive-checkbox" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #bbb; cursor: pointer;">
-          <input :checked="todo.notes_sensitive" type="checkbox" @change="$emit('update:notes-sensitive', $event.target.checked)" />
-          <span class="lock-icon">*</span>
-          <span>Sensitive Notes</span>
-        </label>
+        <div class="sensitive-notes-row">
+          <label class="sensitive-checkbox">
+            <input :checked="todo.notes_sensitive" type="checkbox" @change="$emit('update:notes-sensitive', $event.target.checked)" />
+            <span class="lock-icon">🔒</span>
+            <span>Sensitive Notes</span>
+          </label>
+        </div>
       </div>
 
       <div class="subtasks-section">
@@ -118,13 +118,22 @@
           <label>Subtasks</label>
           <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
         </div>
-        <div class="subtasks-list">
-          <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item" :class="{ completed: subtask.completed }">
-            <input type="checkbox" :checked="subtask.completed" @change="$emit('toggle-subtask', subtask)" />
-            <span class="subtask-title">{{ subtask.title }}</span>
-            <button class="subtask-delete" @click="$emit('delete-subtask', subtask.id)">x</button>
-          </div>
-        </div>
+        <draggable
+          :list="localSubtasks"
+          item-key="id"
+          class="subtasks-list"
+          handle=".subtask-drag-handle"
+          @end="onSubtaskReorder"
+        >
+          <template #item="{ element: subtask }">
+            <div class="subtask-item" :class="{ completed: subtask.completed }">
+              <span class="subtask-drag-handle">⋮⋮</span>
+              <input type="checkbox" :checked="subtask.completed" @change="$emit('toggle-subtask', subtask)" />
+              <span class="subtask-title">{{ subtask.title }}</span>
+              <button class="subtask-delete" @click="$emit('delete-subtask', subtask.id)">x</button>
+            </div>
+          </template>
+        </draggable>
         <div class="subtask-add">
           <input
             :value="newSubtaskTitle"
@@ -220,14 +229,13 @@
           <div class="meta-item persons-item">
             <label>Persons</label>
             <div class="inline-persons">
-              <span
+              <PersonAvatar
                 v-for="person in assignedPersons"
                 :key="person.id"
-                class="person-avatar"
-                :style="{ background: person.color }"
-                :title="person.name"
-                @click="$emit('unassign-person', person)"
-              >{{ getInitials(person.name) }}</span>
+                :person="person"
+                @click="$emit('open-person', person)"
+                @remove="$emit('unassign-person', person)"
+              />
               <button class="add-person-btn" @click="$emit('toggle-person-picker')">+</button>
             </div>
           </div>
@@ -260,9 +268,12 @@
 
 <script>
 import { renderMarkdown } from '../utils/markdown.js'
+import PersonAvatar from './PersonAvatar.vue'
+import draggable from 'vuedraggable'
 
 export default {
   name: 'DetailPanel',
+  components: { PersonAvatar, draggable },
   props: {
     todo: { type: Object, default: null },
     projects: { type: Array, default: () => [] },
@@ -295,9 +306,9 @@ export default {
     'update-end-date', 'clear-end-date',
     'update-recurrence-type', 'update-recurrence-interval',
     'update-recurrence-end-date', 'clear-recurrence-end-date',
-    'toggle-subtask', 'delete-subtask', 'add-subtask', 'update:new-subtask-title',
+    'toggle-subtask', 'delete-subtask', 'add-subtask', 'update:new-subtask-title', 'reorder-subtasks',
     'select-linked', 'unlink', 'toggle-link-search', 'update:link-query', 'link-to',
-    'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings',
+    'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings', 'open-person',
     'reveal-notes', 'markdown-click'
   ],
   computed: {
@@ -350,10 +361,23 @@ export default {
       }
     }
   },
+  data() {
+    return {
+      localSubtasks: []
+    }
+  },
+  watch: {
+    subtasks: {
+      immediate: true,
+      handler(newVal) {
+        this.localSubtasks = [...newVal]
+      }
+    }
+  },
   methods: {
-    getInitials(name) {
-      if (!name) return '?'
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    onSubtaskReorder() {
+      const ids = this.localSubtasks.map(s => s.id)
+      this.$emit('reorder-subtasks', ids)
     }
   }
 }
@@ -489,39 +513,40 @@ export default {
   color: white;
 }
 
-.notes-editor {
-  width: 100%;
-  min-height: 200px;
+/* Base styles for all editors and previews */
+.notes-editor,
+.notes-preview {
   padding: 12px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 6px;
   background: var(--bg-primary, #1a1f2e);
+  box-sizing: border-box;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 150px;
+}
+
+.notes-editor {
   color: var(--text-primary, #e0e0e0);
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 13px;
   line-height: 1.5;
   resize: vertical;
-  box-sizing: border-box;
 }
 
-.notes-preview {
-  min-height: 200px;
-  padding: 12px;
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 6px;
-  background: var(--bg-primary, #1a1f2e);
-  overflow-y: auto;
-}
-
+/* Split view layout */
 .notes-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: row;
   gap: 8px;
+  flex: 1;
+  min-height: 150px;
 }
 
 .split-editor,
 .split-preview {
-  min-height: 200px;
+  flex: 1;
+  min-width: 0;
 }
 
 .sensitive-notes-overlay {
@@ -545,6 +570,20 @@ export default {
   color: white;
   border: none;
   border-radius: 4px;
+  cursor: pointer;
+}
+
+.sensitive-notes-row {
+  text-align: right;
+  padding: 8px 0;
+}
+
+.sensitive-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #a0a0a0);
   cursor: pointer;
 }
 
@@ -577,6 +616,23 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 6px 0;
+}
+
+.subtask-drag-handle {
+  cursor: grab;
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 10px;
+  letter-spacing: -2px;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.subtask-drag-handle:hover {
+  opacity: 1;
+}
+
+.subtask-item:active .subtask-drag-handle {
+  cursor: grabbing;
 }
 
 .subtask-item.completed .subtask-title {
@@ -633,54 +689,55 @@ export default {
 }
 
 .meta-section {
-  padding: 12px;
+  padding: 6px 8px;
   background: var(--bg-primary, #1a1f2e);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
 }
 
 .meta-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
 }
 
 .meta-item label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary, #a0a0a0);
-  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .meta-item select,
 .meta-item input[type="date"] {
-  padding: 4px 6px;
+  padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--bg-secondary, #252a3d);
   color: var(--text-primary, #e0e0e0);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .importance-picker {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
 .importance-btn {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--bg-secondary, #252a3d);
   color: var(--text-secondary, #a0a0a0);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .importance-btn.active {
@@ -712,14 +769,14 @@ export default {
 .recurrence-controls {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .recurrence-interval {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
   color: var(--text-secondary, #a0a0a0);
 }
 
@@ -735,25 +792,25 @@ export default {
 
 .links-item,
 .persons-item {
-  grid-column: span 2;
+  /* Let them flow naturally with other items */
 }
 
 .inline-links,
 .inline-persons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 3px;
   align-items: center;
 }
 
 .link-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 2px;
+  padding: 2px 6px;
   background: var(--bg-secondary, #252a3d);
-  border-radius: 12px;
-  font-size: 12px;
+  border-radius: 10px;
+  font-size: 11px;
   cursor: pointer;
 }
 
@@ -768,8 +825,8 @@ export default {
 
 .add-link-btn,
 .add-person-btn {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border: 1px dashed var(--border-color, #3a3f4b);
   border-radius: 50%;
   background: transparent;
@@ -778,19 +835,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-}
-
-.person-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: white;
-  cursor: pointer;
+  font-size: 12px;
 }
 
 .link-search-popup,

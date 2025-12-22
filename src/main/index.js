@@ -494,7 +494,10 @@ app.whenReady().then(() => {
     )
   }))
   ipcMain.handle('update-subtask', handleWithValidation((_, subtask) => {
-    return database.updateSubtask(validateSubtask(subtask))
+    console.log('update-subtask called:', subtask)
+    const result = database.updateSubtask(validateSubtask(subtask))
+    console.log('update-subtask result:', result)
+    return result
   }))
   ipcMain.handle('delete-subtask', handleWithValidation((_, id) => {
     return database.deleteSubtask(validateId(id))
@@ -595,6 +598,19 @@ app.whenReady().then(() => {
   ipcMain.on('todo-updated', () => {
     if (mainWindow) {
       mainWindow.webContents.send('refresh-todos')
+    }
+  })
+
+  // Embed todo from detached window back to main window
+  ipcMain.on('embed-todo', (event, todoId) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('embed-todo', todoId)
+      mainWindow.focus()
+    }
+    // Close the detail window that sent this message
+    const senderWindow = BrowserWindow.fromWebContents(event.sender)
+    if (senderWindow && senderWindow !== mainWindow) {
+      senderWindow.close()
     }
   })
 

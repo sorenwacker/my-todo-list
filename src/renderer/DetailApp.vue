@@ -1,5 +1,15 @@
 <template>
   <div v-if="todo" class="detail-app" :class="{ 'light-theme': theme === 'light' }" :style="{ borderLeftColor: todo.project_color || '#333' }">
+    <div class="detail-header">
+      <div class="header-actions">
+        <button class="header-btn" title="Open in sidebar" @click="embedTodo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <button class="header-btn close-btn" title="Close" @click="closeWindow">x</button>
+      </div>
+    </div>
     <div class="title-row">
       <input
         type="checkbox"
@@ -88,13 +98,22 @@
         <label>Subtasks</label>
         <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
       </div>
-      <div class="subtasks-list">
-        <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item" :class="{ completed: subtask.completed }">
-          <input type="checkbox" :checked="subtask.completed" @change="toggleSubtask(subtask)" />
-          <span class="subtask-title">{{ subtask.title }}</span>
-          <button class="subtask-delete" @click="deleteSubtask(subtask.id)">x</button>
-        </div>
-      </div>
+      <draggable
+        :list="subtasks"
+        item-key="id"
+        class="subtasks-list"
+        handle=".subtask-drag-handle"
+        @end="reorderSubtasks"
+      >
+        <template #item="{ element: subtask }">
+          <div class="subtask-item" :class="{ completed: subtask.completed }">
+            <span class="subtask-drag-handle">⋮⋮</span>
+            <input type="checkbox" :checked="subtask.completed" @change="toggleSubtask(subtask)" />
+            <span class="subtask-title">{{ subtask.title }}</span>
+            <button class="subtask-delete" @click="deleteSubtask(subtask.id)">x</button>
+          </div>
+        </template>
+      </draggable>
       <div class="subtask-add">
         <input
           v-model="newSubtaskTitle"
@@ -115,50 +134,6 @@
       </div>
 
       <div v-if="metaExpanded">
-        <!-- Linked Items -->
-        <div class="links-subsection">
-          <div class="subsection-header">
-            <h4>Linked Items <span v-if="linkedTodos.length" class="count-badge">{{ linkedTodos.length }}</span></h4>
-            <button class="link-btn" @click.stop="showLinkSearch = !showLinkSearch">+ Link</button>
-          </div>
-
-          <div v-if="showLinkSearch" class="link-search">
-            <input
-              ref="linkInput"
-              v-model="linkQuery"
-              placeholder="Search todos to link..."
-              @input="searchForLinks"
-            />
-            <div v-if="linkResults.length" class="link-results">
-              <div
-                v-for="result in linkResults"
-                :key="result.id"
-                class="link-result"
-                @click="linkTo(result)"
-              >
-                <span>{{ result.title }}</span>
-                <span v-if="result.project_name" class="result-project">{{ result.project_name }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="linked-items">
-            <div
-              v-for="linked in linkedTodos"
-              :key="linked.id"
-              class="linked-item"
-            >
-              <span class="linked-title" @click="openLinked(linked.id)">{{ linked.title }}</span>
-              <span v-if="linked.project_name" class="linked-project">
-                {{ linked.project_name }}
-              </span>
-              <button class="unlink-btn" @click="unlinkFrom(linked)">x</button>
-            </div>
-            <p v-if="!linkedTodos.length" class="no-links">No linked items</p>
-          </div>
-        </div>
-
-
         <!-- Properties Grid -->
         <div class="meta-grid">
         <div class="meta-item">
@@ -230,41 +205,57 @@
             </div>
           </div>
         </div>
+        <div class="meta-item links-item">
+          <label>Links</label>
+          <div class="inline-links">
+            <span v-for="linked in linkedTodos" :key="linked.id" class="link-chip" @click="openLinked(linked.id)">
+              {{ linked.title }}<button class="chip-x" @click.stop="unlinkFrom(linked)">x</button>
+            </span>
+            <button class="add-link-btn" @click.stop="showLinkSearch = !showLinkSearch">+</button>
+          </div>
+        </div>
         <div class="meta-item persons-item">
           <label>Persons</label>
-          <div class="persons-inline">
-            <div class="assigned-persons">
-              <span
-                v-for="person in assignedPersons"
-                :key="person.id"
-                class="person-avatar"
-                :style="{ background: person.color }"
-                :title="person.name"
-                @click="unassignPerson(person)"
-              >{{ getInitials(person.name) }}</span>
-              <button class="add-person-inline" @click.stop="showPersonSearch = !showPersonSearch">{{ assignedPersons.length ? '+' : '+ Assign' }}</button>
-            </div>
-            <div v-if="showPersonSearch" class="person-search-inline">
-              <input
-                ref="personInput"
-                v-model="personQuery"
-                placeholder="Search..."
-                @input="searchPersons"
-              />
-              <div v-if="personResults.length" class="search-results-inline">
-                <div
-                  v-for="person in personResults"
-                  :key="person.id"
-                  class="search-result-inline"
-                  @click="assignPerson(person)"
-                >
-                  <span class="person-color-dot" :style="{ background: person.color }">{{ getInitials(person.name) }}</span>
-                  <span>{{ person.name }}</span>
-                </div>
-              </div>
+          <div class="inline-persons">
+            <PersonAvatar
+              v-for="person in assignedPersons"
+              :key="person.id"
+              :person="person"
+              @remove="unassignPerson(person)"
+            />
+            <button class="add-person-btn" @click.stop="showPersonSearch = !showPersonSearch">+</button>
+          </div>
+        </div>
+        </div>
+        <div v-if="showLinkSearch" class="link-search-popup">
+          <input
+            ref="linkInput"
+            v-model="linkQuery"
+            placeholder="Search todos to link..."
+            @input="searchForLinks"
+          />
+          <div v-if="linkResults.length" class="link-results">
+            <div
+              v-for="result in linkResults"
+              :key="result.id"
+              class="link-result"
+              @click="linkTo(result)"
+            >
+              {{ result.title }}
             </div>
           </div>
         </div>
+        <div v-if="showPersonSearch" class="person-picker-popup">
+          <div class="person-picker-list">
+            <div v-for="person in persons" :key="person.id" class="person-option" :class="{ assigned: assignedPersons.some(p => p.id === person.id) }" @click="assignPerson(person)">
+              <span class="person-color-dot" :style="{ background: person.color }"></span>
+              <span class="person-name">{{ person.name }}</span>
+              <span v-if="person.email" class="person-email">{{ person.email }}</span>
+            </div>
+            <div v-if="!persons.length" class="person-picker-empty">
+              <p>No persons available</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -278,6 +269,8 @@
 <script>
 import { renderMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
+import PersonAvatar from './components/PersonAvatar.vue'
+import draggable from 'vuedraggable'
 
 const savedTheme = localStorage.getItem('todo-theme') || 'dark'
 mermaid.initialize({
@@ -324,6 +317,7 @@ marked.use(mermaidExtension)
 
 export default {
   name: 'DetailApp',
+  components: { PersonAvatar, draggable },
   data() {
     return {
       todo: null,
@@ -495,6 +489,13 @@ export default {
     }
   },
   methods: {
+    embedTodo() {
+      // Tell main window to open this todo in embedded view, then close this window
+      window.api.embedTodo(this.todo.id)
+    },
+    closeWindow() {
+      window.close()
+    },
     async loadProjects() {
       this.projects = await window.api.getProjects()
     },
@@ -579,6 +580,11 @@ export default {
       const subtask = await window.api.createSubtask(this.todo.id, this.newSubtaskTitle)
       this.subtasks.push(subtask)
       this.newSubtaskTitle = ''
+      window.api.notifyTodoUpdated()
+    },
+    async reorderSubtasks() {
+      const ids = this.subtasks.map(s => s.id)
+      await window.api.reorderSubtasks(ids)
       window.api.notifyTodoUpdated()
     },
     async loadLinkedTodos() {
@@ -718,3 +724,335 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.detail-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color, #3a3f4b);
+  background: var(--bg-secondary, #252a3d);
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.header-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-btn:hover {
+  background: var(--bg-hover, #2a2f3d);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.header-btn.close-btn:hover {
+  background: #e74c3c;
+  color: white;
+}
+
+.subtask-drag-handle {
+  cursor: grab;
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 10px;
+  letter-spacing: -2px;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.subtask-drag-handle:hover {
+  opacity: 1;
+}
+
+.subtask-item:active .subtask-drag-handle {
+  cursor: grabbing;
+}
+
+/* Compact meta layout matching embedded view */
+.meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.meta-item label {
+  font-size: 10px;
+  color: var(--text-secondary, #a0a0a0);
+  white-space: nowrap;
+}
+
+.meta-item select,
+.meta-item input[type="date"] {
+  padding: 2px 4px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 3px;
+  background: var(--bg-secondary, #252a3d);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 11px;
+}
+
+.meta-item select:focus,
+.meta-item input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent-color, #0f4c75);
+}
+
+.importance-picker.compact {
+  display: flex;
+  gap: 2px;
+}
+
+.importance-picker.compact .importance-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font-size: 10px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 3px;
+  background: var(--bg-secondary, #252a3d);
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+}
+
+.importance-picker.compact .importance-btn.active {
+  background: var(--accent-color, #0f4c75);
+  color: white;
+  border-color: var(--accent-color, #0f4c75);
+}
+
+.created-value {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.date-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-field .clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+.recurrence-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recurrence-interval {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.interval-input {
+  width: 36px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 3px;
+  background: var(--bg-secondary, #252a3d);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 11px;
+  text-align: center;
+}
+
+.inline-persons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.add-person-btn {
+  width: 18px;
+  height: 18px;
+  border: 1px dashed var(--border-color, #3a3f4b);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.add-person-btn:hover {
+  border-color: var(--accent-color, #0f4c75);
+  color: var(--accent-color, #0f4c75);
+}
+
+.person-picker-popup {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-secondary, #252a3d);
+  border-radius: 8px;
+}
+
+.person-picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.person-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.person-option:hover {
+  background: var(--bg-hover, #2a2f3d);
+}
+
+.person-option.assigned {
+  opacity: 0.5;
+}
+
+.person-color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.person-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.person-email {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.person-picker-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+/* Inline Links */
+.inline-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: var(--bg-secondary, #252a3d);
+  border: 1px solid #555;
+  border-radius: 10px;
+  font-size: 11px;
+  color: #4fc3f7;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-chip:hover {
+  background: var(--bg-hover, #2a2f3d);
+}
+
+.chip-x {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.chip-x:hover {
+  color: #ff6b6b;
+}
+
+.add-link-btn {
+  width: 18px;
+  height: 18px;
+  border: 1px dashed var(--border-color, #3a3f4b);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.add-link-btn:hover {
+  border-color: var(--accent-color, #0f4c75);
+  color: var(--accent-color, #0f4c75);
+}
+
+.link-search-popup {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-secondary, #252a3d);
+  border-radius: 8px;
+}
+
+.link-search-popup input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 4px;
+  background: var(--bg-primary, #1a1f2e);
+  color: var(--text-primary, #e0e0e0);
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.link-results {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.link-result {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.link-result:hover {
+  background: var(--bg-hover, #2a2f3d);
+}
+</style>

@@ -170,9 +170,13 @@ export default {
     theme: {
       type: String,
       default: 'dark'
+    },
+    pendingEdit: {
+      type: Object,
+      default: null
     }
   },
-  emits: ['refresh'],
+  emits: ['refresh', 'edit-opened'],
   data() {
     return {
       editingPerson: null,
@@ -222,6 +226,15 @@ export default {
     }
   },
   watch: {
+    pendingEdit: {
+      immediate: true,
+      handler(person) {
+        if (person) {
+          this.editPerson(person)
+          this.$emit('edit-opened')
+        }
+      }
+    },
     pageSize() {
       this.currentPage = 1
     },

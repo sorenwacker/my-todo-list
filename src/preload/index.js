@@ -108,7 +108,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('detail-opened-in-window', (_, todoId) => callback(todoId))
     return () => ipcRenderer.removeListener('detail-opened-in-window', callback)
   },
+  onEmbedTodo: (callback) => {
+    ipcRenderer.on('embed-todo', (_, todoId) => callback(todoId))
+    return () => ipcRenderer.removeListener('embed-todo', callback)
+  },
   notifyTodoUpdated: () => ipcRenderer.send('todo-updated'),
+  embedTodo: (todoId) => ipcRenderer.send('embed-todo', todoId),
 
   // Update operations
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

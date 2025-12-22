@@ -65,6 +65,13 @@
       {{ todo.project_name }}
     </div>
 
+    <div v-if="todo.subtask_count > 0" class="subtask-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+      </div>
+      <span class="progress-text">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
+    </div>
+
     <div v-if="resizable" class="resize-handle" @mousedown.stop="onResizeStart"></div>
   </div>
 </template>
@@ -124,6 +131,10 @@ export default {
       today.setHours(0, 0, 0, 0)
       const deadline = new Date(this.todo.end_date)
       return deadline < today
+    },
+    progressPercent() {
+      if (!this.todo.subtask_count || this.todo.subtask_count === 0) return 0
+      return Math.round((this.todo.subtask_completed / this.todo.subtask_count) * 100)
     }
   },
   methods: {
@@ -317,5 +328,33 @@ export default {
   right: 0;
   height: 8px;
   cursor: ns-resize;
+}
+
+.subtask-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-primary, #1a1f2e);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+  white-space: nowrap;
 }
 </style>

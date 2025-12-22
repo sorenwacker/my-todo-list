@@ -1122,11 +1122,6 @@ body {
 }
 
 /* Persons Controls */
-.persons-item {
-  grid-column: span 2;
-  align-items: flex-start;
-}
-
 .persons-item .persons-inline {
   flex: 1;
 }
@@ -1185,8 +1180,7 @@ body {
 
 /* Inline Links */
 .links-item {
-  flex: 1;
-  min-width: 150px;
+  /* Removed flex: 1 to allow inline flow */
 }
 
 .inline-links {
@@ -1283,8 +1277,7 @@ body {
 
 /* Inline Persons */
 .persons-item {
-  flex: 1;
-  min-width: 150px;
+  /* Removed flex: 1 to allow inline flow */
 }
 
 .inline-persons {
@@ -2745,16 +2738,13 @@ body {
 /* Split view for markdown editor */
 .notes-split {
   display: flex;
+  flex-direction: row;
   gap: 10px;
   flex: 1;
-  min-height: 200px;
+  min-height: 150px;
 }
 
-.notes-split .split-editor {
-  flex: 1;
-  min-width: 0;
-}
-
+.notes-split .split-editor,
 .notes-split .split-preview {
   flex: 1;
   min-width: 0;
@@ -3353,10 +3343,6 @@ body {
   .meta-row input[type="date"] {
     font-size: 12px;
     padding: 6px 10px;
-  }
-
-  .notes-split {
-    flex-direction: column;
   }
 
   .kanban-column {
