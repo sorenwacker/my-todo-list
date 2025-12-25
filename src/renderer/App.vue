@@ -737,6 +737,7 @@ export default {
       groupByProject: localStorage.getItem('group-by-project') === 'true',
       cardSize: parseInt(localStorage.getItem('card-size')) || 280,
       cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
+      cardWidths: JSON.parse(localStorage.getItem('card-widths') || '{}'),
       justResizedCard: false,
       cardMouseDownHeight: null,
       gridLock: localStorage.getItem('grid-lock') === 'true',
