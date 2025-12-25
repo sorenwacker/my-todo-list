@@ -278,7 +278,7 @@
         :uncategorized-todos="uncategorizedTodos"
         :no-status-todos="noStatusTodos"
         :selected-todo-id="selectedTodo?.id"
-        :all-todos="allTodos"
+        :all-todos="filteredTodos"
         @update:kanban-group-by="kanbanGroupBy = $event"
         @select-todo="selectTodo"
         @toggle-complete="toggleComplete"
@@ -347,7 +347,11 @@
                   class="gantt-row"
                   :style="{ height: getRowHeight(row) + 'px' }"
                 >
-                  <div class="gantt-row-bg" :style="{ width: timelineRange.days * timelineScale + 'px', height: getRowHeight(row) + 'px' }">
+                  <div
+                    class="gantt-row-bg"
+                    :style="{ width: timelineRange.days * timelineScale + 'px', height: getRowHeight(row) + 'px' }"
+                    @dblclick="createTodoFromTimeline($event, row)"
+                  >
                     <div
                       v-for="(date, i) in timelineDates"
                       :key="i"
@@ -1569,6 +1573,27 @@ export default {
       this.newTodoTitle = ''
       await this.loadAllTodos()
       await this.loadTodos()
+    },
+    async createTodoFromTimeline(event, row) {
+      // Calculate date from click position
+      const rect = event.target.getBoundingClientRect()
+      const clickX = event.clientX - rect.left + this.timelineOffset
+      const dayIndex = Math.floor(clickX / this.timelineScale)
+      const startDate = new Date(this.timelineRange.start)
+      startDate.setDate(startDate.getDate() + dayIndex)
+      const dateStr = startDate.toISOString().split('T')[0]
+
+      // Determine project ID - use current filter if it's a project
+      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox' && this.currentFilter !== 'trash'
+        ? this.currentFilter
+        : null
+
+      // Create todo with start date
+      const todo = await window.api.createTodo('New Todo', projectId)
+      await window.api.updateTodo(todo.id, { start_date: dateStr })
+      await this.loadAllTodos()
+      await this.loadTodos()
+      this.selectTodo(todo.id)
     },
     async addTodoToProject(projectId) {
       const todo = await window.api.createTodo('', projectId)
