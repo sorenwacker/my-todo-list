@@ -322,7 +322,7 @@
               <span class="row-count">{{ row.todos.length }}</span>
             </div>
           </div>
-          <div ref="ganttChartArea" class="gantt-chart-area" @wheel.prevent="onTimelineWheel">
+          <div ref="ganttChartArea" class="gantt-chart-area" @wheel.prevent="onTimelineWheel" @dblclick="onTimelineChartDblClick">
             <div class="gantt-scroll" :style="{ transform: `translateX(${-timelineOffset}px)` }">
               <div class="gantt-header" :style="{ width: timelineRange.days * timelineScale + 'px' }">
                 <div
@@ -1574,9 +1574,17 @@ export default {
       await this.loadAllTodos()
       await this.loadTodos()
     },
+    onTimelineChartDblClick(event) {
+      // Only handle if clicked on empty area (not on a bar or row)
+      if (event.target.closest('.gantt-bar') || event.target.closest('.gantt-row-bg')) {
+        return // Let the row handler handle it
+      }
+      this.createTodoFromTimeline(event, null)
+    },
     async createTodoFromTimeline(event, row) {
       // Calculate date from click position
-      const rect = event.target.getBoundingClientRect()
+      const chartArea = this.$refs.ganttChartArea
+      const rect = chartArea.getBoundingClientRect()
       const clickX = event.clientX - rect.left + this.timelineOffset
       const dayIndex = Math.floor(clickX / this.timelineScale)
       const startDate = new Date(this.timelineRange.start)
@@ -1588,9 +1596,11 @@ export default {
         ? this.currentFilter
         : null
 
-      // Create todo with start date
+      // Create todo and update with start date
       const todo = await window.api.createTodo('New Todo', projectId)
-      await window.api.updateTodo(todo.id, { start_date: dateStr })
+      todo.start_date = dateStr
+      const todoData = this.toPlainTodo(todo)
+      await window.api.updateTodo(todoData)
       await this.loadAllTodos()
       await this.loadTodos()
       this.selectTodo(todo.id)
@@ -2484,9 +2494,10 @@ export default {
           todo.end_date = newEnd.toISOString().split('T')[0]
         }
       } else if (mode === 'resize-start') {
-        // Only change start date
-        if (this.barDragOriginalDates.start_date) {
-          const newStart = new Date(this.barDragOriginalDates.start_date)
+        // Change start date
+        const origStart = this.barDragOriginalDates.start_date || this.barDragOriginalDates.end_date
+        if (origStart) {
+          const newStart = new Date(origStart)
           newStart.setDate(newStart.getDate() + deltaDays)
           // Ensure start doesn't go past end
           const endDate = this.barDragOriginalDates.end_date ? new Date(this.barDragOriginalDates.end_date) : null
@@ -2495,9 +2506,10 @@ export default {
           }
         }
       } else if (mode === 'resize-end') {
-        // Only change end date
-        if (this.barDragOriginalDates.end_date) {
-          const newEnd = new Date(this.barDragOriginalDates.end_date)
+        // Change end date
+        const origEnd = this.barDragOriginalDates.end_date || this.barDragOriginalDates.start_date
+        if (origEnd) {
+          const newEnd = new Date(origEnd)
           newEnd.setDate(newEnd.getDate() + deltaDays)
           // Ensure end doesn't go before start
           const startDate = this.barDragOriginalDates.start_date ? new Date(this.barDragOriginalDates.start_date) : null
@@ -2513,7 +2525,9 @@ export default {
 
       if (this.draggingBarTodo) {
         // Save the updated dates
-        await window.api.updateTodo(this.draggingBarTodo)
+        const todoData = this.toPlainTodo(this.draggingBarTodo)
+        await window.api.updateTodo(todoData)
+        await this.loadAllTodos()
         await this.loadTodos()
       }
 
