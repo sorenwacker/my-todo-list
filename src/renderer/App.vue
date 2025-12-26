@@ -363,7 +363,7 @@
                     v-for="todo in row.todos"
                     :key="todo.id"
                     class="gantt-bar"
-                    :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, dragging: draggingBarId === todo.id }"
+                    :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, dragging: draggingBarId === todo.id, resizing: draggingBarId === todo.id && barDragMode !== 'move' }"
                     :style="getGanttBarStyle(todo, row)"
                     :title="todo.title"
                     @click="selectTodo(todo.id)"
@@ -638,6 +638,85 @@ const categoryIcons = {
   AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
 }
 
+// Validate and repair localStorage on startup
+const SETTINGS_VERSION = 1
+function validateLocalStorage() {
+  try {
+    const storedVersion = parseInt(localStorage.getItem('settings-version') || '0')
+
+    // Define valid values for enum-like settings
+    const validViews = ['cards', 'table', 'kanban', 'timeline', 'graph', 'persons']
+    const validSorts = ['manual', 'created', 'end_date', 'alpha', 'importance']
+    const validThemes = ['dark', 'light']
+    const validLayouts = ['auto', 'horizontal', 'vertical']
+
+    // Validate current-view
+    const currentView = localStorage.getItem('current-view')
+    if (currentView && !validViews.includes(currentView)) {
+      console.warn('Invalid current-view, resetting to cards')
+      localStorage.setItem('current-view', 'cards')
+    }
+
+    // Validate sort-by
+    const sortBy = localStorage.getItem('sort-by')
+    if (sortBy && !validSorts.includes(sortBy)) {
+      console.warn('Invalid sort-by, resetting to manual')
+      localStorage.setItem('sort-by', 'manual')
+    }
+
+    // Validate theme
+    const theme = localStorage.getItem('todo-theme')
+    if (theme && !validThemes.includes(theme)) {
+      console.warn('Invalid theme, resetting to dark')
+      localStorage.setItem('todo-theme', 'dark')
+    }
+
+    // Validate detail-layout
+    const layout = localStorage.getItem('detail-layout')
+    if (layout && !validLayouts.includes(layout)) {
+      console.warn('Invalid detail-layout, resetting to auto')
+      localStorage.setItem('detail-layout', 'auto')
+    }
+
+    // Validate JSON settings
+    const jsonSettings = ['card-sizes-v2', 'card-widths']
+    for (const key of jsonSettings) {
+      const value = localStorage.getItem(key)
+      if (value) {
+        try {
+          JSON.parse(value)
+        } catch {
+          console.warn(`Invalid JSON in ${key}, resetting`)
+          localStorage.removeItem(key)
+        }
+      }
+    }
+
+    // Validate numeric settings
+    const cardSize = localStorage.getItem('card-size')
+    if (cardSize && (isNaN(parseInt(cardSize)) || parseInt(cardSize) < 100 || parseInt(cardSize) > 1000)) {
+      console.warn('Invalid card-size, resetting')
+      localStorage.removeItem('card-size')
+    }
+
+    // Update version
+    localStorage.setItem('settings-version', String(SETTINGS_VERSION))
+  } catch (e) {
+    console.error('Error validating localStorage, clearing all settings:', e)
+    // If something goes very wrong, clear problematic keys
+    const keysToPreserve = [] // Could preserve some keys if needed
+    const allKeys = Object.keys(localStorage)
+    for (const key of allKeys) {
+      if (!keysToPreserve.includes(key)) {
+        localStorage.removeItem(key)
+      }
+    }
+  }
+}
+
+// Run validation before anything else
+validateLocalStorage()
+
 const savedTheme = localStorage.getItem('todo-theme') || 'dark'
 mermaid.initialize({
   startOnLoad: false,
@@ -758,6 +837,7 @@ export default {
       barDragStartX: 0,
       barDragMode: 'move',
       barDragOriginalDates: null,
+      lastDeltaDays: 0,
       graphLinkMode: false,
       graphLinkSource: null,
       graphWidth: 800,
@@ -2468,6 +2548,7 @@ export default {
         start_date: todo.start_date,
         end_date: todo.end_date
       }
+      this.lastDeltaDays = 0
       document.addEventListener('mousemove', this.onBarDrag)
       document.addEventListener('mouseup', this.stopBarDrag)
       e.preventDefault()
@@ -2476,7 +2557,10 @@ export default {
       if (!this.draggingBarTodo) return
       const deltaX = e.clientX - this.barDragStartX
       const deltaDays = Math.round(deltaX / this.timelineScale)
-      if (deltaDays === 0) return
+
+      // Skip if same as last update
+      if (deltaDays === this.lastDeltaDays) return
+      this.lastDeltaDays = deltaDays
 
       const todo = this.draggingBarTodo
       const mode = this.barDragMode
@@ -2535,6 +2619,7 @@ export default {
       this.draggingBarTodo = null
       this.barDragMode = 'move'
       this.barDragOriginalDates = null
+      this.lastDeltaDays = 0
     },
     // Filter methods
     toggleProjectFilter(projectId) {

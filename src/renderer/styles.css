@@ -3748,7 +3748,7 @@ body {
   padding: 0 8px;
   cursor: pointer;
   transition: all 0.15s;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
@@ -3772,6 +3772,10 @@ body {
   z-index: 100;
 }
 
+.gantt-bar.resizing {
+  cursor: ew-resize;
+}
+
 .gantt-bar:active {
   cursor: grabbing;
 }
@@ -3789,23 +3793,23 @@ body {
 /* Gantt bar resize handles */
 .gantt-bar-handle {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px;
+  top: -4px;
+  bottom: -4px;
+  width: 16px;
   cursor: ew-resize;
-  opacity: 0;
+  opacity: 0.3;
   transition: opacity 0.15s;
   z-index: 10;
 }
 
 .gantt-bar-handle.left {
-  left: 0;
+  left: -6px;
   border-radius: 4px 0 0 4px;
   background: linear-gradient(to right, rgba(255,255,255,0.4), transparent);
 }
 
 .gantt-bar-handle.right {
-  right: 0;
+  right: -6px;
   border-radius: 0 4px 4px 0;
   background: linear-gradient(to left, rgba(255,255,255,0.4), transparent);
 }
