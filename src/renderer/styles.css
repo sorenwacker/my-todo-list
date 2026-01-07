@@ -2654,18 +2654,22 @@ body {
   height: 100vh !important;
   max-width: none !important;
   min-width: 0 !important;
-  border-left: none;
-  display: flex;
-  flex-direction: column;
+  max-height: none !important;
+  min-height: 100vh !important;
+  border-left: none !important;
+  display: flex !important;
+  flex-direction: column !important;
   z-index: 1000;
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 .detail-panel.fullscreen .detail-panel-content {
-  height: calc(100vh - 50px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px 40px;
+  flex: 1 1 auto !important;
+  height: calc(100vh - 50px) !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 20px 40px !important;
 }
 
 .detail-panel.fullscreen .title-input {
