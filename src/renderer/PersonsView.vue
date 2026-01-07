@@ -187,17 +187,19 @@ export default {
       pageSize: 25,
       personColors: [
         // Blues
-        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
+        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1', '#0288d1', '#03a9f4', '#29b6f6',
         // Greens
-        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342',
+        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342', '#4caf50', '#81c784', '#00bcd4',
         // Reds & Pinks
-        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292',
+        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292', '#ef5350', '#ff5252', '#ff1744',
         // Oranges & Yellows
-        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300',
+        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300', '#ffc107', '#ffca28', '#ff9800',
         // Purples
-        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2',
+        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2', '#ab47bc', '#ba68c8', '#9575cd',
+        // Teals & Cyans
+        '#009688', '#26a69a', '#4db6ac', '#00bfa5', '#1de9b6', '#64ffda',
         // Neutrals
-        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
+        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f', '#263238', '#90a4ae', '#b0bec5'
       ]
     }
   },
@@ -674,8 +676,8 @@ export default {
 }
 
 .person-modal .color-grid {
-  display: grid;
-  grid-template-columns: repeat(10, 28px);
+  display: flex;
+  flex-wrap: wrap;
   gap: 5px;
 }
 

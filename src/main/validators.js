@@ -262,6 +262,7 @@ function validatePerson(person) {
     name: validateString(person.name, 'person.name', 200),
     email: validateOptionalString(person.email, 'person.email', 320),
     phone: validateOptionalString(person.phone, 'person.phone', 50),
+    company: validateOptionalString(person.company, 'person.company', 200),
     role: validateOptionalString(person.role, 'person.role', 200),
     notes: validateOptionalString(person.notes, 'person.notes', 10000),
     color: validateOptionalColor(person.color, 'person.color', '#6b7280'),

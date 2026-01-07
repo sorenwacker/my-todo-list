@@ -121,8 +121,10 @@ export default {
     },
     renderedNotes() {
       if (!this.todo.notes) return ''
-      // Strip mermaid code blocks for performance
-      const processed = this.todo.notes.replace(/```mermaid[\s\S]*?```/g, '[diagram]')
+      // Strip mermaid code blocks for performance (handles various formatting)
+      // Match code blocks that start with ```mermaid (with optional whitespace/newlines)
+      const processed = this.todo.notes
+        .replace(/`{3,}\s*mermaid\b[\s\S]*?`{3,}/gi, '[diagram]')
       return renderCardMarkdown(processed)
     },
     isOverdue() {

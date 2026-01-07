@@ -89,13 +89,41 @@ v-for="n in 5" :key="n" class="level-dot"
 
       <!-- Matrix View -->
       <div v-if="currentView === 'matrix'" class="matrix-view">
-        <div class="matrix-container">
-          <div class="matrix-axis-label matrix-axis-top">High Interest</div>
-          <div class="matrix-axis-label matrix-axis-right">High Influence</div>
-          <div class="matrix-axis-label matrix-axis-bottom">Low Interest</div>
-          <div class="matrix-axis-label matrix-axis-left">Low Influence</div>
+        <div class="matrix-diagram">
+          <!-- Y-Axis Label -->
+          <div class="axis-title y-axis-title">Interest Level</div>
 
-          <div class="matrix-grid">
+          <!-- Y-Axis Scale -->
+          <div class="y-axis-scale">
+            <span>5</span>
+            <span>4</span>
+            <span>3</span>
+            <span>2</span>
+            <span>1</span>
+          </div>
+
+          <div class="matrix-plot-area">
+            <!-- Grid Lines -->
+            <svg class="matrix-grid-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <!-- Horizontal grid lines -->
+              <line x1="0" y1="20" x2="100" y2="20" class="grid-line" />
+              <line x1="0" y1="40" x2="100" y2="40" class="grid-line" />
+              <line x1="0" y1="60" x2="100" y2="60" class="grid-line grid-line-major" />
+              <line x1="0" y1="80" x2="100" y2="80" class="grid-line" />
+              <!-- Vertical grid lines -->
+              <line x1="20" y1="0" x2="20" y2="100" class="grid-line" />
+              <line x1="40" y1="0" x2="40" y2="100" class="grid-line" />
+              <line x1="60" y1="0" x2="60" y2="100" class="grid-line grid-line-major" />
+              <line x1="80" y1="0" x2="80" y2="100" class="grid-line" />
+              <!-- Axis lines with arrows -->
+              <line x1="0" y1="100" x2="100" y2="100" class="axis-line" />
+              <line x1="0" y1="0" x2="0" y2="100" class="axis-line" />
+              <!-- X-axis arrow -->
+              <polygon points="100,100 96,98 96,102" class="axis-arrow" />
+              <!-- Y-axis arrow -->
+              <polygon points="0,0 -2,4 2,4" class="axis-arrow" />
+            </svg>
+
             <!-- Quadrant Labels -->
             <div class="quadrant-label q-monitor">Monitor</div>
             <div class="quadrant-label q-manage">Manage Closely</div>
@@ -108,8 +136,8 @@ v-for="n in 5" :key="n" class="level-dot"
               :key="stakeholder.id"
               class="stakeholder-dot"
               :style="{
-                left: (stakeholder.influence_level / 5 * 100) + '%',
-                bottom: (stakeholder.interest_level / 5 * 100) + '%',
+                left: ((stakeholder.influence_level - 0.5) / 5 * 100) + '%',
+                bottom: ((stakeholder.interest_level - 0.5) / 5 * 100) + '%',
                 background: stakeholder.color
               }"
               :title="`${stakeholder.name}\nInfluence: ${stakeholder.influence_level}/5\nInterest: ${stakeholder.interest_level}/5`"
@@ -117,6 +145,18 @@ v-for="n in 5" :key="n" class="level-dot"
               <span class="stakeholder-initials">{{ getInitials(stakeholder.name) }}</span>
             </div>
           </div>
+
+          <!-- X-Axis Scale -->
+          <div class="x-axis-scale">
+            <span>1</span>
+            <span>2</span>
+            <span>3</span>
+            <span>4</span>
+            <span>5</span>
+          </div>
+
+          <!-- X-Axis Label -->
+          <div class="axis-title x-axis-title">Influence Level</div>
         </div>
 
         <div class="matrix-legend">
@@ -339,8 +379,20 @@ export default {
       },
       theme: localStorage.getItem('todo-theme') || 'dark',
       personColors: [
-        '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c',
-        '#e67e22', '#34495e', '#16a085', '#c0392b', '#8e44ad', '#2980b9'
+        // Blues
+        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1', '#0288d1', '#03a9f4', '#29b6f6',
+        // Greens
+        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342', '#4caf50', '#81c784', '#00bcd4',
+        // Reds & Pinks
+        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292', '#ef5350', '#ff5252', '#ff1744',
+        // Oranges & Yellows
+        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300', '#ffc107', '#ffca28', '#ff9800',
+        // Purples
+        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2', '#ab47bc', '#ba68c8', '#9575cd',
+        // Teals & Cyans
+        '#009688', '#26a69a', '#4db6ac', '#00bfa5', '#1de9b6', '#64ffda',
+        // Neutrals
+        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f', '#263238', '#90a4ae', '#b0bec5'
       ]
     }
   },
@@ -806,48 +858,127 @@ export default {
 /* Matrix View */
 .matrix-view {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 280px;
   gap: 30px;
 }
 
-.matrix-container {
-  position: relative;
-  background: #2a2a2a;
-  border-radius: 8px;
-  padding: 40px;
-  min-height: 600px;
+.matrix-diagram {
+  display: grid;
+  grid-template-columns: 20px 30px 1fr;
+  grid-template-rows: 1fr 30px 20px;
+  gap: 5px;
+  background: #1e1e2e;
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 500px;
 }
 
-.light-theme .matrix-container {
-  background: white;
+.light-theme .matrix-diagram {
+  background: #fafafa;
   border: 1px solid #e0e0e0;
 }
 
-.matrix-axis-label {
-  position: absolute;
+.axis-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.matrix-axis-top { top: 10px; left: 50%; transform: translateX(-50%); }
-.matrix-axis-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
-.matrix-axis-left { left: 10px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
-.matrix-axis-right { right: 10px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.y-axis-title {
+  grid-column: 1;
+  grid-row: 1;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
 
-.matrix-grid {
+.x-axis-title {
+  grid-column: 3;
+  grid-row: 3;
+}
+
+.y-axis-scale {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.x-axis-scale {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #666;
+}
+
+.matrix-plot-area {
+  grid-column: 3;
+  grid-row: 1;
   position: relative;
-  width: 100%;
-  height: 520px;
-  border: 2px solid #444;
-  background: linear-gradient(to right, #1a1a1a 50%, #222 50%),
-              linear-gradient(to bottom, #222 50%, #1a1a1a 50%);
+  background: #252538;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.light-theme .matrix-grid {
-  border-color: #ccc;
-  background: linear-gradient(to right, #f9f9f9 50%, #f0f0f0 50%),
-              linear-gradient(to bottom, #f0f0f0 50%, #f9f9f9 50%);
+.light-theme .matrix-plot-area {
+  background: #fff;
+  border: 1px solid #ddd;
+}
+
+.matrix-grid-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.grid-line {
+  stroke: #333;
+  stroke-width: 0.5;
+  stroke-dasharray: 4 4;
+}
+
+.grid-line-major {
+  stroke: #444;
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+
+.light-theme .grid-line {
+  stroke: #ddd;
+}
+
+.light-theme .grid-line-major {
+  stroke: #bbb;
+}
+
+.axis-line {
+  stroke: #666;
+  stroke-width: 1.5;
+}
+
+.axis-arrow {
+  fill: #666;
+}
+
+.light-theme .axis-line {
+  stroke: #333;
+}
+
+.light-theme .axis-arrow {
+  fill: #333;
 }
 
 .quadrant-label {
@@ -975,18 +1106,18 @@ export default {
 }
 
 .color-picker {
-  display: grid;
-  grid-template-columns: repeat(6, 40px);
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .color-option {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   cursor: pointer;
-  border: 3px solid transparent;
-  transition: transform 0.2s, border-color 0.2s;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
 }
 
 .color-option:hover {

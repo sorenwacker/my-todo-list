@@ -1,18 +1,27 @@
 <template>
-  <aside v-if="todo" ref="detailPanel" class="detail-panel" :style="panelStyle">
+  <aside v-if="todo" ref="detailPanel" class="detail-panel" :class="{ 'fullscreen': fullscreen }" :style="panelStyle">
     <div
+      v-if="!fullscreen"
       class="resize-handle"
       :class="{ dragging: isResizing }"
       @mousedown="$emit('resize-start', $event)"
     ></div>
     <div class="detail-panel-header">
       <div class="header-actions">
-        <button class="layout-btn" :title="layoutButtonTitle" @click="$emit('toggle-layout')">
+        <button class="fullscreen-btn" :title="fullscreen ? 'Exit fullscreen' : 'Fullscreen'" @click="$emit('toggle-fullscreen')">
+          <svg v-if="!fullscreen" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 14h6m0 0v6m0-6L3 21M20 10h-6m0 0V4m0 6l7-7"/>
+          </svg>
+        </button>
+        <button v-if="!fullscreen" class="layout-btn" :title="layoutButtonTitle" @click="$emit('toggle-layout')">
           <span v-if="layoutPreference === 'auto'">A</span>
           <span v-else-if="layoutPreference === 'horizontal'">|</span>
           <span v-else>-</span>
         </button>
-        <button class="detach-btn" title="Open in new window" @click="$emit('detach')">^</button>
+        <button v-if="!fullscreen" class="detach-btn" title="Open in new window" @click="$emit('detach')">^</button>
         <button class="close-btn" @click="$emit('close')">x</button>
       </div>
     </div>
@@ -294,10 +303,11 @@ export default {
     layoutPreference: { type: String, default: 'auto' },
     isVerticalLayout: { type: Boolean, default: false },
     detailWidth: { type: Number, default: 600 },
-    detailHeight: { type: Number, default: 50 }
+    detailHeight: { type: Number, default: 50 },
+    fullscreen: { type: Boolean, default: false }
   },
   emits: [
-    'close', 'detach', 'toggle-layout', 'resize-start',
+    'close', 'detach', 'toggle-layout', 'resize-start', 'toggle-fullscreen',
     'toggle-complete', 'save',
     'update:title', 'update:notes', 'update:notes-sensitive', 'update:active-tab',
     'project-change', 'category-change', 'status-change',

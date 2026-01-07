@@ -6,7 +6,65 @@
       <button :class="{ active: kanbanGroupBy === 'status' }" @click="$emit('update:kanban-group-by', 'status')">By Status</button>
     </div>
 
-    <div class="kanban-view">
+    <!-- Stacked Kanban Boards (when groupByProject is active) -->
+    <template v-if="groupByProject && !isProjectSelected">
+      <div class="kanban-stacked">
+        <div v-for="group in groupedTodos" :key="group.id" class="kanban-project-section">
+          <div class="kanban-project-header" :style="{ borderLeftColor: group.color }">
+            <span class="project-dot" :style="{ background: group.color }"></span>
+            <h3>{{ group.name }}</h3>
+            <span class="project-count">{{ group.todos.length }}</span>
+          </div>
+          <div class="kanban-view">
+            <div
+              v-for="status in statuses"
+              :key="status.id"
+              class="kanban-column"
+              :style="{ borderTopColor: status.color }"
+            >
+              <div class="column-header">
+                <span class="column-dot" :style="{ background: status.color }"></span>
+                <h3>{{ status.name }}</h3>
+                <span class="column-count">{{ getProjectStatusTodos(group.id, status.id).length }}</span>
+              </div>
+              <div class="kanban-cards">
+                <KanbanCard
+                  v-for="todo in getProjectStatusTodos(group.id, status.id)"
+                  :key="todo.id"
+                  :todo="todo"
+                  :selected="selectedTodoId === todo.id"
+                  :border-color="group.color"
+                  @select="$emit('select-todo', todo.id)"
+                  @toggle-complete="$emit('toggle-complete', todo)"
+                  @delete="$emit('delete-todo', todo.id)"
+                />
+              </div>
+            </div>
+            <div class="kanban-column" style="border-top-color: #666">
+              <div class="column-header">
+                <span class="column-dot" style="background: #666"></span>
+                <h3>No Status</h3>
+                <span class="column-count">{{ getProjectStatusTodos(group.id, null).length }}</span>
+              </div>
+              <div class="kanban-cards">
+                <KanbanCard
+                  v-for="todo in getProjectStatusTodos(group.id, null)"
+                  :key="todo.id"
+                  :todo="todo"
+                  :selected="selectedTodoId === todo.id"
+                  :border-color="group.color"
+                  @select="$emit('select-todo', todo.id)"
+                  @toggle-complete="$emit('toggle-complete', todo)"
+                  @delete="$emit('delete-todo', todo.id)"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <div v-else class="kanban-view">
       <!-- Project-based Kanban -->
       <template v-if="effectiveKanbanGroupBy === 'project'">
         <div class="kanban-column inbox-column">
@@ -237,6 +295,14 @@ export default {
       type: Boolean,
       default: false
     },
+    groupByProject: {
+      type: Boolean,
+      default: false
+    },
+    groupedTodos: {
+      type: Array,
+      default: () => []
+    },
     projects: {
       type: Array,
       default: () => []
@@ -304,6 +370,14 @@ export default {
     },
     getStatusTodos(statusId) {
       return this.allTodos.filter(t => t.status_id === statusId && !t.deleted)
+    },
+    getProjectStatusTodos(projectId, statusId) {
+      return this.allTodos.filter(t => {
+        // Handle inbox (no project) - group.id is 'inbox' but todos have project_id: null
+        const projectMatch = projectId === 'inbox' ? !t.project_id : t.project_id === projectId
+        const statusMatch = statusId === null ? !t.status_id : t.status_id === statusId
+        return projectMatch && statusMatch && !t.deleted
+      })
     },
     onKanbanDrop(event, projectId) {
       this.$emit('kanban-drop', event, projectId)

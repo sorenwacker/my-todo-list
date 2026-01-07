@@ -35,7 +35,7 @@
     <!-- Checkmark -->
     <path d="M 230 315 L 270 360 L 310 280" fill="none" stroke="url(#checkGradient)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
     <!-- Line -->
-    <rect x="360" y="295" width="440" height="50" rx="25" fill="#1B1B2F" opacity="0.6"/>
+    <rect x="360" y="295" width="440" height="50" rx="25" fill="#4A6A8A" opacity="0.9"/>
   </g>
 
   <!-- Middle item - checked -->
@@ -45,7 +45,7 @@
     <!-- Checkmark -->
     <path d="M 230 505 L 270 550 L 310 470" fill="none" stroke="url(#checkGradient)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
     <!-- Line -->
-    <rect x="360" y="485" width="360" height="50" rx="25" fill="#1B1B2F" opacity="0.6"/>
+    <rect x="360" y="485" width="360" height="50" rx="25" fill="#4A6A8A" opacity="0.9"/>
   </g>
 
   <!-- Bottom item - unchecked (in progress) -->
@@ -55,6 +55,6 @@
     <!-- Partial checkmark (just the first part) -->
     <path d="M 230 695 L 270 740" fill="none" stroke="#3282B8" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
     <!-- Line -->
-    <rect x="360" y="675" width="520" height="50" rx="25" fill="#BBE1FA" opacity="0.3"/>
+    <rect x="360" y="675" width="520" height="50" rx="25" fill="#6A9ABA" opacity="0.9"/>
   </g>
 </svg>

@@ -1,11 +1,16 @@
 <template>
   <div class="app" :class="{ 'light-theme': theme === 'light', 'sidebar-collapsed': !sidebarVisible, 'vertical-layout': isVerticalLayout }" :style="{ borderLeftColor: currentProjectColor }">
-    <button class="sidebar-toggle" :title="sidebarVisible ? 'Hide sidebar' : 'Show sidebar'" @click="sidebarVisible = !sidebarVisible">
-      <span v-if="sidebarVisible">&lt;</span>
-      <span v-else>&gt;</span>
-    </button>
+    <div
+      v-if="!sidebarVisible"
+      class="sidebar-hover-trigger"
+      @mouseenter="sidebarVisible = true"
+    ></div>
     <AppSidebar
       :visible="sidebarVisible"
+      :pinned="sidebarPinned"
+      @toggle-pin="toggleSidebarPin"
+      @mouseenter="sidebarVisible = true"
+      @mouseleave="onSidebarMouseLeave"
       :current-filter="currentFilter"
       :projects="projects"
       :statuses="statuses"
@@ -114,7 +119,7 @@
       @open-register="openStakeholderRegister"
     />
 
-    <div class="main-wrapper">
+    <div class="main-wrapper" :class="{ 'detail-fullscreen': detailFullscreen && selectedTodo }">
     <main class="main-content" :class="{ 'with-detail': selectedTodo }">
       <header class="main-header">
         <div class="header-title-row">
@@ -521,7 +526,9 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       :is-vertical-layout="isVerticalLayout"
       :detail-width="detailWidth"
       :detail-height="detailHeight"
+      :fullscreen="detailFullscreen"
       @close="closeDetail"
+      @toggle-fullscreen="toggleDetailFullscreen"
       @detach="detachDetail"
       @toggle-layout="toggleDetailLayout"
       @resize-start="startResize"
@@ -806,6 +813,7 @@ export default {
       editingCategory: null,
       editingStatus: null,
       selectedTodo: null,
+      detailFullscreen: localStorage.getItem('detail-fullscreen') === 'true',
       linkedTodos: [],
       subtasks: [],
       newSubtaskTitle: '',
@@ -907,6 +915,7 @@ export default {
       notesRevealed: false,
       // Sidebar visibility
       sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
+      sidebarPinned: localStorage.getItem('sidebar-pinned') !== 'false',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') === 'true',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
       personsCollapsed: localStorage.getItem('persons-collapsed') !== 'false',
@@ -1896,6 +1905,10 @@ export default {
       await window.api.openDetail(todoId)
       this.selectedTodo = null
       this.linkedTodos = []
+    },
+    toggleDetailFullscreen() {
+      this.detailFullscreen = !this.detailFullscreen
+      localStorage.setItem('detail-fullscreen', this.detailFullscreen)
     },
     async saveSelectedTodo() {
       if (this.saveTimeout) {
@@ -3155,6 +3168,18 @@ export default {
         el.removeAttribute('data-processed')
       })
       this.renderMermaid()
+    },
+    toggleSidebarPin() {
+      this.sidebarPinned = !this.sidebarPinned
+      localStorage.setItem('sidebar-pinned', this.sidebarPinned)
+      if (this.sidebarPinned) {
+        this.sidebarVisible = true
+      }
+    },
+    onSidebarMouseLeave() {
+      if (!this.sidebarPinned) {
+        this.sidebarVisible = false
+      }
     },
     async undo() {
       if (!this.historyState.canUndo) return

@@ -141,7 +141,9 @@ export default {
     },
     renderCardNotes(notes) {
       if (!notes) return ''
-      return renderCardMarkdown(notes)
+      // Strip mermaid code blocks for performance
+      const processed = notes.replace(/`{3,}\s*mermaid\b[\s\S]*?`{3,}/gi, '[diagram]')
+      return renderCardMarkdown(processed)
     }
   }
 }

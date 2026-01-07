@@ -1,7 +1,20 @@
 <template>
-  <aside v-show="visible" class="sidebar">
+  <aside class="sidebar" @mouseleave="$emit('mouseleave')" @mouseenter="$emit('mouseenter')">
     <div class="sidebar-header">
       <h2>Todo</h2>
+      <button
+        class="pin-btn"
+        :class="{ pinned: pinned }"
+        :title="pinned ? 'Unpin sidebar' : 'Pin sidebar'"
+        @click="$emit('toggle-pin')"
+      >
+        <svg v-if="pinned" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z"/>
+        </svg>
+        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z"/>
+        </svg>
+      </button>
     </div>
 
     <nav class="project-nav">
@@ -215,6 +228,7 @@ export default {
   },
   props: {
     visible: { type: Boolean, default: true },
+    pinned: { type: Boolean, default: true },
     currentFilter: { type: [Number, String], default: null },
     projects: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
@@ -235,7 +249,8 @@ export default {
     'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
     'update:categories', 'categories-reorder', 'add-category', 'edit-category',
     'update:open-todos-in-window', 'update:grid-lock',
-    'export', 'show-import', 'manage-persons'
+    'export', 'show-import', 'manage-persons',
+    'toggle-pin', 'mouseleave', 'mouseenter'
   ],
   data() {
     return {
@@ -521,5 +536,28 @@ export default {
 
 .manage-persons-btn:hover {
   background: var(--bg-hover, #2a2f3d);
+}
+
+.pin-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.pin-btn:hover {
+  background: var(--bg-hover, #2a2f3d);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.pin-btn.pinned {
+  color: var(--accent-color, #0f4c75);
 }
 </style>
