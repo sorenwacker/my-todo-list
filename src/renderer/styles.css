@@ -26,10 +26,19 @@
 
 html, body {
   pointer-events: auto;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
   overflow: hidden;
+}
+
+#app {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  width: 100vw !important;
+  display: flex;
+  flex-direction: column;
 }
 
 body {
@@ -43,13 +52,13 @@ body {
 /* Main App Layout */
 .app {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  width: 100vw !important;
   border-left: 4px solid #333;
   transition: border-left-color 0.3s;
   pointer-events: auto;
   position: relative;
-  min-height: 0;
   overflow: hidden;
 }
 
@@ -92,7 +101,11 @@ body {
   width: 20px;
   height: 100vh;
   z-index: 1000;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-hover-trigger:hover {
+  background: rgba(79, 172, 254, 0.3);
 }
 
 /* Sidebar Styles */
@@ -108,9 +121,11 @@ body {
 }
 
 .sidebar-collapsed .sidebar {
-  width: 0;
-  overflow: hidden;
-  border-right: none;
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  border-right: none !important;
+  padding: 0 !important;
 }
 
 .sidebar-header {
@@ -542,14 +557,18 @@ body {
 /* Main Wrapper - contains main content and detail panel */
 .main-wrapper {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0 !important;
+  height: calc(100vh - 0px) !important;
   overflow: hidden;
 }
 
 /* Main Content */
 .main-content {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 300px;
+  min-height: 0 !important;
+  height: 100% !important;
   padding: 0;
   overflow: auto;
 }

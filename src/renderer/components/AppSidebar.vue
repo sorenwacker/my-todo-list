@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar" @mouseleave="$emit('mouseleave')" @mouseenter="$emit('mouseenter')">
+  <aside class="sidebar" @mouseleave="onMouseLeave && onMouseLeave()" @mouseenter="onMouseEnter && onMouseEnter()">
     <div class="sidebar-header">
       <h2>Todo</h2>
       <button
@@ -229,6 +229,8 @@ export default {
   props: {
     visible: { type: Boolean, default: true },
     pinned: { type: Boolean, default: true },
+    onMouseLeave: { type: Function, default: null },
+    onMouseEnter: { type: Function, default: null },
     currentFilter: { type: [Number, String], default: null },
     projects: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },

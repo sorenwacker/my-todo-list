@@ -8,9 +8,9 @@
     <AppSidebar
       :visible="sidebarVisible"
       :pinned="sidebarPinned"
+      :on-mouse-leave="onSidebarMouseLeave"
+      :on-mouse-enter="() => sidebarVisible = true"
       @toggle-pin="toggleSidebarPin"
-      @mouseenter="sidebarVisible = true"
-      @mouseleave="onSidebarMouseLeave"
       :current-filter="currentFilter"
       :projects="projects"
       :statuses="statuses"
@@ -915,7 +915,7 @@ export default {
       notesRevealed: false,
       // Sidebar visibility
       sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
-      sidebarPinned: localStorage.getItem('sidebar-pinned') !== 'false',
+      sidebarPinned: localStorage.getItem('sidebar-pinned') === 'true',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') === 'true',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
       personsCollapsed: localStorage.getItem('persons-collapsed') !== 'false',
