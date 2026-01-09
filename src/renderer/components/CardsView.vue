@@ -1,41 +1,46 @@
 <template>
   <div class="cards-view">
     <template v-if="groupByProject">
-      <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
-        <div class="group-header" :style="{ borderLeftColor: group.color || '#666' }">
-          <span class="group-dot" :style="{ background: group.color || '#666' }"></span>
-          <span class="group-name">{{ group.name }}</span>
-          <span class="group-count">{{ group.todos.length }}</span>
+      <div class="cards-groups-container" :style="{ '--card-width': cardSize + 'px' }">
+        <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
+          <div class="group-header" :style="{ borderLeftColor: group.color || '#666' }">
+            <span class="group-dot" :style="{ background: group.color || '#666' }"></span>
+            <span class="group-name">{{ group.name }}</span>
+            <span class="group-count">{{ group.todos.length }}</span>
+          </div>
+          <draggable
+            :model-value="group.todos"
+            item-key="id"
+            class="cards-grid masonry"
+            :style="{ '--card-width': cardSize + 'px' }"
+            ghost-class="ghost"
+            :disabled="sortBy !== 'manual'"
+            @update:model-value="$emit('update-group-todos', group.id, $event)"
+            @end="$emit('group-drag-end', group.id, $event)"
+          >
+            <template #item="{ element }">
+              <CardItem
+                :todo="element"
+                :selected="selectedTodoId === element.id"
+                :focused="focusedTodoId === element.id"
+                :is-trash-view="isTrashView"
+                :card-style="getCardStyle(element.id, element.project_color)"
+                :current-filter="currentFilter"
+                :show-project="false"
+                @click="$emit('card-click', $event, element.id)"
+                @mousedown="$emit('card-mousedown', $event, element.id)"
+                @mouseup="$emit('card-resize', $event, element.id)"
+                @toggle-complete="$emit('toggle-complete', element)"
+                @delete="$emit('delete-todo', element.id)"
+                @restore="$emit('restore-todo', element.id)"
+                @permanent-delete="$emit('permanent-delete-todo', element.id)"
+              />
+            </template>
+          </draggable>
+          <button class="add-card-btn" @click="$emit('add-todo-to-project', group.id)">
+            + Add
+          </button>
         </div>
-        <draggable
-          :model-value="group.todos"
-          item-key="id"
-          class="cards-grid masonry"
-          :style="{ '--card-width': cardSize + 'px' }"
-          ghost-class="ghost"
-          :disabled="sortBy !== 'manual'"
-          @update:model-value="$emit('update-group-todos', group.id, $event)"
-          @end="$emit('group-drag-end', group.id, $event)"
-        >
-          <template #item="{ element }">
-            <CardItem
-              :todo="element"
-              :selected="selectedTodoId === element.id"
-              :focused="focusedTodoId === element.id"
-              :is-trash-view="isTrashView"
-              :card-style="getCardStyle(element.id, element.project_color)"
-              :current-filter="currentFilter"
-              :show-project="false"
-              @click="$emit('card-click', $event, element.id)"
-              @mousedown="$emit('card-mousedown', $event, element.id)"
-              @mouseup="$emit('card-resize', $event, element.id)"
-              @toggle-complete="$emit('toggle-complete', element)"
-              @delete="$emit('delete-todo', element.id)"
-              @restore="$emit('restore-todo', element.id)"
-              @permanent-delete="$emit('permanent-delete-todo', element.id)"
-            />
-          </template>
-        </draggable>
       </div>
     </template>
     <template v-else>
@@ -138,7 +143,8 @@ export default {
     'update-sorted-todos',
     'drag-end',
     'update-group-todos',
-    'group-drag-end'
+    'group-drag-end',
+    'add-todo-to-project'
   ],
   methods: {
     getCardStyle(todoId, projectColor) {

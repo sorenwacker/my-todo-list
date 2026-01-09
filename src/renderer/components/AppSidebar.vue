@@ -24,7 +24,7 @@
         @click="$emit('set-filter', null)"
       >
         <span class="nav-icon">*</span>
-        <span>All Todos</span>
+        <span>Todos</span>
         <span class="count">{{ allCount }}</span>
       </div>
 

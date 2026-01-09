@@ -107,7 +107,7 @@ body {
 /* Sidebar Styles */
 .sidebar {
   width: 260px;
-  background: #0f0f1a;
+  background: #0d0d0d;
   border-right: 1px solid #0d0d0d;
   display: flex;
   flex-direction: column;
@@ -565,7 +565,7 @@ body {
   min-width: 300px;
   min-height: 0 !important;
   height: 100% !important;
-  padding: 0;
+  padding: 0 var(--spacing-lg);
   overflow: auto;
 }
 
@@ -575,9 +575,9 @@ body {
   gap: 6px;
   position: sticky;
   top: 0;
-  background: #0a0e17;
+  background: #000000;
   z-index: 101;
-  margin: 0 0 var(--spacing-md) 0;
+  margin: 0 calc(-1 * var(--spacing-lg)) var(--spacing-md) calc(-1 * var(--spacing-lg));
   padding: 6px var(--spacing-lg) 10px var(--spacing-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
@@ -764,7 +764,7 @@ body {
 }
 
 .theme-toggle-btn:hover {
-  background: #1f2b4a;
+  background: #1a1a1a;
   transform: scale(1.05);
 }
 
@@ -901,7 +901,7 @@ body {
 }
 
 .todo-item:hover {
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 .todo-item.ghost {
@@ -1639,7 +1639,7 @@ body {
   padding: 8px 12px;
   border: 1px solid #555;
   border-radius: 6px;
-  background: #0f0f1a;
+  background: #0d0d0d;
   color: #fff;
   font-size: 13px;
 }
@@ -1662,7 +1662,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #0f0f1a;
+  background: #0d0d0d;
 }
 
 .link-result:hover {
@@ -1756,7 +1756,7 @@ body {
 }
 
 .tabs button.active {
-  background: #1f2b4a;
+  background: #1a1a1a;
   color: #fff;
 }
 
@@ -1968,10 +1968,53 @@ body {
   width: 100%;
 }
 
+.cards-groups-container {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  align-items: flex-start;
+}
+
 .cards-group {
-  margin-bottom: 24px;
-  width: 100%;
+  flex: 0 0 var(--card-width, 280px);
+  min-width: var(--card-width, 280px);
+  max-width: var(--card-width, 280px);
   overflow: visible;
+}
+
+.cards-group .cards-grid,
+.cards-group .cards-grid.masonry {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  grid-template-columns: none;
+}
+
+.cards-group .cards-grid .todo-card,
+.cards-group .cards-grid.masonry .todo-card {
+  width: 100%;
+  grid-row: unset !important;
+}
+
+.add-card-btn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px dashed #444;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.add-card-btn:hover {
+  background: #1a1a1a;
+  border-color: #666;
+  color: #ccc;
 }
 
 .cards-grid {
@@ -2043,7 +2086,7 @@ body {
 }
 
 .todo-card:hover {
-  background: #1f2b4a;
+  background: #1a1a1a;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 10;
 }
@@ -2274,7 +2317,7 @@ body {
 }
 
 .table-view thead {
-  background: #0f0f1a;
+  background: #0d0d0d;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -2304,7 +2347,7 @@ body {
 }
 
 .table-view tbody tr:hover {
-  background: #1f2b4a !important;
+  background: #1a1a1a !important;
 }
 
 .table-view .col-check {
@@ -2436,7 +2479,7 @@ body {
 
 .kanban-column.uncategorized-column {
   border-top-color: #fff;
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 .column-header {
@@ -2500,7 +2543,7 @@ body {
 }
 
 .kanban-card {
-  background: #0f0f1a;
+  background: #0d0d0d;
   border-radius: 8px;
   padding: 12px;
   cursor: pointer;
@@ -2635,7 +2678,7 @@ body {
   width: var(--detail-width, 600px);
   min-width: 300px;
   max-width: 1200px;
-  background: #0f0f1a;
+  background: #0d0d0d;
   border-left: 4px solid #333;
   display: flex;
   flex-direction: column;
@@ -2861,7 +2904,7 @@ body {
 
 /* Selected state for items */
 .todo-item.selected {
-  background: #1f2b4a;
+  background: #1a1a1a;
   box-shadow: inset 0 0 0 2px #0f4c75;
 }
 
@@ -2949,7 +2992,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: #0f0f1a;
+  background: #0d0d0d;
   border-radius: 6px;
   margin-bottom: 8px;
   border-left: 4px solid #666;
@@ -2979,7 +3022,7 @@ body {
 
 /* Table View Group Row */
 .table-view .group-row td {
-  background: #0f0f1a;
+  background: #0d0d0d;
   padding: 10px 16px;
   font-weight: 600;
   border-bottom: 1px solid #0d0d0d;
@@ -3785,7 +3828,7 @@ body {
 .gantt-header-cell {
   height: 40px;
   padding: 10px 15px;
-  background: #0f0f1a;
+  background: #0d0d0d;
   border-bottom: 1px solid #0d0d0d;
   font-weight: 600;
   color: #bbb;
@@ -3833,7 +3876,7 @@ body {
 .gantt-header {
   height: 40px;
   position: relative;
-  background: #0f0f1a;
+  background: #0d0d0d;
   border-bottom: 1px solid #0d0d0d;
 }
 
@@ -4006,19 +4049,67 @@ body {
 
 /* Graph View Styles */
 .graph-view {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  background: #0f0f1a;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: #0d0d0d;
+  z-index: 102;
+}
+
+/* Make main-content position relative for graph absolute positioning */
+.main-content:has(.graph-view) {
   position: relative;
-  min-height: 400px;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Fix header margins when in graph view mode (parent padding is 0) */
+.main-content:has(.graph-view) .main-header {
+  margin: 0;
+  padding: 6px 20px 10px 20px;
+  z-index: 200;
+}
+
+/* When graph view is active, main-wrapper becomes the positioning context */
+.main-wrapper:has(.graph-view) {
+  position: relative;
+}
+
+/* Detail panel overlays graph view instead of shrinking it */
+.main-wrapper:has(.graph-view) .detail-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  z-index: 250;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure main-content takes full width when graph is shown */
+.main-wrapper:has(.graph-view) .main-content {
+  flex: 1 1 100%;
+  max-width: 100%;
 }
 
 .graph-svg {
-  flex: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+}
+
+.graph-svg > g {
+  transition: transform 0.15s ease-out;
+}
+
+/* Disable transition during drag/pan for responsiveness */
+.graph-view.dragging .graph-svg > g,
+.graph-view.panning .graph-svg > g {
+  transition: none;
 }
 
 .graph-links line {
@@ -4073,32 +4164,211 @@ body {
   paint-order: stroke fill;
 }
 
+.graph-node .node-foreign {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.graph-node .node-content-wrapper {
+  pointer-events: auto;
+  display: inline-block;
+  min-width: 120px;
+  max-width: 280px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  /* Dark mode: dark background, light text */
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transform: translate(-50%, -50%);
+  position: relative;
+  left: 150px;
+  top: 200px;
+  transition: box-shadow 0.15s, transform 0.15s;
+  /* Border shows project color */
+  border: 3px solid #0f4c75;
+  cursor: grab;
+}
+
+.graph-node .node-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: #333;
+  color: #888;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.graph-node:hover .node-delete-btn {
+  opacity: 1;
+}
+
+.graph-node .node-delete-btn:hover {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.graph-node:hover .node-content-wrapper {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  filter: brightness(1.1);
+}
+
+.graph-node.selected .node-content-wrapper {
+  border-color: #f39c12;
+  box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.graph-node.linking .node-content-wrapper {
+  border-color: #2ecc71;
+  animation: pulse-border 1s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: #2ecc71; }
+  50% { border-color: rgba(46, 204, 113, 0.5); }
+}
+
+.graph-node.completed .node-content-wrapper {
+  opacity: 0.6;
+}
+
+.graph-node .node-content {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.graph-node .node-title-text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-height: 52px;
+  overflow: hidden;
+}
+
+.graph-node .node-notes {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.9;
+  max-height: 150px;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.graph-node .node-notes a {
+  color: #3498db;
+  text-decoration: underline;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.graph-node .node-notes a:hover {
+  color: #5dade2;
+}
+
+.graph-node .node-notes p {
+  margin: 0 0 6px 0;
+}
+
+.graph-node .node-notes p:last-child {
+  margin-bottom: 0;
+}
+
+.graph-node .node-notes code {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.graph-node .node-notes pre {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.graph-node .node-notes ul,
+.graph-node .node-notes ol {
+  margin: 4px 0;
+  padding-left: 16px;
+}
+
+.graph-node .node-notes li {
+  margin-bottom: 2px;
+}
+
+.graph-node .node-notes h1,
+.graph-node .node-notes h2,
+.graph-node .node-notes h3 {
+  font-size: 13px;
+  margin: 8px 0 4px 0;
+}
+
+.graph-node .node-notes blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  margin: 6px 0;
+  padding-left: 10px;
+  opacity: 0.8;
+}
+
 /* Person node styles */
-.graph-node.person rect {
-  stroke: #fff;
-  stroke-width: 2;
-  transition: filter 0.15s, stroke-width 0.15s;
+.person-node-wrapper {
+  pointer-events: auto;
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  white-space: nowrap;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  transition: filter 0.15s, box-shadow 0.15s;
+  transform: translate(-50%, -50%);
+  position: relative;
+  left: 80px;
+  top: 20px;
 }
 
-.graph-node.person:hover rect {
-  stroke-width: 3;
-  filter: brightness(1.2);
+.graph-node.person:hover .person-node-wrapper {
+  filter: brightness(1.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.graph-node.person.selected rect {
-  stroke: #f39c12;
-  stroke-width: 4;
+.graph-node.person.selected .person-node-wrapper {
+  box-shadow: 0 0 0 3px #f39c12, 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.graph-node.person.linking rect {
-  stroke: #2ecc71;
-  stroke-width: 4;
-  animation: pulse 1s infinite;
+.graph-node.person.linking .person-node-wrapper {
+  box-shadow: 0 0 0 3px #2ecc71, 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .graph-controls {
   position: absolute;
-  top: 20px;
+  bottom: 20px;
   left: 20px;
   display: flex;
   gap: 10px;
@@ -4130,6 +4400,31 @@ body {
   color: #fff;
 }
 
+.graph-controls .layout-select {
+  padding: 8px 12px;
+  background: #0d0d0d;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #ddd;
+  cursor: pointer;
+  font-size: 13px;
+  outline: none;
+}
+
+.graph-controls .layout-select:hover {
+  border-color: #0f4c75;
+}
+
+.graph-controls .layout-select:focus {
+  border-color: #0f4c75;
+}
+
+.light-theme .graph-controls .layout-select {
+  background: #fff;
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
 .graph-controls .link-hint {
   color: #2ecc71;
   font-size: 12px;
@@ -4153,7 +4448,7 @@ body {
 /* Graph Settings Panel */
 .graph-settings {
   position: absolute;
-  top: 70px;
+  bottom: 70px;
   left: 20px;
   background: rgba(22, 33, 62, 0.95);
   border: 1px solid #0d0d0d;
@@ -4168,6 +4463,21 @@ body {
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+.graph-settings .setting-row.checkbox-row {
+  gap: 8px;
+}
+
+.graph-settings .setting-row.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.graph-settings .setting-row.checkbox-row label {
+  flex: none;
+  cursor: pointer;
 }
 
 .graph-settings .setting-row label {
@@ -4251,6 +4561,57 @@ body {
   color: #333;
 }
 
+/* Link Context Menu */
+.link-context-menu {
+  position: fixed;
+  background: rgba(22, 33, 62, 0.98);
+  border: 1px solid #0f4c75;
+  border-radius: 8px;
+  padding: 8px 0;
+  z-index: 300;
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.link-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: #ddd;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.link-context-menu button:hover {
+  background: rgba(15, 76, 117, 0.5);
+}
+
+.link-context-menu button:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.link-context-menu button:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.light-theme .link-context-menu {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.light-theme .link-context-menu button {
+  color: var(--text-primary);
+}
+
+.light-theme .link-context-menu button:hover {
+  background: rgba(15, 76, 117, 0.1);
+}
+
 .graph-node.dragging {
   cursor: grabbing;
 }
@@ -4279,7 +4640,9 @@ body {
   padding: 12px 16px;
   pointer-events: none;
   z-index: 100;
-  max-width: 250px;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
@@ -4299,6 +4662,36 @@ body {
 .graph-tooltip .tooltip-deadline {
   font-size: 12px;
   color: #f39c12;
+}
+
+.graph-tooltip .tooltip-notes {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.5;
+}
+
+.graph-tooltip .tooltip-notes p {
+  margin: 0 0 4px 0;
+}
+
+.graph-tooltip .tooltip-notes code {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.graph-tooltip .tooltip-notes pre.mermaid {
+  background: transparent;
+  padding: 10px 0;
+}
+
+.graph-tooltip .tooltip-notes pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
 }
 
 .graph-view {
@@ -4330,7 +4723,7 @@ body {
 .theme-btn:hover {
   border-color: #0f4c75;
   color: #fff;
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 /* Settings Section */
@@ -4393,7 +4786,7 @@ body {
 .manage-persons-btn:hover {
   border-color: #0f4c75;
   color: #fff;
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 .settings-btn {
@@ -4412,7 +4805,7 @@ body {
 .settings-btn:hover {
   border-color: #0f4c75;
   color: #fff;
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 .database-location {
@@ -5350,9 +5743,50 @@ body {
   color: var(--text-primary);
 }
 
+.light-theme .graph-tooltip .tooltip-notes {
+  border-top-color: rgba(0, 0, 0, 0.1);
+  color: #666;
+}
+
+.light-theme .graph-tooltip .tooltip-notes code {
+  background: rgba(0, 0, 0, 0.05);
+}
+
 .light-theme .graph-node .node-title {
   fill: #333;
   stroke: #fff;
+}
+
+.light-theme .graph-node .node-content-wrapper {
+  background-color: #ffffff;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.light-theme .graph-node .node-content-wrapper .node-title-text {
+  color: #222;
+}
+
+.light-theme .graph-node .node-content-wrapper .node-notes {
+  color: #555;
+}
+
+.light-theme .graph-node .node-content {
+  color: #fff;
+}
+
+.light-theme .graph-node .node-notes code {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .graph-node .node-delete-btn {
+  background: #e0e0e0;
+  color: #666;
+}
+
+.light-theme .graph-node .node-delete-btn:hover {
+  color: #d93025;
+  background: rgba(217, 48, 37, 0.1);
 }
 
 .light-theme .empty-state {
@@ -5657,7 +6091,7 @@ body {
 
 .command-palette-result:hover,
 .command-palette-result.focused {
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 .command-palette-result .result-checkbox {
@@ -5733,7 +6167,7 @@ body {
 .todo-item.keyboard-focused {
   outline: 2px solid #0f4c75;
   outline-offset: -2px;
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 .todo-card.keyboard-focused {
@@ -5744,7 +6178,7 @@ body {
 .table-view tbody tr.keyboard-focused {
   outline: 2px solid #0f4c75;
   outline-offset: -2px;
-  background: #1f2b4a;
+  background: #1a1a1a;
 }
 
 /* Light theme - Command Palette */
@@ -6567,7 +7001,7 @@ select {
 .bottom-bar {
   position: sticky;
   bottom: 0;
-  background: #0a0e17;
+  background: #000000;
   border-top: none;
   padding: 8px 16px;
   display: flex;
@@ -6587,7 +7021,7 @@ select {
 .bottom-bar .card-size-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   padding: 0;
   margin: 0;
   background: transparent;

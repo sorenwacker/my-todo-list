@@ -478,10 +478,42 @@ app.whenReady().then(() => {
     return database.getLinkedTodos(validateId(todoId))
   }))
   ipcMain.handle('link-todos', handleWithValidation((_, sourceId, targetId) => {
-    return database.linkTodos(validateId(sourceId), validateId(targetId))
+    const validSourceId = validateId(sourceId)
+    const validTargetId = validateId(targetId)
+    const result = database.linkTodos(validSourceId, validTargetId)
+
+    // Record in history
+    history.push({
+      type: 'link-todos',
+      description: 'Link items',
+      undo: () => database.unlinkTodos(validSourceId, validTargetId),
+      redo: () => database.linkTodos(validSourceId, validTargetId)
+    })
+
+    if (mainWindow) {
+      mainWindow.webContents.send('history-changed', history.getState())
+    }
+
+    return result
   }))
   ipcMain.handle('unlink-todos', handleWithValidation((_, sourceId, targetId) => {
-    return database.unlinkTodos(validateId(sourceId), validateId(targetId))
+    const validSourceId = validateId(sourceId)
+    const validTargetId = validateId(targetId)
+    const result = database.unlinkTodos(validSourceId, validTargetId)
+
+    // Record in history
+    history.push({
+      type: 'unlink-todos',
+      description: 'Unlink items',
+      undo: () => database.linkTodos(validSourceId, validTargetId),
+      redo: () => database.unlinkTodos(validSourceId, validTargetId)
+    })
+
+    if (mainWindow) {
+      mainWindow.webContents.send('history-changed', history.getState())
+    }
+
+    return result
   }))
   ipcMain.handle('search-todos', handleWithValidation((_, query, excludeId) => {
     return database.searchTodos(

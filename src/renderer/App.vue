@@ -252,6 +252,7 @@
         @drag-end="onDragEnd"
         @update-group-todos="updateGroupTodos"
         @group-drag-end="onGroupDragEnd"
+        @add-todo-to-project="addTodoToProject"
       />
 
       <!-- Table View -->
@@ -387,14 +388,14 @@
 
       <!-- Graph View -->
       <div
-v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContainer" class="graph-view"
+v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContainer" class="graph-view" :class="{ dragging: draggingNode, panning: isPanning }"
         @wheel.prevent="onGraphWheel"
         @mousedown="onGraphMouseDown"
         @mousemove="onGraphMouseMove"
         @mouseup="onGraphMouseUp"
         @mouseleave="onGraphMouseUp"
       >
-        <svg class="graph-svg" :viewBox="`0 0 ${graphWidth} ${graphHeight}`">
+        <svg class="graph-svg" :viewBox="`0 0 ${graphWidth} ${graphHeight}`" preserveAspectRatio="xMidYMid meet" @dblclick="onGraphDblClick">
           <g :transform="`translate(${graphPan.x}, ${graphPan.y}) scale(${graphZoom})`">
             <!-- Connection lines -->
             <g class="graph-links">
@@ -406,7 +407,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
                 :x2="getNodeX(link.target)"
                 :y2="getNodeY(link.target)"
                 class="graph-link"
-                @contextmenu.prevent="onLinkRightClick(link)"
+                @contextmenu.prevent="onLinkRightClick($event, link)"
               />
             </g>
             <!-- Nodes -->
@@ -418,7 +419,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
                 :class="{
                   person: todo.type === 'person',
                   completed: todo.completed,
-                  selected: selectedTodo?.id === todo.id,
+                  selected: selectedTodo?.id === todo.id || selectedNodeIds.includes(todo.id),
                   linking: graphLinkMode && graphLinkSource?.id === todo.id,
                   dragging: draggingNode?.id === todo.id
                 }"
@@ -427,11 +428,32 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
                 @mouseenter="hoveredNode = todo"
                 @mouseleave="hoveredNode = null"
               >
-                <!-- Person node (square) -->
-                <rect v-if="todo.type === 'person'" x="-25" y="-25" width="50" height="50" rx="5" :fill="todo.color || '#8e44ad'" />
-                <!-- Todo node (circle) -->
-                <circle v-else r="30" :fill="todo.project_color || '#0f4c75'" />
-                <text class="node-title" dy="4" text-anchor="middle">{{ todo.title.slice(0, 10) }}{{ todo.title.length > 10 ? '...' : '' }}</text>
+                <!-- Person node (pill shape) -->
+                <template v-if="todo.type === 'person'">
+                  <foreignObject x="-80" y="-20" width="160" height="40" class="node-foreign" overflow="visible">
+                    <div
+                      xmlns="http://www.w3.org/1999/xhtml"
+                      class="person-node-wrapper"
+                      :style="{ backgroundColor: todo.color || '#8e44ad' }"
+                    >
+                      {{ todo.title }}
+                    </div>
+                  </foreignObject>
+                </template>
+                <!-- Todo node (auto-sizing with foreignObject) -->
+                <template v-else>
+                  <foreignObject x="-150" y="-200" width="300" height="400" class="node-foreign" overflow="visible">
+                    <div
+                      xmlns="http://www.w3.org/1999/xhtml"
+                      class="node-content-wrapper"
+                      :style="{ borderColor: todo.project_color || '#0f4c75' }"
+                    >
+                      <button class="node-delete-btn" @mousedown.stop.prevent="deleteTodoFromGraph(todo.id)" title="Delete">×</button>
+                      <div class="node-title-text">{{ todo.title }}</div>
+                      <div v-if="todo.notes" class="node-notes markdown-body" v-html="renderCardMarkdown(todo.notes)" @click.stop="handleNodeLinkClick($event)"></div>
+                    </div>
+                  </foreignObject>
+                </template>
               </g>
             </g>
           </g>
@@ -441,17 +463,31 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
           <div class="tooltip-title">{{ hoveredNode.title }}</div>
           <div v-if="hoveredNode.project_name" class="tooltip-project">{{ hoveredNode.project_name }}</div>
           <div v-if="hoveredNode.end_date" class="tooltip-deadline">Due: {{ formatDeadline(hoveredNode.end_date) }}</div>
+          <div v-if="hoveredNode.notes" class="tooltip-notes markdown-body" v-html="renderCardMarkdown(hoveredNode.notes)"></div>
+        </div>
+        <!-- Link Context Menu -->
+        <div v-if="linkContextMenu" class="link-context-menu" :style="{ left: linkContextMenu.x + 'px', top: linkContextMenu.y + 'px' }" @click.stop>
+          <button @click="insertNodeInLink">Insert Node</button>
+          <button @click="removeLinkFromMenu">Remove Link</button>
+          <button @click="linkContextMenu = null">Cancel</button>
         </div>
         <div class="graph-controls">
-          <button @click="graphZoom = Math.max(0.3, graphZoom - 0.2)">-</button>
+          <button @click="graphZoom = Math.max(0.3, graphZoom - 0.1)">-</button>
           <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
-          <button @click="graphZoom = Math.min(3, graphZoom + 0.2)">+</button>
+          <button @click="graphZoom = Math.min(3, graphZoom + 0.1)">+</button>
           <button @click="resetGraphView">Reset</button>
           <div class="control-divider"></div>
+          <select v-model="graphLayoutType" class="layout-select" @change="onLayoutTypeChange">
+            <option value="force">Force</option>
+            <option value="tree">Tree</option>
+            <option value="radial">Radial</option>
+            <option value="grid">Grid</option>
+            <option value="circular">Circular</option>
+          </select>
           <button
             :class="{ active: isSimulating }"
-            @click="runForceLayout"
-          >{{ isSimulating ? 'Stop' : 'Auto Layout' }}</button>
+            @click="runLayout"
+          >{{ isSimulating ? 'Stop' : 'Apply Layout' }}</button>
           <button :class="{ active: showGraphSettings }" @click="showGraphSettings = !showGraphSettings">Settings</button>
           <div class="control-divider"></div>
           <button
@@ -462,11 +498,9 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
           <span v-else-if="graphLinkMode" class="link-hint">Click a node to start linking</span>
         </div>
         <div v-if="showGraphSettings" class="graph-settings">
-          <div class="setting-row">
-            <label>
-              <input v-model="showPersonsInGraph" type="checkbox" @change="updateGraphData" />
-              Show Persons
-            </label>
+          <div class="setting-row checkbox-row">
+            <input id="show-persons" v-model="showPersonsInGraph" type="checkbox" @change="updateGraphData" />
+            <label for="show-persons">Show Persons</label>
           </div>
           <div class="setting-row">
             <label>Repulsion:</label>
@@ -845,17 +879,19 @@ export default {
       lastDeltaDays: 0,
       graphLinkMode: false,
       graphLinkSource: null,
-      graphWidth: 800,
-      graphHeight: 600,
+      graphWidth: 1600,
+      graphHeight: 1200,
       nodePositions: {},
       allLinks: [],
       graphZoom: 1,
       graphPan: { x: 0, y: 0 },
       draggingNode: null,
       dragOffset: { x: 0, y: 0 },
+      selectedNodeIds: [],
       isPanning: false,
       lastMousePos: { x: 0, y: 0 },
       hoveredNode: null,
+      linkContextMenu: null,
       mousePos: { x: 0, y: 0 },
       isSimulating: false,
       projectColors: [
@@ -900,8 +936,9 @@ export default {
       detailLayoutPreference: localStorage.getItem('detail-layout') || 'auto', // 'auto', 'horizontal', 'vertical'
       // Graph layout parameters
       // d3-force parameters
-      graphRepulsion: parseInt(localStorage.getItem('graph-repulsion')) || -400,
-      graphEdgeLength: parseInt(localStorage.getItem('graph-edge-length')) || 100,
+      graphRepulsion: parseInt(localStorage.getItem('graph-repulsion')) || -800,
+      graphEdgeLength: parseInt(localStorage.getItem('graph-edge-length')) || 200,
+      graphLayoutType: localStorage.getItem('graph-layout-type') || 'force',
       showGraphSettings: false,
       showPersonsInGraph: localStorage.getItem('show-persons-in-graph') === 'true',
       todoPersons: {},
@@ -966,7 +1003,7 @@ export default {
       return this.kanbanGroupBy
     },
     currentTitle() {
-      if (this.currentFilter === null) return 'All Todos'
+      if (this.currentFilter === null) return 'Todos'
       if (this.currentFilter === 'inbox') return 'Inbox'
       if (this.currentFilter === 'trash') return 'Trash'
       if (this.currentFilter === 'persons') return 'Persons'
@@ -1204,7 +1241,18 @@ export default {
       return 14                                    // Every 2 weeks
     },
     graphNodes() {
-      const nodes = [...this.filteredTodos]
+      let todos = [...this.filteredTodos]
+
+      // When inbox is selected (or no filter), only show items without a project
+      if (this.currentFilter === null || this.currentFilter === 'inbox') {
+        todos = todos.filter(t => t.project_id === null)
+      }
+      // When a specific project is selected, ensure only that project's todos are shown
+      else if (typeof this.currentFilter === 'number') {
+        todos = todos.filter(t => t.project_id === this.currentFilter)
+      }
+
+      const nodes = [...todos]
 
       // Add person nodes if enabled
       if (this.showPersonsInGraph) {
@@ -1242,7 +1290,8 @@ export default {
       }
     },
     graphLinks() {
-      const todoIds = new Set(this.filteredTodos.map(t => t.id))
+      // Use graphNodes to get the actual visible todo IDs (respects project filtering)
+      const todoIds = new Set(this.graphNodes.filter(n => n.type !== 'person').map(t => t.id))
       // Filter links to only include those where both ends are visible
       const links = this.allLinks.filter(link =>
         todoIds.has(link.source) && todoIds.has(link.target)
@@ -1404,6 +1453,13 @@ export default {
     sortBy(val) {
       localStorage.setItem('sort-by', val)
     },
+    hoveredNode(val) {
+      if (val && val.notes) {
+        this.$nextTick(() => {
+          this.renderTooltipMermaid()
+        })
+      }
+    },
     activeTab(val) {
       if (val === 'preview' || val === 'split') {
         this.renderMermaid()
@@ -1424,6 +1480,7 @@ export default {
     await this.loadTodos()
     await this.loadAllLinks()
     this.databasePath = await window.api.getDatabasePath()
+    this.loadNodePositions()
 
     // Load graph person data if enabled
     if (this.showPersonsInGraph) {
@@ -1512,6 +1569,9 @@ export default {
     }
   },
   methods: {
+    renderCardMarkdown(text) {
+      return renderCardMarkdown(text)
+    },
     onGroupByProjectChange() {
       if (this.currentView === 'cards') {
         this.$nextTick(() => {
@@ -1649,6 +1709,10 @@ export default {
     async setFilter(filter) {
       this.currentFilter = filter
       await this.loadTodos()
+      // Update graph person data when filter changes
+      if (this.showPersonsInGraph) {
+        await this.updateGraphData()
+      }
     },
     async addTodo() {
       if (!this.newTodoTitle.trim()) return
@@ -1659,6 +1723,16 @@ export default {
       this.newTodoTitle = ''
       await this.loadAllTodos()
       await this.loadTodos()
+    },
+    async addTodoToProject(projectId) {
+      try {
+        const todo = await window.api.createTodo('Untitled', projectId)
+        await this.loadAllTodos()
+        await this.loadTodos()
+        if (todo) this.selectTodo(todo)
+      } catch (e) {
+        console.error('Failed to create todo:', e)
+      }
     },
     onTimelineChartDblClick(event) {
       // Only handle if clicked on empty area (not on a bar or row)
@@ -1691,35 +1765,37 @@ export default {
       await this.loadTodos()
       this.selectTodo(todo.id)
     },
-    async addTodoToProject(projectId) {
-      const todo = await window.api.createTodo('', projectId)
-      await this.loadAllTodos()
-      await this.loadTodos()
-      this.selectTodo(todo.id)
-    },
     async addTodoToCategory(categoryId) {
-      const projectId = this.isProjectSelected ? this.currentFilter : null
-      const todo = await window.api.createTodo('', projectId)
-      if (categoryId !== null) {
-        const todoData = this.toPlainTodo(todo)
-        todoData.category_id = categoryId
-        await window.api.updateTodo(todoData)
+      try {
+        const projectId = this.isProjectSelected ? this.currentFilter : null
+        const todo = await window.api.createTodo('Untitled', projectId)
+        if (categoryId !== null) {
+          const todoData = this.toPlainTodo(todo)
+          todoData.category_id = categoryId
+          await window.api.updateTodo(todoData)
+        }
+        await this.loadAllTodos()
+        await this.loadTodos()
+        if (todo) this.selectTodo(todo)
+      } catch (e) {
+        console.error('Failed to create todo:', e)
       }
-      await this.loadAllTodos()
-      await this.loadTodos()
-      this.selectTodo(todo.id)
     },
     async addTodoToStatus(statusId) {
-      const projectId = this.isProjectSelected ? this.currentFilter : null
-      const todo = await window.api.createTodo('', projectId)
-      if (statusId !== null) {
-        const todoData = this.toPlainTodo(todo)
-        todoData.status_id = statusId
-        await window.api.updateTodo(todoData)
+      try {
+        const projectId = this.isProjectSelected ? this.currentFilter : null
+        const todo = await window.api.createTodo('Untitled', projectId)
+        if (statusId !== null) {
+          const todoData = this.toPlainTodo(todo)
+          todoData.status_id = statusId
+          await window.api.updateTodo(todoData)
+        }
+        await this.loadAllTodos()
+        await this.loadTodos()
+        if (todo) this.selectTodo(todo)
+      } catch (e) {
+        console.error('Failed to create todo:', e)
       }
-      await this.loadAllTodos()
-      await this.loadTodos()
-      this.selectTodo(todo.id)
     },
     async toggleComplete(todo) {
       const todoData = this.toPlainTodo(todo)
@@ -1751,6 +1827,24 @@ export default {
       await this.loadAllTodos()
       await this.loadTodos()
     },
+    async deleteTodoFromGraph(id) {
+      const todo = this.graphNodes.find(n => n.id === id)
+      const title = todo?.title || 'this item'
+      if (confirm(`Delete "${title}"?`)) {
+        // Keep node position for undo - only remove on permanent delete
+        await this.deleteTodo(id)
+      }
+    },
+    handleNodeLinkClick(event) {
+      // Check if clicked element is a link
+      const link = event.target.closest('a')
+      if (link && link.href) {
+        event.preventDefault()
+        event.stopPropagation()
+        // Open link in default browser
+        window.api.openExternal(link.href)
+      }
+    },
     async restoreTodo(id) {
       await window.api.restoreTodo(id)
       await this.loadAllTodos()
@@ -1758,6 +1852,11 @@ export default {
     },
     async permanentlyDeleteTodo(id) {
       await window.api.permanentlyDeleteTodo(id)
+      // Remove node position on permanent delete (can't be undone)
+      if (this.nodePositions[id]) {
+        delete this.nodePositions[id]
+        this.saveNodePositions()
+      }
       if (this.selectedTodo?.id === id) {
         this.selectedTodo = null
       }
@@ -1766,7 +1865,20 @@ export default {
     },
     async emptyTrash() {
       if (confirm('Are you sure you want to permanently delete all items in trash?')) {
+        // Get trashed items before emptying to clean up positions
+        const trashedIds = this.allTodos.filter(t => t.deleted).map(t => t.id)
         await window.api.emptyTrash()
+        // Clean up node positions for permanently deleted items
+        let positionsChanged = false
+        trashedIds.forEach(id => {
+          if (this.nodePositions[id]) {
+            delete this.nodePositions[id]
+            positionsChanged = true
+          }
+        })
+        if (positionsChanged) {
+          this.saveNodePositions()
+        }
         await this.loadAllTodos()
         await this.loadTodos()
       }
@@ -2679,13 +2791,18 @@ export default {
     calculateNodePosition(todoId) {
       const nodes = this.graphNodes
       const index = nodes.findIndex(t => t.id === todoId)
-      const centerX = this.graphWidth / 2 || 400
-      const centerY = this.graphHeight / 2 || 300
-      const radius = Math.min(this.graphWidth || 800, this.graphHeight || 600) / 3
-      const angle = (2 * Math.PI * index) / Math.max(nodes.length, 1)
+      const width = this.graphWidth || 800
+      const height = this.graphHeight || 600
+      const padding = 100
+      const cols = Math.ceil(Math.sqrt(nodes.length * (width / height)))
+      const rows = Math.ceil(nodes.length / cols)
+      const col = index % cols
+      const row = Math.floor(index / cols)
+      const cellWidth = (width - padding * 2) / Math.max(cols, 1)
+      const cellHeight = (height - padding * 2) / Math.max(rows, 1)
       return {
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
+        x: padding + col * cellWidth + cellWidth / 2,
+        y: padding + row * cellHeight + cellHeight / 2
       }
     },
     async onGraphNodeClick(todo) {
@@ -2712,11 +2829,11 @@ export default {
       }
     },
     updateGraphSize() {
-      const container = this.$refs.graphContainer
-      if (container) {
-        this.graphWidth = container.clientWidth || 800
-        this.graphHeight = container.clientHeight || 600
-      }
+      // Use fixed viewBox dimensions so layout doesn't shift when detail panel opens
+      // The SVG will scale to fit the container via CSS
+      // Only set initial size if not already set
+      if (!this.graphWidth) this.graphWidth = 1600
+      if (!this.graphHeight) this.graphHeight = 1200
     },
     screenToSvgCoords(event) {
       const svg = this.$refs.graphContainer.querySelector('svg')
@@ -2738,6 +2855,34 @@ export default {
         this.onGraphNodeClick(todo)
         return
       }
+
+      // Cmd/Ctrl+click creates a new connected node
+      if (event.metaKey || event.ctrlKey) {
+        this.createConnectedNode(event, todo)
+        return
+      }
+
+      // Option/Alt+click to link to selected node
+      if (event.altKey) {
+        event.preventDefault()
+        event.stopPropagation()
+        if (this.selectedTodo && this.selectedTodo.id !== todo.id) {
+          // Link the selected node to the clicked node
+          window.api.linkTodos(this.selectedTodo.id, todo.id)
+            .then(() => this.loadAllLinks())
+            .catch(e => console.error('Failed to link:', e))
+        } else if (!this.selectedTodo) {
+          // No selection yet - select this node first
+          this.selectTodo(todo.id)
+        }
+        return
+      }
+
+      // Clear multi-select if clicking without modifier
+      if (this.selectedNodeIds.length > 0) {
+        this.selectedNodeIds = []
+      }
+
       this.draggingNode = todo
       // Initialize position if not set
       if (!this.nodePositions[todo.id]) {
@@ -2750,6 +2895,11 @@ export default {
       this.lastMousePos = { x: event.clientX, y: event.clientY }
     },
     onGraphMouseDown(event) {
+      // Close context menu if open
+      if (this.linkContextMenu) {
+        this.linkContextMenu = null
+        return
+      }
       if (this.draggingNode) return
       // Start panning
       this.isPanning = true
@@ -2792,6 +2942,144 @@ export default {
       }
       this.draggingNode = null
       this.isPanning = false
+      this.saveNodePositions()
+    },
+    async createConnectedNode(event, parentTodo) {
+      // Get position offset from parent node
+      const parentPos = this.nodePositions[parentTodo.id] || { x: 400, y: 300 }
+
+      // Use the same project as the parent todo
+      const projectId = parentTodo.project_id
+
+      try {
+        const todo = await window.api.createTodo('Untitled', projectId)
+        await this.loadAllTodos()
+        await this.loadTodos()
+
+        if (todo) {
+          // Initial position to the right of parent
+          this.nodePositions[todo.id] = {
+            x: parentPos.x + 200,
+            y: parentPos.y
+          }
+          this.nodePositions = { ...this.nodePositions }
+
+          // Link to parent
+          await window.api.linkTodos(parentTodo.id, todo.id)
+          await this.loadAllLinks()
+
+          // Run quick layout optimization for new node
+          this.$nextTick(() => {
+            this.optimizeNewNodePosition(todo.id)
+          })
+
+          this.selectTodo(todo.id)
+        }
+      } catch (e) {
+        console.error('Failed to create connected node:', e)
+      }
+    },
+    optimizeNewNodePosition(newNodeId) {
+      // Run a quick force simulation to find optimal position for new node
+      const nodes = this.graphNodes.map(n => ({
+        id: n.id,
+        x: this.nodePositions[n.id]?.x || this.graphWidth / 2,
+        y: this.nodePositions[n.id]?.y || this.graphHeight / 2,
+        // Fix all nodes except the new one
+        fx: n.id === newNodeId ? null : this.nodePositions[n.id]?.x,
+        fy: n.id === newNodeId ? null : this.nodePositions[n.id]?.y
+      }))
+
+      const links = this.graphLinks.map(l => ({
+        source: l.source,
+        target: l.target
+      }))
+
+      const getNodeRadius = (nodeId) => {
+        const todo = this.graphNodes.find(n => n.id === nodeId)
+        if (!todo) return 80
+        const titleLength = todo.title?.length || 0
+        const notesLength = todo.notes?.length || 0
+        const estimatedWidth = Math.min(280, 120 + titleLength * 4 + (notesLength > 0 ? 60 : 0))
+        const notesLines = notesLength > 0 ? Math.ceil(notesLength / 35) : 0
+        const estimatedHeight = 50 + notesLines * 18
+        const diagonal = Math.sqrt(estimatedWidth * estimatedWidth + estimatedHeight * estimatedHeight)
+        return diagonal / 2 + 20
+      }
+
+      const simulation = d3Force.forceSimulation(nodes)
+        .force('link', d3Force.forceLink(links)
+          .id(d => d.id)
+          .distance(this.graphEdgeLength * 2)
+          .strength(1))
+        .force('charge', d3Force.forceManyBody()
+          .strength(this.graphRepulsion))
+        .force('collision', d3Force.forceCollide()
+          .radius(d => getNodeRadius(d.id))
+          .strength(1))
+        .alphaDecay(0.1)
+        .on('end', () => {
+          const newNode = nodes.find(n => n.id === newNodeId)
+          if (newNode) {
+            // Keep within bounds
+            const padding = 150
+            const x = Math.max(padding, Math.min(this.graphWidth - padding, newNode.x))
+            const y = Math.max(padding, Math.min(this.graphHeight - padding, newNode.y))
+            this.nodePositions[newNodeId] = { x, y }
+            this.nodePositions = { ...this.nodePositions }
+            this.saveNodePositions()
+          }
+        })
+
+      // Run simulation quickly
+      simulation.tick(50)
+      simulation.stop()
+
+      const newNode = nodes.find(n => n.id === newNodeId)
+      if (newNode) {
+        const padding = 150
+        const x = Math.max(padding, Math.min(this.graphWidth - padding, newNode.x))
+        const y = Math.max(padding, Math.min(this.graphHeight - padding, newNode.y))
+        this.nodePositions[newNodeId] = { x, y }
+        this.nodePositions = { ...this.nodePositions }
+        this.saveNodePositions()
+      }
+    },
+    async onGraphDblClick(event) {
+      // Don't create if clicking on a node
+      if (event.target.closest('.graph-node')) return
+
+      // Get position in graph coordinates
+      const coords = this.screenToSvgCoords(event)
+
+      // Determine project ID - use current filter if it's a project
+      const projectId = this.isProjectSelected ? this.currentFilter : null
+
+      // Remember selected node to link to
+      const linkToNodeId = this.selectedTodo?.id
+
+      try {
+        const todo = await window.api.createTodo('Untitled', projectId)
+        await this.loadAllTodos()
+        await this.loadTodos()
+
+        // Set position for the new node
+        if (todo) {
+          this.nodePositions[todo.id] = { x: coords.x, y: coords.y }
+          this.nodePositions = { ...this.nodePositions }
+          this.saveNodePositions()
+
+          // Link to previously selected node if one existed
+          if (linkToNodeId) {
+            await window.api.linkTodos(linkToNodeId, todo.id)
+            await this.loadAllLinks()
+          }
+
+          this.selectTodo(todo.id)
+        }
+      } catch (e) {
+        console.error('Failed to create todo:', e)
+      }
     },
     onGraphWheel(event) {
       const delta = event.deltaY > 0 ? -0.1 : 0.1
@@ -2829,12 +3117,65 @@ export default {
       this.graphZoom = 1
       this.graphPan = { x: 0, y: 0 }
       this.nodePositions = {}
+      localStorage.removeItem('graph-node-positions')
     },
-    async onLinkRightClick(link) {
-      if (confirm('Remove this link?')) {
-        await window.api.unlinkTodos(link.source, link.target)
+    onLinkRightClick(event, link) {
+      // Show context menu at mouse position
+      this.linkContextMenu = {
+        x: event.clientX,
+        y: event.clientY,
+        link: link
+      }
+    },
+    async removeLinkFromMenu() {
+      if (this.linkContextMenu?.link) {
+        const { source, target } = this.linkContextMenu.link
+        await window.api.unlinkTodos(source, target)
         await this.loadAllLinks()
       }
+      this.linkContextMenu = null
+    },
+    async insertNodeInLink() {
+      if (!this.linkContextMenu?.link) return
+      const { source, target } = this.linkContextMenu.link
+      const sourceNode = this.graphNodes.find(n => n.id === source)
+      const targetNode = this.graphNodes.find(n => n.id === target)
+
+      // Calculate midpoint position
+      const sourcePos = this.nodePositions[source] || { x: 400, y: 300 }
+      const targetPos = this.nodePositions[target] || { x: 500, y: 300 }
+      const midX = (sourcePos.x + targetPos.x) / 2
+      const midY = (sourcePos.y + targetPos.y) / 2
+
+      // Use project from source node
+      const projectId = sourceNode?.project_id || null
+
+      try {
+        // Create new node
+        const todo = await window.api.createTodo('New Node', projectId)
+
+        // Position at midpoint
+        this.nodePositions[todo.id] = { x: midX, y: midY }
+        this.saveNodePositions()
+
+        // Remove old link
+        await window.api.unlinkTodos(source, target)
+
+        // Create new links: source -> new -> target
+        await window.api.linkTodos(source, todo.id)
+        await window.api.linkTodos(todo.id, target)
+
+        // Reload data
+        await this.loadTodos()
+        await this.loadAllLinks()
+
+        // Select the new node for editing
+        this.selectedTodo = this.todos.find(t => t.id === todo.id)
+      } catch (e) {
+        console.error('Failed to insert node:', e)
+      }
+
+      this.linkContextMenu = null
     },
     initializeNodePositions() {
       // Initialize positions for all nodes
@@ -2846,6 +3187,244 @@ export default {
       })
       this.nodePositions = newPositions
     },
+    onLayoutTypeChange() {
+      localStorage.setItem('graph-layout-type', this.graphLayoutType)
+    },
+    runLayout() {
+      switch (this.graphLayoutType) {
+        case 'force':
+          this.runForceLayout()
+          break
+        case 'tree':
+          this.runTreeLayout()
+          break
+        case 'radial':
+          this.runRadialLayout()
+          break
+        case 'grid':
+          this.runGridLayout()
+          break
+        case 'circular':
+          this.runCircularLayout()
+          break
+        default:
+          this.runForceLayout()
+      }
+    },
+    runTreeLayout() {
+      const nodes = this.graphNodes.filter(n => n.type !== 'person')
+      const links = this.graphLinks.filter(l => l.type !== 'person-todo')
+
+      // Build adjacency list
+      const children = {}
+      const hasParent = new Set()
+      links.forEach(link => {
+        if (!children[link.source]) children[link.source] = []
+        children[link.source].push(link.target)
+        hasParent.add(link.target)
+      })
+
+      // Find root nodes (nodes with no incoming links)
+      const roots = nodes.filter(n => !hasParent.has(n.id))
+      if (roots.length === 0 && nodes.length > 0) {
+        roots.push(nodes[0]) // Fallback to first node
+      }
+
+      const newPositions = {}
+      const nodeSpacingX = 250
+      const nodeSpacingY = 150
+      const startX = 200
+      const startY = 150
+
+      // BFS to assign positions
+      let currentY = startY
+      roots.forEach((root, rootIndex) => {
+        const queue = [{ id: root.id, depth: 0 }]
+        const visited = new Set()
+        const levelNodes = {}
+
+        while (queue.length > 0) {
+          const { id, depth } = queue.shift()
+          if (visited.has(id)) continue
+          visited.add(id)
+
+          if (!levelNodes[depth]) levelNodes[depth] = []
+          levelNodes[depth].push(id)
+
+          const nodeChildren = children[id] || []
+          nodeChildren.forEach(childId => {
+            if (!visited.has(childId)) {
+              queue.push({ id: childId, depth: depth + 1 })
+            }
+          })
+        }
+
+        // Position nodes by level
+        Object.entries(levelNodes).forEach(([depth, nodeIds]) => {
+          const d = parseInt(depth)
+          nodeIds.forEach((nodeId, idx) => {
+            newPositions[nodeId] = {
+              x: startX + d * nodeSpacingX,
+              y: currentY + idx * nodeSpacingY
+            }
+          })
+        })
+
+        // Calculate max height for this tree
+        const maxNodesInLevel = Math.max(...Object.values(levelNodes).map(l => l.length))
+        currentY += maxNodesInLevel * nodeSpacingY + 100
+      })
+
+      // Position unvisited nodes
+      let unvisitedY = currentY
+      nodes.forEach(node => {
+        if (!newPositions[node.id]) {
+          newPositions[node.id] = { x: startX, y: unvisitedY }
+          unvisitedY += nodeSpacingY
+        }
+      })
+
+      this.nodePositions = newPositions
+      this.saveNodePositions()
+    },
+    runRadialLayout() {
+      const nodes = this.graphNodes.filter(n => n.type !== 'person')
+      const links = this.graphLinks.filter(l => l.type !== 'person-todo')
+
+      // Build adjacency and find center node
+      const connections = {}
+      nodes.forEach(n => { connections[n.id] = 0 })
+      links.forEach(link => {
+        connections[link.source] = (connections[link.source] || 0) + 1
+        connections[link.target] = (connections[link.target] || 0) + 1
+      })
+
+      // Most connected node is center
+      let centerNode = nodes[0]
+      let maxConnections = 0
+      nodes.forEach(node => {
+        if (connections[node.id] > maxConnections) {
+          maxConnections = connections[node.id]
+          centerNode = node
+        }
+      })
+
+      const centerX = this.graphWidth / 2
+      const centerY = this.graphHeight / 2
+      const newPositions = {}
+
+      // BFS from center
+      const visited = new Set([centerNode.id])
+      const queue = [{ id: centerNode.id, level: 0 }]
+      const levels = { 0: [centerNode.id] }
+
+      // Build adjacency list (undirected)
+      const adj = {}
+      links.forEach(link => {
+        if (!adj[link.source]) adj[link.source] = []
+        if (!adj[link.target]) adj[link.target] = []
+        adj[link.source].push(link.target)
+        adj[link.target].push(link.source)
+      })
+
+      while (queue.length > 0) {
+        const { id, level } = queue.shift()
+        const neighbors = adj[id] || []
+        neighbors.forEach(neighborId => {
+          if (!visited.has(neighborId)) {
+            visited.add(neighborId)
+            const nextLevel = level + 1
+            if (!levels[nextLevel]) levels[nextLevel] = []
+            levels[nextLevel].push(neighborId)
+            queue.push({ id: neighborId, level: nextLevel })
+          }
+        })
+      }
+
+      // Position by level
+      newPositions[centerNode.id] = { x: centerX, y: centerY }
+      const baseRadius = 200
+
+      Object.entries(levels).forEach(([level, nodeIds]) => {
+        const l = parseInt(level)
+        if (l === 0) return
+        const radius = baseRadius * l
+        const angleStep = (2 * Math.PI) / nodeIds.length
+        nodeIds.forEach((nodeId, idx) => {
+          const angle = idx * angleStep - Math.PI / 2
+          newPositions[nodeId] = {
+            x: centerX + radius * Math.cos(angle),
+            y: centerY + radius * Math.sin(angle)
+          }
+        })
+      })
+
+      // Position unvisited nodes in outer ring
+      const unvisited = nodes.filter(n => !visited.has(n.id))
+      if (unvisited.length > 0) {
+        const outerRadius = baseRadius * (Object.keys(levels).length + 1)
+        const angleStep = (2 * Math.PI) / unvisited.length
+        unvisited.forEach((node, idx) => {
+          const angle = idx * angleStep - Math.PI / 2
+          newPositions[node.id] = {
+            x: centerX + outerRadius * Math.cos(angle),
+            y: centerY + outerRadius * Math.sin(angle)
+          }
+        })
+      }
+
+      this.nodePositions = newPositions
+      this.saveNodePositions()
+    },
+    runGridLayout() {
+      const nodes = this.graphNodes.filter(n => n.type !== 'person')
+      const count = nodes.length
+      if (count === 0) return
+
+      const cols = Math.ceil(Math.sqrt(count * (this.graphWidth / this.graphHeight)))
+      const rows = Math.ceil(count / cols)
+
+      const cellWidth = (this.graphWidth - 300) / Math.max(cols, 1)
+      const cellHeight = (this.graphHeight - 300) / Math.max(rows, 1)
+      const startX = 150
+      const startY = 150
+
+      const newPositions = {}
+      nodes.forEach((node, idx) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        newPositions[node.id] = {
+          x: startX + col * cellWidth + cellWidth / 2,
+          y: startY + row * cellHeight + cellHeight / 2
+        }
+      })
+
+      this.nodePositions = newPositions
+      this.saveNodePositions()
+    },
+    runCircularLayout() {
+      const nodes = this.graphNodes.filter(n => n.type !== 'person')
+      const count = nodes.length
+      if (count === 0) return
+
+      const centerX = this.graphWidth / 2
+      const centerY = this.graphHeight / 2
+      const radius = Math.min(this.graphWidth, this.graphHeight) / 2 - 200
+
+      const newPositions = {}
+      const angleStep = (2 * Math.PI) / count
+
+      nodes.forEach((node, idx) => {
+        const angle = idx * angleStep - Math.PI / 2
+        newPositions[node.id] = {
+          x: centerX + radius * Math.cos(angle),
+          y: centerY + radius * Math.sin(angle)
+        }
+      })
+
+      this.nodePositions = newPositions
+      this.saveNodePositions()
+    },
     runForceLayout() {
       if (this.isSimulating) {
         this.stopForceLayout()
@@ -2855,11 +3434,11 @@ export default {
       this.isSimulating = true
       this.initializeNodePositions()
 
-      // Create d3-force simulation
+      // Create d3-force simulation with improved parameters
       const nodes = this.graphNodes.map(n => ({
         id: n.id,
-        x: this.nodePositions[n.id]?.x || this.graphWidth / 2,
-        y: this.nodePositions[n.id]?.y || this.graphHeight / 2
+        x: this.nodePositions[n.id]?.x || this.graphWidth / 2 + (Math.random() - 0.5) * 400,
+        y: this.nodePositions[n.id]?.y || this.graphHeight / 2 + (Math.random() - 0.5) * 400
       }))
 
       const links = this.graphLinks.map(l => ({
@@ -2867,23 +3446,62 @@ export default {
         target: l.target
       }))
 
+      // Calculate collision radius based on actual node size
+      const getNodeRadius = (nodeId) => {
+        const todo = this.graphNodes.find(n => n.id === nodeId)
+        if (!todo) return 80
+
+        // Estimate node dimensions based on content (matching CSS min/max-width)
+        const titleLength = todo.title?.length || 0
+        const notesLength = todo.notes?.length || 0
+
+        // Width: min 120px, max 280px based on content
+        const baseWidth = 120
+        const maxWidth = 280
+        const estimatedWidth = Math.min(maxWidth, baseWidth + titleLength * 4 + (notesLength > 0 ? 60 : 0))
+
+        // Height: base ~50px for title, plus ~18px per line of notes
+        const baseHeight = 50
+        const notesLines = notesLength > 0 ? Math.ceil(notesLength / 35) : 0
+        const estimatedHeight = baseHeight + notesLines * 18
+
+        // Return radius as half the diagonal (to encompass rectangular node)
+        const diagonal = Math.sqrt(estimatedWidth * estimatedWidth + estimatedHeight * estimatedHeight)
+        return diagonal / 2 + 20 // Add padding
+      }
+
       this.d3Simulation = d3Force.forceSimulation(nodes)
         .force('link', d3Force.forceLink(links)
           .id(d => d.id)
-          .distance(this.graphEdgeLength))
+          .distance(this.graphEdgeLength * 2)
+          .strength(0.5))
         .force('charge', d3Force.forceManyBody()
-          .strength(this.graphRepulsion))
+          .strength(this.graphRepulsion)
+          .distanceMin(100)
+          .distanceMax(800))
         .force('center', d3Force.forceCenter(this.graphWidth / 2, this.graphHeight / 2))
-        .force('collision', d3Force.forceCollide().radius(40))
+        .force('collision', d3Force.forceCollide()
+          .radius(d => getNodeRadius(d.id))
+          .strength(0.8))
+        // Keep nodes within bounds
+        .force('x', d3Force.forceX(this.graphWidth / 2).strength(0.02))
+        .force('y', d3Force.forceY(this.graphHeight / 2).strength(0.02))
+        .velocityDecay(0.4)
+        .alphaDecay(0.02)
         .on('tick', () => {
           const newPositions = {}
+          const padding = 150
           nodes.forEach(node => {
+            // Keep nodes within bounds
+            node.x = Math.max(padding, Math.min(this.graphWidth - padding, node.x))
+            node.y = Math.max(padding, Math.min(this.graphHeight - padding, node.y))
             newPositions[node.id] = { x: node.x, y: node.y }
           })
           this.nodePositions = newPositions
         })
         .on('end', () => {
           this.isSimulating = false
+          this.saveNodePositions()
         })
     },
     stopForceLayout() {
@@ -2897,9 +3515,22 @@ export default {
       localStorage.setItem('graph-repulsion', this.graphRepulsion)
       localStorage.setItem('graph-edge-length', this.graphEdgeLength)
     },
+    saveNodePositions() {
+      localStorage.setItem('graph-node-positions', JSON.stringify(this.nodePositions))
+    },
+    loadNodePositions() {
+      try {
+        const saved = localStorage.getItem('graph-node-positions')
+        if (saved) {
+          this.nodePositions = JSON.parse(saved)
+        }
+      } catch (e) {
+        console.error('Failed to load node positions:', e)
+      }
+    },
     onGraphSettingChange() {
       this.saveGraphSettings()
-      // Update running simulation with new parameters
+      // Only update if simulation is already running
       if (this.d3Simulation) {
         this.d3Simulation
           .force('charge', d3Force.forceManyBody().strength(this.graphRepulsion))
@@ -2907,9 +3538,8 @@ export default {
             .id(d => d.id)
             .distance(this.graphEdgeLength))
         this.d3Simulation.alpha(0.3).restart()
-      } else if (this.currentView === 'graph' && this.graphNodes.length > 0) {
-        this.runForceLayout()
       }
+      // Don't auto-start simulation - user must click "Auto Layout"
     },
     resetGraphSettings() {
       this.graphRepulsion = -400
@@ -3183,12 +3813,14 @@ export default {
       await window.api.undo()
       await this.loadTodos()
       await this.loadAllTodos()
+      await this.loadAllLinks()
     },
     async redo() {
       if (!this.historyState.canRedo) return
       await window.api.redo()
       await this.loadTodos()
       await this.loadAllTodos()
+      await this.loadAllLinks()
     },
     toggleCategoriesCollapsed() {
       this.categoriesCollapsed = !this.categoriesCollapsed
@@ -3311,6 +3943,19 @@ export default {
         })
       } catch (e) {
         console.error('Mermaid render error:', e)
+      }
+    },
+    async renderTooltipMermaid() {
+      await this.$nextTick()
+      try {
+        await mermaid.run({
+          querySelector: '.graph-tooltip .tooltip-notes pre.mermaid:not([data-processed]), .node-notes pre.mermaid:not([data-processed])'
+        })
+        document.querySelectorAll('.graph-tooltip .tooltip-notes pre.mermaid, .node-notes pre.mermaid').forEach(el => {
+          el.setAttribute('data-processed', 'true')
+        })
+      } catch (e) {
+        // Silently ignore - tooltip may have disappeared
       }
     }
   }
