@@ -169,7 +169,10 @@
           class="kanban-column"
         >
           <div class="column-header">
-            <span class="column-symbol">{{ category.symbol || '*' }}</span>
+            <span class="column-symbol">
+              <component :is="getIconComponent(category.symbol)" v-if="getIconComponent(category.symbol)" :size="16" />
+              <span v-else>{{ category.symbol || '*' }}</span>
+            </span>
             <h3>{{ category.name }}</h3>
             <span class="column-count">{{ getCategoryTodos(category.id).length }}</span>
           </div>
@@ -275,6 +278,19 @@
 <script>
 import draggable from 'vuedraggable'
 import KanbanCard from './KanbanCard.vue'
+import {
+  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
+  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
+  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
+  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
+} from 'lucide-vue-next'
+
+const iconMap = {
+  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
+  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
+  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
+  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
+}
 
 export default {
   name: 'KanbanView',
@@ -362,6 +378,9 @@ export default {
     }
   },
   methods: {
+    getIconComponent(name) {
+      return iconMap[name] || null
+    },
     getProjectTodos(projectId) {
       return this.allTodos.filter(t => t.project_id === projectId && !t.deleted)
     },

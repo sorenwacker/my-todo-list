@@ -195,6 +195,19 @@ export class Database {
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN notes_sensitive INTEGER DEFAULT 0')
     } catch { /* column exists */ }
+
+    // Seed default statuses if none exist
+    const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
+    if (statusCount === 0) {
+      const defaultStatuses = [
+        { name: 'Todo', color: '#d93025', sort_order: 0 },
+        { name: 'In Progress', color: '#ef6c00', sort_order: 1 },
+        { name: 'Done', color: '#0f9d58', sort_order: 2 },
+        { name: 'Backlog', color: '#1a73e8', sort_order: 3 }
+      ]
+      const stmt = this.db.prepare('INSERT INTO statuses (name, color, sort_order) VALUES (?, ?, ?)')
+      defaultStatuses.forEach(s => stmt.run(s.name, s.color, s.sort_order))
+    }
   }
 
   // Project operations

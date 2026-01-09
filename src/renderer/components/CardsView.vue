@@ -27,10 +27,12 @@
                 :card-style="getCardStyle(element.id, element.project_color)"
                 :current-filter="currentFilter"
                 :show-project="false"
+                :grid-lock="gridLock"
                 @click="$emit('card-click', $event, element.id)"
                 @mousedown="$emit('card-mousedown', $event, element.id)"
                 @mouseup="$emit('card-resize', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
+                @toggle-subtask="$emit('toggle-subtask', $event)"
                 @delete="$emit('delete-todo', element.id)"
                 @restore="$emit('restore-todo', element.id)"
                 @permanent-delete="$emit('permanent-delete-todo', element.id)"
@@ -63,10 +65,12 @@
             :card-style="getCardStyle(element.id, element.project_color)"
             :current-filter="currentFilter"
             :show-project="currentFilter === null"
+            :grid-lock="gridLock"
             @click="$emit('card-click', $event, element.id)"
             @mousedown="$emit('card-mousedown', $event, element.id)"
             @mouseup="$emit('card-resize', $event, element.id)"
             @toggle-complete="$emit('toggle-complete', element)"
+            @toggle-subtask="$emit('toggle-subtask', $event)"
             @delete="$emit('delete-todo', element.id)"
             @restore="$emit('restore-todo', element.id)"
             @permanent-delete="$emit('permanent-delete-todo', element.id)"
@@ -137,6 +141,7 @@ export default {
     'card-mousedown',
     'card-resize',
     'toggle-complete',
+    'toggle-subtask',
     'delete-todo',
     'restore-todo',
     'permanent-delete-todo',

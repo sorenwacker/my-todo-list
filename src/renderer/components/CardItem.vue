@@ -1,7 +1,7 @@
 <template>
   <div
     class="todo-card resizable"
-    :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused }"
+    :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused, 'grid-locked': gridLock }"
     :style="cardStyle"
     @click="$emit('click', $event)"
     @mousedown="$emit('mousedown', $event)"
@@ -45,7 +45,7 @@
         <span class="subtask-count">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
       </div>
       <ul v-if="subtasks.length > 0" class="subtask-list">
-        <li v-for="subtask in subtasks" :key="subtask.id" :class="{ completed: subtask.completed }">
+        <li v-for="subtask in subtasks" :key="subtask.id" :class="{ completed: subtask.completed }" @click.stop="$emit('toggle-subtask', subtask)">
           <span class="subtask-check">{{ subtask.completed ? '&#10003;' : '&#9675;' }}</span>
           <span class="subtask-text">{{ subtask.title }}</span>
         </li>
@@ -110,9 +110,13 @@ export default {
     showProject: {
       type: Boolean,
       default: false
+    },
+    gridLock: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'delete', 'restore', 'permanent-delete'],
+  emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'toggle-subtask', 'delete', 'restore', 'permanent-delete'],
   computed: {
     subtaskProgress() {
       if (!this.todo.subtask_count) return 0

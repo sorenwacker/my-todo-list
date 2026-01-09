@@ -379,13 +379,13 @@ app.whenReady().then(() => {
 
     return todo
   }))
-  ipcMain.handle('update-todo', handleWithValidation((_, todo) => {
+  ipcMain.handle('update-todo', handleWithValidation((_, todo, options = {}) => {
     const validTodo = validateTodo(todo)
     const oldTodo = database.getTodo(validTodo.id)
     const result = database.updateTodo(validTodo)
 
-    // Record in history (only if there was an actual change)
-    if (oldTodo && JSON.stringify(oldTodo) !== JSON.stringify(result)) {
+    // Record in history (only if there was an actual change and not skipped)
+    if (!options.skipHistory && oldTodo && JSON.stringify(oldTodo) !== JSON.stringify(result)) {
       history.push({
         type: 'update-todo',
         description: `Update "${result.title}"`,
@@ -401,15 +401,15 @@ app.whenReady().then(() => {
 
     return result
   }))
-  ipcMain.on('update-todo-sync', (event, todo) => {
+  ipcMain.on('update-todo-sync', (event, todo, options = {}) => {
     try {
       const validatedTodo = validateTodo(todo)
       console.log('Sync save requested for todo:', validatedTodo.id, validatedTodo.title)
       const oldTodo = database.getTodo(validatedTodo.id)
       database.updateTodo(validatedTodo)
 
-      // Record in history
-      if (oldTodo && JSON.stringify(oldTodo) !== JSON.stringify(validatedTodo)) {
+      // Record in history (skip if auto-save to avoid undo/redo issues)
+      if (!options.skipHistory && oldTodo && JSON.stringify(oldTodo) !== JSON.stringify(validatedTodo)) {
         history.push({
           type: 'update-todo',
           description: `Update "${validatedTodo.title}"`,

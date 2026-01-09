@@ -245,6 +245,7 @@
         @card-mousedown="onCardMouseDown"
         @card-resize="onCardResize"
         @toggle-complete="toggleComplete"
+        @toggle-subtask="toggleSubtask"
         @delete-todo="deleteTodo"
         @restore-todo="restoreTodo"
         @permanent-delete-todo="permanentlyDeleteTodo"
@@ -523,7 +524,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       </div>
 
       <!-- Bottom Bar with Card Size Slider -->
-      <div v-if="!selectedTodo" class="bottom-bar">
+      <div v-if="!selectedTodo && currentView === 'cards'" class="bottom-bar">
         <div class="card-size-control">
           <label class="card-size-label">
             <span>Card Size</span>
@@ -1974,11 +1975,11 @@ export default {
       }
     },
     async loadSelectedTodo(id) {
-      // Flush any pending saves before loading a new todo
+      // Flush any pending saves before loading a new todo (skip history to avoid undo/redo issues)
       if (this.saveTimeout && this.selectedTodo) {
         clearTimeout(this.saveTimeout)
         const todoData = this.toPlainTodo(this.selectedTodo)
-        await window.api.updateTodo(todoData)
+        await window.api.updateTodo(todoData, { skipHistory: true })
       }
 
       // Close any detached window for this todo
@@ -2001,7 +2002,7 @@ export default {
       if (this.saveTimeout && this.selectedTodo) {
         clearTimeout(this.saveTimeout)
         const todoData = this.toPlainTodo(this.selectedTodo)
-        await window.api.updateTodo(todoData)
+        await window.api.updateTodo(todoData, { skipHistory: true })
       }
 
       this.selectedTodo = null
@@ -2028,7 +2029,7 @@ export default {
 
       this.saveTimeout = setTimeout(async () => {
         const todoData = this.toPlainTodo(this.selectedTodo)
-        await window.api.updateTodo(todoData)
+        await window.api.updateTodo(todoData, { skipHistory: true })
         await this.loadAllTodos()
         await this.loadTodos()
       }, 300)
