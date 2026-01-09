@@ -1,5 +1,5 @@
 import { autoUpdater } from 'electron-updater'
-import { app, dialog, BrowserWindow } from 'electron'
+import { app, dialog } from 'electron'
 import logger from './logger.js'
 
 const log = logger.child({ module: 'updater' })

@@ -625,12 +625,11 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
 </template>
 
 <script>
-import draggable from 'vuedraggable'
 import { renderMarkdown, renderCardMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
 import PersonsView from './PersonsView.vue'
-import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView, TodoCard } from './components/index.js'
+import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView } from './components/index.js'
 import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
@@ -649,7 +648,7 @@ const categoryIcons = {
 const SETTINGS_VERSION = 1
 function validateLocalStorage() {
   try {
-    const storedVersion = parseInt(localStorage.getItem('settings-version') || '0')
+    const _storedVersion = parseInt(localStorage.getItem('settings-version') || '0')
 
     // Define valid values for enum-like settings
     const validViews = ['cards', 'table', 'kanban', 'timeline', 'graph', 'persons']
@@ -778,7 +777,6 @@ marked.use(mermaidExtension)
 export default {
   name: 'App',
   components: {
-    draggable,
     PersonsView,
     AppSidebar,
     CardsView,
@@ -788,7 +786,6 @@ export default {
     StatusModal,
     ProjectModal,
     TableView,
-    TodoCard,
     ...categoryIcons
   },
   data() {
@@ -1488,7 +1485,7 @@ export default {
     })
 
     // Set up ResizeObserver to watch for card size changes
-    this.cardResizeObserver = new ResizeObserver((entries) => {
+    this.cardResizeObserver = new ResizeObserver((_entries) => {
       // Debounce the layout update
       if (this.resizeObserverTimeout) {
         clearTimeout(this.resizeObserverTimeout)
@@ -1670,7 +1667,7 @@ export default {
       }
       this.createTodoFromTimeline(event, null)
     },
-    async createTodoFromTimeline(event, row) {
+    async createTodoFromTimeline(event, _row) {
       // Calculate date from click position
       const chartArea = this.$refs.ganttChartArea
       const rect = chartArea.getBoundingClientRect()

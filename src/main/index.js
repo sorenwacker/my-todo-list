@@ -194,7 +194,6 @@ function createStakeholderWindow(projectId) {
 // Ensure consistent userData path in dev and production
 // In dev, Electron uses 'Electron' as the app name, but we want 'todo'
 if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-  const { join } = require('path')
   const userDataPath = join(app.getPath('appData'), 'todo')
   app.setPath('userData', userDataPath)
 }
