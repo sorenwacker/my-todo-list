@@ -1,6 +1,6 @@
 {
   "name": "todo",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Markdown-based todo list with notes and deadlines",
   "author": {
     "name": "sdrwacker",
@@ -75,8 +75,9 @@
         "zip"
       ],
       "category": "public.app-category.productivity",
-      "identity": "-"
+      "identity": null
     },
+    "afterSign": "scripts/afterSign.cjs",
     "win": {
       "icon": "resources/icon-256.png",
       "target": [
