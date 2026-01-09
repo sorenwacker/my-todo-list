@@ -71,7 +71,7 @@
         "zip"
       ],
       "category": "public.app-category.productivity",
-      "identity": null
+      "identity": "-"
     },
     "win": {
       "icon": "resources/icon-256.png",
