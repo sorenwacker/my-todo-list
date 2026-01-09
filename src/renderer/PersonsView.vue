@@ -413,7 +413,7 @@ export default {
 }
 
 .persons-table tbody tr:hover {
-  background: #252a3d;
+  background: #0d0d0d;
 }
 
 .persons-table td {
@@ -471,7 +471,7 @@ export default {
 }
 
 .pagination button {
-  background: #252a3d;
+  background: #0d0d0d;
   color: #ccc;
   border: 1px solid #333;
   padding: 4px 10px;
@@ -496,7 +496,7 @@ export default {
 }
 
 .page-size {
-  background: #252a3d;
+  background: #0d0d0d;
   color: #ccc;
   border: 1px solid #333;
   padding: 4px 6px;
@@ -582,7 +582,7 @@ export default {
 }
 
 .person-modal .modal-content {
-  background: #252a3d;
+  background: #0d0d0d;
   padding: 24px;
   border-radius: 12px;
   max-width: 600px;
@@ -637,7 +637,7 @@ export default {
 
 .person-modal .form-field input,
 .person-modal .form-field textarea {
-  background: #1a1a2e;
+  background: #000000;
   border: 1px solid #555;
   color: #f0f0f0;
   padding: 6px 8px;
@@ -776,7 +776,7 @@ export default {
 }
 
 .person-modal .notes-tabs button {
-  background: #1a1a2e;
+  background: #000000;
   border: 1px solid #555;
   color: #aaa;
   padding: 4px 10px;
@@ -815,7 +815,7 @@ export default {
 }
 
 .person-modal .notes-preview {
-  background: #1a1a2e;
+  background: #000000;
   border: 1px solid #555;
   border-radius: 4px;
   padding: 10px 12px;

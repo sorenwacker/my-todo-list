@@ -157,7 +157,7 @@ export default {
 
 <style scoped>
 .todo-card {
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-radius: 8px;
   padding: 12px;
   cursor: pointer;

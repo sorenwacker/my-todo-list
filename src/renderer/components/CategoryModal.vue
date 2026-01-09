@@ -90,7 +90,7 @@ export default {
 }
 
 .modal-content {
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   padding: 24px;
   border-radius: 12px;
   min-width: 300px;

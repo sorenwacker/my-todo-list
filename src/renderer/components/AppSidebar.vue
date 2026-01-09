@@ -344,7 +344,7 @@ export default {
 <style scoped>
 .sidebar {
   width: 240px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-right: 1px solid var(--border-color, #3a3f4b);
   display: flex;
   flex-direction: column;

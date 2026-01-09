@@ -396,7 +396,7 @@ export default {
 <style scoped>
 .detail-panel {
   width: var(--detail-width, 600px);
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-left: 3px solid #333;
   display: flex;
   flex-direction: column;
@@ -679,7 +679,7 @@ export default {
   padding: 6px 8px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 4px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-primary, #e0e0e0);
   font-size: 13px;
 }
@@ -728,7 +728,7 @@ export default {
   padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-primary, #e0e0e0);
   font-size: 11px;
 }
@@ -744,7 +744,7 @@ export default {
   padding: 0;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-secondary, #a0a0a0);
   cursor: pointer;
   font-size: 10px;
@@ -795,7 +795,7 @@ export default {
   padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 4px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-primary, #e0e0e0);
   font-size: 12px;
 }
@@ -818,7 +818,7 @@ export default {
   align-items: center;
   gap: 2px;
   padding: 2px 6px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-radius: 10px;
   font-size: 11px;
   cursor: pointer;
@@ -852,7 +852,7 @@ export default {
 .person-picker-popup {
   margin-top: 12px;
   padding: 12px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-radius: 8px;
 }
 

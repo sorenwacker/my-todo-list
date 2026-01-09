@@ -290,10 +290,10 @@ mermaid.initialize({
     primaryTextColor: '#e0e0e0',
     primaryBorderColor: '#4fc3f7',
     lineColor: '#4fc3f7',
-    secondaryColor: '#252a3d',
+    secondaryColor: '#0d0d0d',
     tertiaryColor: '#1a1f2e',
     background: '#1a1a1a',
-    mainBkg: '#252a3d',
+    mainBkg: '#0d0d0d',
     secondBkg: '#1a1f2e',
     mainContrastColor: '#e0e0e0',
     darkMode: true,
@@ -731,7 +731,7 @@ export default {
   justify-content: flex-end;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-color, #3a3f4b);
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
 }
 
 .header-actions {
@@ -804,7 +804,7 @@ export default {
   padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-primary, #e0e0e0);
   font-size: 11px;
 }
@@ -827,7 +827,7 @@ export default {
   font-size: 10px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-secondary, #a0a0a0);
   cursor: pointer;
 }
@@ -877,7 +877,7 @@ export default {
   padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   color: var(--text-primary, #e0e0e0);
   font-size: 11px;
   text-align: center;
@@ -912,7 +912,7 @@ export default {
 .person-picker-popup {
   margin-top: 12px;
   padding: 12px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-radius: 8px;
 }
 
@@ -974,7 +974,7 @@ export default {
   align-items: center;
   gap: 2px;
   padding: 2px 6px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border: 1px solid #555;
   border-radius: 10px;
   font-size: 11px;
@@ -1026,7 +1026,7 @@ export default {
 .link-search-popup {
   margin-top: 12px;
   padding: 12px;
-  background: var(--bg-secondary, #252a3d);
+  background: var(--bg-secondary, #0d0d0d);
   border-radius: 8px;
 }
 
