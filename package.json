@@ -1,7 +1,11 @@
 {
   "name": "todo",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Markdown-based todo list with notes and deadlines",
+  "author": {
+    "name": "sdrwacker",
+    "email": "sdrwacker@users.noreply.github.com"
+  },
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
