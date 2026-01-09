@@ -38,10 +38,18 @@
       </span>
     </div>
     <div v-if="todo.subtask_count > 0" class="card-subtasks">
-      <div class="subtask-progress">
-        <div class="subtask-bar" :style="{ width: subtaskProgress + '%' }"></div>
+      <div class="subtask-header">
+        <div class="subtask-progress">
+          <div class="subtask-bar" :style="{ width: subtaskProgress + '%' }"></div>
+        </div>
+        <span class="subtask-count">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
       </div>
-      <span class="subtask-count">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
+      <ul v-if="subtasks.length > 0" class="subtask-list">
+        <li v-for="subtask in subtasks" :key="subtask.id" :class="{ completed: subtask.completed }">
+          <span class="subtask-check">{{ subtask.completed ? '&#10003;' : '&#9675;' }}</span>
+          <span class="subtask-text">{{ subtask.text }}</span>
+        </li>
+      </ul>
     </div>
     <div v-if="todo.start_date || todo.end_date || todo.importance" class="card-footer">
       <span v-if="todo.start_date" class="card-start">Start: {{ formatDeadline(todo.start_date) }}</span>
@@ -109,6 +117,16 @@ export default {
     subtaskProgress() {
       if (!this.todo.subtask_count) return 0
       return Math.round((this.todo.subtask_completed / this.todo.subtask_count) * 100)
+    },
+    subtasks() {
+      if (!this.todo.subtasks_json) return []
+      try {
+        const parsed = JSON.parse(this.todo.subtasks_json)
+        // Filter out empty items (SQLite returns [null] for empty results)
+        return parsed.filter(s => s && s.id)
+      } catch {
+        return []
+      }
     }
   },
   methods: {

@@ -277,6 +277,8 @@
         :kanban-group-by="kanbanGroupBy"
         :effective-kanban-group-by="effectiveKanbanGroupBy"
         :is-project-selected="isProjectSelected"
+        :group-by-project="groupByProject"
+        :grouped-todos="groupedTodos"
         :projects="projects"
         :categories="categories"
         :statuses="statuses"

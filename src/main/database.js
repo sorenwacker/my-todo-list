@@ -389,7 +389,8 @@ export class Database {
                c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
+               (SELECT json_group_array(json_object('id', id, 'text', text, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
@@ -403,7 +404,8 @@ export class Database {
                c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
+               (SELECT json_group_array(json_object('id', id, 'text', text, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
         FROM todos t
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
@@ -416,7 +418,8 @@ export class Database {
                c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
+               (SELECT json_group_array(json_object('id', id, 'text', text, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
@@ -430,7 +433,8 @@ export class Database {
                c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed
+               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
+               (SELECT json_group_array(json_object('id', id, 'text', text, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
