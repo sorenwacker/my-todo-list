@@ -57,7 +57,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "sdrwacker",
+      "owner": "sorenwacker",
       "repo": "my-todo-list"
     },
     "files": [
