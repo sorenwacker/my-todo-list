@@ -47,7 +47,7 @@
       <ul v-if="subtasks.length > 0" class="subtask-list">
         <li v-for="subtask in subtasks" :key="subtask.id" :class="{ completed: subtask.completed }">
           <span class="subtask-check">{{ subtask.completed ? '&#10003;' : '&#9675;' }}</span>
-          <span class="subtask-text">{{ subtask.text }}</span>
+          <span class="subtask-text">{{ subtask.title }}</span>
         </li>
       </ul>
     </div>
