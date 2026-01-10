@@ -4257,7 +4257,8 @@ body {
 }
 
 .graph-node.completed circle {
-  opacity: 0.5;
+  opacity: 1;
+  filter: brightness(0.7);
 }
 
 .graph-node .node-title {
@@ -4283,8 +4284,9 @@ body {
   padding: 10px 12px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  /* Dark mode: dark background, light text */
-  background-color: #1a1a1a;
+  /* Dark mode: solid dark background, light text */
+  background: #0d0d0d;
+  opacity: 1;
   color: #e0e0e0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   transform: translate(-50%, -50%);
@@ -4347,7 +4349,8 @@ body {
 }
 
 .graph-node.completed .node-content-wrapper {
-  opacity: 0.6;
+  opacity: 1;
+  filter: brightness(0.7);
 }
 
 .graph-node .node-content {
