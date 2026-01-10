@@ -376,6 +376,88 @@ function validateUrl(url) {
   }
 }
 
+/**
+ * Validate todo type
+ */
+function validateTodoType(value) {
+  if (value === null || value === undefined || value === '') {
+    return 'todo'
+  }
+  if (typeof value !== 'string') {
+    throw new ValidationError('type must be a string')
+  }
+  const validTypes = ['todo', 'note']
+  if (!validTypes.includes(value)) {
+    throw new ValidationError(`type must be one of: ${validTypes.join(', ')}`)
+  }
+  return value
+}
+
+/**
+ * Valid setting keys
+ */
+const VALID_SETTING_KEYS = ['markdown_mode', 'theme', 'default_view', 'card_size', 'hide_completed']
+
+/**
+ * Validate setting key
+ */
+function validateSettingKey(key) {
+  if (key === null || key === undefined || key === '') {
+    throw new ValidationError('setting key is required')
+  }
+  if (typeof key !== 'string') {
+    throw new ValidationError('setting key must be a string')
+  }
+  if (!VALID_SETTING_KEYS.includes(key)) {
+    throw new ValidationError(`Invalid setting key: ${key}. Valid keys are: ${VALID_SETTING_KEYS.join(', ')}`)
+  }
+  return key
+}
+
+/**
+ * Validate setting value based on key
+ */
+function validateSettingValue(key, value) {
+  switch (key) {
+    case 'markdown_mode': {
+      const validModes = ['markdown', 'plain']
+      if (!validModes.includes(value)) {
+        throw new ValidationError(`markdown_mode must be one of: ${validModes.join(', ')}`)
+      }
+      return value
+    }
+    case 'theme': {
+      const validThemes = ['dark', 'light']
+      if (!validThemes.includes(value)) {
+        throw new ValidationError(`theme must be one of: ${validThemes.join(', ')}`)
+      }
+      return value
+    }
+    case 'default_view': {
+      const validViews = ['cards', 'table', 'kanban', 'timeline', 'graph']
+      if (!validViews.includes(value)) {
+        throw new ValidationError(`default_view must be one of: ${validViews.join(', ')}`)
+      }
+      return value
+    }
+    case 'card_size': {
+      const num = Number(value)
+      if (!Number.isInteger(num) || num <= 0) {
+        throw new ValidationError('card_size must be a positive integer')
+      }
+      return num
+    }
+    case 'hide_completed': {
+      if (typeof value !== 'boolean') {
+        throw new ValidationError('hide_completed must be a boolean')
+      }
+      return value
+    }
+    default:
+      return value
+  }
+}
+
 export {
   ValidationError,
   validateId,
@@ -397,5 +479,8 @@ export {
   validateStakeholderData,
   validateSearchQuery,
   validateImportMode,
-  validateUrl
+  validateUrl,
+  validateTodoType,
+  validateSettingKey,
+  validateSettingValue
 }

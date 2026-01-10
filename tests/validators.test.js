@@ -17,7 +17,10 @@ import {
   validateSubtask,
   validateSearchQuery,
   validateImportMode,
-  validateUrl
+  validateUrl,
+  validateTodoType,
+  validateSettingKey,
+  validateSettingValue
 } from '../src/main/validators.js'
 
 describe('Validators', () => {
@@ -296,6 +299,77 @@ describe('Validators', () => {
     it('should reject invalid URLs', () => {
       expect(() => validateUrl('not a url')).toThrow(ValidationError)
       expect(() => validateUrl('')).toThrow(ValidationError)
+    })
+  })
+
+  describe('validateTodoType', () => {
+    it('should accept valid types', () => {
+      expect(validateTodoType('todo')).toBe('todo')
+      expect(validateTodoType('note')).toBe('note')
+    })
+
+    it('should default to todo for null/undefined', () => {
+      expect(validateTodoType(null)).toBe('todo')
+      expect(validateTodoType(undefined)).toBe('todo')
+      expect(validateTodoType('')).toBe('todo')
+    })
+
+    it('should reject invalid types', () => {
+      expect(() => validateTodoType('invalid')).toThrow(ValidationError)
+      expect(() => validateTodoType('task')).toThrow(ValidationError)
+      expect(() => validateTodoType(123)).toThrow(ValidationError)
+    })
+  })
+
+  describe('validateSettingKey', () => {
+    it('should accept valid setting keys', () => {
+      expect(validateSettingKey('markdown_mode')).toBe('markdown_mode')
+      expect(validateSettingKey('theme')).toBe('theme')
+      expect(validateSettingKey('default_view')).toBe('default_view')
+      expect(validateSettingKey('card_size')).toBe('card_size')
+      expect(validateSettingKey('hide_completed')).toBe('hide_completed')
+    })
+
+    it('should reject invalid setting keys', () => {
+      expect(() => validateSettingKey('invalid_key')).toThrow(ValidationError)
+      expect(() => validateSettingKey('')).toThrow(ValidationError)
+      expect(() => validateSettingKey(null)).toThrow(ValidationError)
+    })
+  })
+
+  describe('validateSettingValue', () => {
+    it('should validate markdown_mode values', () => {
+      expect(validateSettingValue('markdown_mode', 'markdown')).toBe('markdown')
+      expect(validateSettingValue('markdown_mode', 'plain')).toBe('plain')
+      expect(() => validateSettingValue('markdown_mode', 'invalid')).toThrow(ValidationError)
+    })
+
+    it('should validate theme values', () => {
+      expect(validateSettingValue('theme', 'dark')).toBe('dark')
+      expect(validateSettingValue('theme', 'light')).toBe('light')
+      expect(() => validateSettingValue('theme', 'blue')).toThrow(ValidationError)
+    })
+
+    it('should validate default_view values', () => {
+      expect(validateSettingValue('default_view', 'cards')).toBe('cards')
+      expect(validateSettingValue('default_view', 'table')).toBe('table')
+      expect(validateSettingValue('default_view', 'kanban')).toBe('kanban')
+      expect(validateSettingValue('default_view', 'timeline')).toBe('timeline')
+      expect(validateSettingValue('default_view', 'graph')).toBe('graph')
+      expect(() => validateSettingValue('default_view', 'list')).toThrow(ValidationError)
+    })
+
+    it('should validate card_size as positive integer', () => {
+      expect(validateSettingValue('card_size', 280)).toBe(280)
+      expect(validateSettingValue('card_size', 600)).toBe(600)
+      expect(() => validateSettingValue('card_size', -1)).toThrow(ValidationError)
+      expect(() => validateSettingValue('card_size', 0)).toThrow(ValidationError)
+    })
+
+    it('should validate hide_completed as boolean', () => {
+      expect(validateSettingValue('hide_completed', true)).toBe(true)
+      expect(validateSettingValue('hide_completed', false)).toBe(false)
+      expect(() => validateSettingValue('hide_completed', 'yes')).toThrow(ValidationError)
     })
   })
 })

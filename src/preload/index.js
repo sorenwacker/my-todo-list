@@ -52,7 +52,7 @@ contextBridge.exposeInMainWorld('api', {
   // Todo operations
   getTodos: (projectId) => ipcRenderer.invoke('get-todos', projectId),
   getTodo: (id) => ipcRenderer.invoke('get-todo', id),
-  createTodo: (title, projectId) => ipcRenderer.invoke('create-todo', title, projectId),
+  createTodo: (title, projectId, type = 'todo') => ipcRenderer.invoke('create-todo', title, projectId, type),
   updateTodo: (todo, options) => ipcRenderer.invoke('update-todo', todo, options),
   updateTodoSync: (todo, options) => ipcRenderer.sendSync('update-todo-sync', todo, options),
   deleteTodo: (id) => ipcRenderer.invoke('delete-todo', id),
@@ -70,6 +70,14 @@ contextBridge.exposeInMainWorld('api', {
   linkTodos: (sourceId, targetId) => ipcRenderer.invoke('link-todos', sourceId, targetId),
   unlinkTodos: (sourceId, targetId) => ipcRenderer.invoke('unlink-todos', sourceId, targetId),
   searchTodos: (query, excludeId) => ipcRenderer.invoke('search-todos', query, excludeId),
+
+  // Global search
+  globalSearch: (query) => ipcRenderer.invoke('global-search', query),
+
+  // Settings operations
+  getSetting: (key) => ipcRenderer.invoke('get-setting', key),
+  setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value),
+  getAllSettings: () => ipcRenderer.invoke('get-all-settings'),
 
   // Subtask operations
   getSubtasks: (todoId) => ipcRenderer.invoke('get-subtasks', todoId),

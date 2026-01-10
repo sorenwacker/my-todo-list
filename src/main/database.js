@@ -117,6 +117,12 @@ export class Database {
         FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
         UNIQUE(project_id, person_id)
       );
+
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `)
 
     // Migration: add importance and category_id if missing
@@ -194,6 +200,11 @@ export class Database {
     // Migration: add notes_sensitive flag for todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN notes_sensitive INTEGER DEFAULT 0')
+    } catch { /* column exists */ }
+
+    // Migration: add type column to todos (for todo vs note distinction)
+    try {
+      this.db.exec("ALTER TABLE todos ADD COLUMN type TEXT DEFAULT 'todo'")
     } catch { /* column exists */ }
 
     // Seed default statuses if none exist
@@ -471,13 +482,13 @@ export class Database {
     `).get(id)
   }
 
-  createTodo(title, projectId = null) {
+  createTodo(title, projectId = null, type = 'todo') {
     const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM todos').get()
     const sortOrder = (maxOrder.max || 0) + 1
 
     const result = this.db.prepare(`
-      INSERT INTO todos (title, sort_order, project_id, importance) VALUES (?, ?, ?, NULL)
-    `).run(title, sortOrder, projectId)
+      INSERT INTO todos (title, sort_order, project_id, importance, type) VALUES (?, ?, ?, NULL, ?)
+    `).run(title, sortOrder, projectId, type)
 
     return this.getTodo(result.lastInsertRowid)
   }
@@ -491,12 +502,13 @@ export class Database {
     const recurrenceInterval = todo.recurrence_interval || 1
     const recurrenceEndDate = todo.recurrence_end_date && todo.recurrence_end_date.trim() !== '' ? todo.recurrence_end_date : null
     const notesSensitive = todo.notes_sensitive ? 1 : 0
+    const type = todo.type || 'todo'
 
     this.db.prepare(`
       UPDATE todos
-      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, todo.id)
+    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, todo.id)
 
     return this.getTodo(todo.id)
   }
@@ -694,7 +706,7 @@ export class Database {
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
-        WHERE t.title LIKE ? AND t.id != ?
+        WHERE t.title LIKE ? AND t.id != ? AND t.deleted_at IS NULL
         LIMIT 10
       `).all(`%${query}%`, excludeId)
     }
@@ -706,9 +718,79 @@ export class Database {
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
-      WHERE t.title LIKE ?
+      WHERE t.title LIKE ? AND t.deleted_at IS NULL
       LIMIT 10
     `).all(`%${query}%`)
+  }
+
+  // Global search across todos, persons, and projects
+  globalSearch(query, limit = 20) {
+    const searchTerm = `%${query}%`
+
+    // Search todos (title + notes)
+    const todos = this.db.prepare(`
+      SELECT t.*, p.name as project_name, p.color as project_color,
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
+      FROM todos t
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
+      WHERE (t.title LIKE ? OR t.notes LIKE ?) AND t.deleted_at IS NULL
+      LIMIT ?
+    `).all(searchTerm, searchTerm, limit)
+
+    // Search persons (name + email + company)
+    const persons = this.db.prepare(`
+      SELECT *
+      FROM persons
+      WHERE name LIKE ? OR email LIKE ? OR company LIKE ?
+      LIMIT ?
+    `).all(searchTerm, searchTerm, searchTerm, limit)
+
+    // Search projects
+    const projects = this.db.prepare(`
+      SELECT *
+      FROM projects
+      WHERE name LIKE ? AND deleted_at IS NULL
+      LIMIT ?
+    `).all(searchTerm, limit)
+
+    return { todos, persons, projects }
+  }
+
+  // Settings operations
+  getSetting(key) {
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key)
+    if (!row) return null
+    try {
+      return JSON.parse(row.value)
+    } catch {
+      return row.value
+    }
+  }
+
+  setSetting(key, value) {
+    const stringValue = typeof value === 'string' ? value : JSON.stringify(value)
+    this.db.prepare(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP
+    `).run(key, stringValue, stringValue)
+    return this.getSetting(key)
+  }
+
+  getAllSettings() {
+    const rows = this.db.prepare('SELECT key, value FROM settings').all()
+    const settings = {}
+    for (const row of rows) {
+      try {
+        settings[row.key] = JSON.parse(row.value)
+      } catch {
+        settings[row.key] = row.value
+      }
+    }
+    return settings
   }
 
   // Subtask operations

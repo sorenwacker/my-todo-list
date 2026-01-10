@@ -21,7 +21,10 @@ import {
   validateStakeholderData,
   validateSearchQuery,
   validateImportMode,
-  validateUrl
+  validateUrl,
+  validateTodoType,
+  validateSettingKey,
+  validateSettingValue
 } from './validators.js'
 
 const log = logger.child({ module: 'main' })
@@ -358,10 +361,11 @@ app.whenReady().then(() => {
   ipcMain.handle('get-todo', handleWithValidation((_, id) => {
     return database.getTodo(validateId(id))
   }))
-  ipcMain.handle('create-todo', handleWithValidation((_, title, projectId) => {
+  ipcMain.handle('create-todo', handleWithValidation((_, title, projectId, type = 'todo') => {
     const validTitle = validateString(title, 'title', 500)
     const validProjectId = validateOptionalId(projectId)
-    const todo = database.createTodo(validTitle, validProjectId)
+    const validType = validateTodoType(type)
+    const todo = database.createTodo(validTitle, validProjectId, validType)
     const todoId = todo.id
 
     // Record in history
@@ -521,6 +525,24 @@ app.whenReady().then(() => {
       validateOptionalId(excludeId)
     )
   }))
+
+  // Global search handler
+  ipcMain.handle('global-search', handleWithValidation((_, query) => {
+    return database.globalSearch(validateSearchQuery(query))
+  }))
+
+  // Settings handlers
+  ipcMain.handle('get-setting', handleWithValidation((_, key) => {
+    return database.getSetting(validateSettingKey(key))
+  }))
+  ipcMain.handle('set-setting', handleWithValidation((_, key, value) => {
+    const validKey = validateSettingKey(key)
+    const validValue = validateSettingValue(validKey, value)
+    return database.setSetting(validKey, validValue)
+  }))
+  ipcMain.handle('get-all-settings', () => {
+    return database.getAllSettings()
+  })
 
   // Subtask handlers
   ipcMain.handle('get-subtasks', handleWithValidation((_, todoId) => {
