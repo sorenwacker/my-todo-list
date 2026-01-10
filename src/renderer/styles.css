@@ -690,6 +690,35 @@ body {
   color: #fff;
 }
 
+/* Type Filter */
+.type-filter {
+  display: flex;
+  gap: 4px;
+  background: #1a1a1a;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.type-filter button {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: #bbb;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.type-filter button:hover {
+  color: #fff;
+}
+
+.type-filter button.active {
+  background: #0f4c75;
+  color: #fff;
+}
+
 /* Hide Completed Toggle */
 .hide-completed-toggle {
   display: flex;
@@ -5094,6 +5123,23 @@ body {
 }
 
 .light-theme .view-switcher button.active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.light-theme .type-filter {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .type-filter button {
+  color: var(--text-secondary);
+}
+
+.light-theme .type-filter button:hover {
+  color: var(--text-primary);
+}
+
+.light-theme .type-filter button.active {
   background: var(--accent-color);
   color: #fff;
 }

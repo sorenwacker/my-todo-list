@@ -196,6 +196,11 @@
               <span>Group by Project</span>
             </label>
           </div>
+          <div class="type-filter">
+            <button :class="{ active: typeFilter === 'all' }" @click="setTypeFilter('all')">All</button>
+            <button :class="{ active: typeFilter === 'todo' }" @click="setTypeFilter('todo')">Todos</button>
+            <button :class="{ active: typeFilter === 'note' }" @click="setTypeFilter('note')">Notes</button>
+          </div>
           <div class="view-switcher">
             <button :class="{ active: currentView === 'cards' }" @click="currentView = 'cards'">Cards</button>
             <button :class="{ active: currentView === 'table' }" @click="currentView = 'table'">Table</button>
@@ -607,57 +612,14 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
     />
     </div>
 
-    <!-- Command Palette / Global Search -->
-    <div v-if="showCommandPalette" class="command-palette-overlay" @click.self="closeCommandPalette">
-      <div class="command-palette">
-        <div class="command-palette-header">
-          <input
-            ref="searchInput"
-            v-model="searchQuery"
-            placeholder="Search todos and persons... (Esc to close)"
-            class="command-palette-input"
-            autofocus
-            @input="onSearchInput"
-            @keydown.esc="closeCommandPalette"
-          />
-        </div>
-        <div v-if="searchResults.length > 0" class="command-palette-results">
-          <div
-            v-for="result in searchResults"
-            :key="result.type + '-' + result.id"
-            class="command-palette-result"
-            :class="{ 'is-completed': result.completed, 'is-person': result.type === 'person' }"
-            @click="selectSearchResult(result)"
-          >
-            <template v-if="result.type === 'person'">
-              <span class="person-color-dot" :style="{ background: result.color }">{{ getInitials(result.name) }}</span>
-              <span class="result-title">{{ result.name }}</span>
-              <span v-if="result.email" class="result-project">{{ result.email }}</span>
-              <span v-else-if="result.company" class="result-project">{{ result.company }}</span>
-            </template>
-            <template v-else>
-              <span class="result-title">{{ result.title }}</span>
-              <span v-if="result.project_name" class="result-project" :style="{ color: result.project_color }">
-                {{ result.project_name }}
-              </span>
-              <span v-else class="result-project inbox">Inbox</span>
-            </template>
-          </div>
-        </div>
-        <div v-else-if="searchQuery && searchQuery.length > 0" class="command-palette-empty">
-          <p>No results found</p>
-        </div>
-        <div v-else class="command-palette-hint">
-          <p>Type to search across all todos and persons</p>
-          <div class="keyboard-hints">
-            <span><kbd>j</kbd>/<kbd>k</kbd> Navigate</span>
-            <span><kbd>x</kbd> Toggle complete</span>
-            <span><kbd>n</kbd> New todo</span>
-            <span><kbd>d</kbd> Delete</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Global Search -->
+    <GlobalSearch
+      :visible="showGlobalSearch"
+      @close="showGlobalSearch = false"
+      @select-todo="onGlobalSearchSelectTodo"
+      @select-person="onGlobalSearchSelectPerson"
+      @select-project="onGlobalSearchSelectProject"
+    />
   </div>
 </template>
 
@@ -666,6 +628,7 @@ import { renderMarkdown, renderCardMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
 import PersonsView from './PersonsView.vue'
+import GlobalSearch from './components/GlobalSearch.vue'
 import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView } from './components/index.js'
 import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
@@ -819,6 +782,7 @@ export default {
     CardsView,
     CategoryModal,
     DetailPanel,
+    GlobalSearch,
     KanbanView,
     StatusModal,
     ProjectModal,
@@ -961,10 +925,10 @@ export default {
       trashCount: 0,
       // Keyboard navigation
       focusedTodoIndex: -1,
-      // Command palette / global search
-      showCommandPalette: false,
-      searchQuery: '',
-      searchResults: [],
+      // Global search
+      showGlobalSearch: false,
+      // Type filter
+      typeFilter: localStorage.getItem('type-filter') || 'all',
       // Export/Import
       showImportDialog: false,
       databasePath: '',
@@ -1160,6 +1124,10 @@ export default {
       }
       if (this.filterCategoryId !== null) {
         todos = todos.filter(t => t.category_id === this.filterCategoryId)
+      }
+      // Apply type filter (all, todo, note)
+      if (this.typeFilter !== 'all') {
+        todos = todos.filter(t => t.type === this.typeFilter)
       }
       // Apply importance filter
       if (this.importanceFilterOp !== 'none') {
@@ -3555,17 +3523,17 @@ export default {
       const target = e.target
       const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 
-      // Command palette: Cmd/Ctrl + K
+      // Global Search: Cmd/Ctrl + K
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        this.openCommandPalette()
+        this.showGlobalSearch = true
         return
       }
 
-      // Escape closes command palette or clears selection
+      // Escape closes global search or clears selection
       if (e.key === 'Escape') {
-        if (this.showCommandPalette) {
-          this.closeCommandPalette()
+        if (this.showGlobalSearch) {
+          this.showGlobalSearch = false
         } else if (this.selectedTodo) {
           this.selectedTodo = null
           this.focusedTodoIndex = -1
@@ -3573,9 +3541,8 @@ export default {
         return
       }
 
-      // If command palette is open, handle its navigation
-      if (this.showCommandPalette) {
-        this.handleCommandPaletteKey(e)
+      // If global search is open, let it handle its own navigation
+      if (this.showGlobalSearch) {
         return
       }
 
@@ -3590,7 +3557,7 @@ export default {
           return
         case '/': // Open search
           e.preventDefault()
-          this.openCommandPalette()
+          this.showGlobalSearch = true
           return
         case '?': // Show help
           e.preventDefault()
@@ -3646,87 +3613,38 @@ export default {
           break
       }
     },
-    openCommandPalette() {
-      this.showCommandPalette = true
-      this.searchQuery = ''
-      this.searchResults = []
-      this.$nextTick(() => {
-        this.$refs.searchInput?.focus()
-      })
+    setTypeFilter(type) {
+      this.typeFilter = type
+      localStorage.setItem('type-filter', type)
     },
-    closeCommandPalette() {
-      this.showCommandPalette = false
-      this.searchQuery = ''
-      this.searchResults = []
-    },
-    handleCommandPaletteKey(e) {
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault()
-          // Move selection down in results
-          break
-        case 'ArrowUp':
-          e.preventDefault()
-          // Move selection up in results
-          break
-        case 'Enter':
-          e.preventDefault()
-          if (this.searchResults.length > 0) {
-            this.selectSearchResult(this.searchResults[0])
-          }
-          break
-      }
-    },
-    onSearchInput() {
-      const query = this.searchQuery.toLowerCase().trim()
-      if (!query) {
-        this.searchResults = []
-        return
-      }
-
-      // Search across all todos
-      const todoResults = this.allTodos.filter(todo => {
-        const titleMatch = todo.title.toLowerCase().includes(query)
-        const notesMatch = todo.notes?.toLowerCase().includes(query)
-        const projectMatch = todo.project_name?.toLowerCase().includes(query)
-        return titleMatch || notesMatch || projectMatch
-      }).slice(0, 8).map(t => ({ ...t, type: 'todo' }))
-
-      // Search across all persons
-      const personResults = this.persons.filter(person => {
-        const nameMatch = person.name.toLowerCase().includes(query)
-        const emailMatch = person.email?.toLowerCase().includes(query)
-        const companyMatch = person.company?.toLowerCase().includes(query)
-        return nameMatch || emailMatch || companyMatch
-      }).slice(0, 5).map(p => ({ ...p, type: 'person' }))
-
-      this.searchResults = [...todoResults, ...personResults]
-    },
-    async selectSearchResult(result) {
-      if (result.type === 'person') {
-        // Navigate to persons view
-        await this.setFilter('persons')
-        this.closeCommandPalette()
-      } else {
-        // Navigate to the todo's project and select it
-        if (result.project_id) {
-          this.setFilter(result.project_id)
+    async onGlobalSearchSelectTodo(todoId) {
+      // Find the todo to get its project
+      const todo = this.allTodos.find(t => t.id === todoId)
+      if (todo) {
+        if (todo.project_id) {
+          await this.setFilter(todo.project_id)
         } else {
-          this.setFilter('inbox')
+          await this.setFilter('inbox')
         }
-        this.closeCommandPalette()
-        // Wait for todos to load then select
         this.$nextTick(() => {
-          const index = this.todos.findIndex(t => t.id === result.id)
+          const index = this.todos.findIndex(t => t.id === todoId)
           if (index >= 0) {
             this.focusedTodoIndex = index
-            this.selectTodo(result.id)
-          } else {
-            // Todo might not be in filtered view, select it anyway
-            this.selectTodo(result.id)
           }
+          this.selectTodo(todoId)
         })
+      } else {
+        // Fallback: just try to select the todo
+        this.selectTodo(todoId)
       }
+    },
+    async onGlobalSearchSelectPerson(person) {
+      await this.setFilter('persons')
+      // Trigger edit of the person
+      this.pendingPersonEdit = person
+    },
+    async onGlobalSearchSelectProject(project) {
+      await this.setFilter(project.id)
     },
     // Resize methods
     checkLayout() {
