@@ -41,7 +41,6 @@
       @update:grid-lock="onGridLockChange"
       @export="handleExport"
       @show-import="showImportDialog = true"
-      @manage-persons="openSettings"
     />
 
     <!-- Import Dialog -->
@@ -124,6 +123,17 @@
       <header class="main-header">
         <div class="header-title-row">
           <h1 class="header-title">{{ currentTitle }}</h1>
+          <MainTabs
+            v-if="currentFilter !== 'trash'"
+            :active-tab="activeTab"
+            :notes-count="notesCount"
+            :todos-count="todosCount"
+            :milestones-count="milestonesCount"
+            :stakeholders-count="stakeholdersCount"
+            :theme="theme"
+            :is-project-selected="isProjectSelected"
+            @change="setTab"
+          />
           <div class="header-actions">
             <button
               class="header-btn"
@@ -196,45 +206,56 @@
               <span>Group by Project</span>
             </label>
           </div>
-          <div class="type-filter">
-            <button :class="{ active: typeFilter === 'all' }" @click="setTypeFilter('all')">All</button>
-            <button :class="{ active: typeFilter === 'todo' }" @click="setTypeFilter('todo')">Todos</button>
-            <button :class="{ active: typeFilter === 'note' }" @click="setTypeFilter('note')">Notes</button>
-          </div>
           <div class="view-switcher">
-            <button :class="{ active: currentView === 'cards' }" @click="currentView = 'cards'">Cards</button>
-            <button :class="{ active: currentView === 'table' }" @click="currentView = 'table'">Table</button>
-            <button :class="{ active: currentView === 'kanban' }" :disabled="isTrashView" @click="currentView = 'kanban'">Kanban</button>
-            <button :class="{ active: currentView === 'timeline' }" :disabled="isTrashView" @click="currentView = 'timeline'">Timeline</button>
-            <button :class="{ active: currentView === 'graph' }" :disabled="isTrashView" @click="currentView = 'graph'">Graph</button>
+            <button
+              v-for="view in availableViews"
+              :key="view"
+              :class="{ active: currentView === view }"
+              :disabled="isTrashView && (view === 'kanban' || view === 'graph' || view === 'timeline')"
+              @click="setView(view)"
+            >{{ view.charAt(0).toUpperCase() + view.slice(1) }}</button>
           </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
-        <div v-if="!isTrashView && currentFilter !== 'persons'" class="add-todo">
+        <div v-if="!isTrashView && activeTab !== 'stakeholders'" class="add-todo">
           <input
             ref="newTodoInput"
             v-model="newTodoTitle"
-            placeholder="Add a new todo... (press 'n')"
+            :placeholder="activeTab === 'notes' ? 'Add a new note... (press n)' : 'Add a new todo... (press n)'"
             type="text"
             @keyup.enter="addTodo"
           />
           <button @click="addTodo">Add</button>
         </div>
+        <div v-if="activeTab === 'stakeholders'" class="add-todo">
+          <input
+            v-model="newPersonName"
+            placeholder="Add a new person..."
+            type="text"
+            @keyup.enter="addPersonFromHeader"
+          />
+          <button @click="addPersonFromHeader">Add</button>
+        </div>
       </header>
 
-      <!-- Persons View -->
+      <!-- Stakeholders View (tab-based) -->
       <PersonsView
-        v-if="currentFilter === 'persons'"
-        :persons="persons"
+        v-if="activeTab === 'stakeholders'"
+        :persons="isProjectSelected ? selectedProjectStakeholders : persons"
+        :all-persons="persons"
         :theme="theme"
+        :project-id="isProjectSelected ? currentFilter : null"
         :pending-edit="pendingPersonEdit"
-        @refresh="loadPersons"
+        :current-view="currentView"
+        @refresh="loadProjectStakeholders"
         @edit-opened="pendingPersonEdit = null"
+        @assign-person="assignStakeholder"
+        @unassign-person="unassignStakeholder"
       />
 
       <!-- Cards View -->
       <CardsView
-        v-if="currentFilter !== 'persons' && currentView === 'cards'"
+        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'cards'"
         :sorted-todos="sortedTodos"
         :grouped-todos="groupedTodos"
         :group-by-project="groupByProject"
@@ -263,23 +284,26 @@
 
       <!-- Table View -->
       <TableView
-        v-if="currentFilter !== 'persons' && currentView === 'table'"
+        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'table'"
         :sorted-todos="sortedTodos"
         :grouped-todos="groupedTodos"
         :group-by-project="groupByProject"
         :selected-todo-id="selectedTodo?.id"
         :focused-todo-id="focusedTodo?.id"
         :is-trash-view="isTrashView"
+        :subtasks-map="allSubtasksMap"
         @select-todo="selectTodo"
         @toggle-complete="toggleComplete"
+        @toggle-subtask="toggleSubtask"
         @delete-todo="deleteTodo"
         @restore-todo="restoreTodo"
         @permanent-delete-todo="permanentlyDeleteTodo"
+        @add-todo-to-project="addTodoToProject"
       />
 
       <!-- Kanban View -->
       <KanbanView
-        v-if="currentFilter !== 'persons' && currentView === 'kanban'"
+        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'kanban'"
         :kanban-group-by="kanbanGroupBy"
         :effective-kanban-group-by="effectiveKanbanGroupBy"
         :is-project-selected="isProjectSelected"
@@ -306,15 +330,17 @@
         @kanban-drop="onKanbanDrop"
         @kanban-drop-category="onKanbanDropCategory"
         @kanban-drop-status="onKanbanDropStatus"
+        @stacked-kanban-drop="onStackedKanbanDrop"
       />
 
       <!-- Gantt/Timeline View -->
-      <div v-if="currentFilter !== 'persons' && currentView === 'timeline'" class="gantt-view">
+      <div v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'timeline'" class="gantt-view">
         <div class="gantt-controls">
           <select v-model="ganttGroupBy" class="gantt-groupby">
             <option value="project">By Project</option>
             <option value="category">By Category</option>
             <option value="importance">By Importance</option>
+            <option value="milestone">By Milestone</option>
           </select>
           <button @click="timelineOffset -= 200">&#8592;</button>
           <button @click="timelineScale = Math.max(20, timelineScale - 20)">-</button>
@@ -377,7 +403,7 @@
                     v-for="todo in row.todos"
                     :key="todo.id"
                     class="gantt-bar"
-                    :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, dragging: draggingBarId === todo.id, resizing: draggingBarId === todo.id && barDragMode !== 'move' }"
+                    :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, dragging: draggingBarId === todo.id, resizing: draggingBarId === todo.id && barDragMode !== 'move', milestone: todo.type === 'milestone' }"
                     :style="getGanttBarStyle(todo, row)"
                     :title="todo.title"
                     @click="selectTodo(todo.id)"
@@ -396,7 +422,7 @@
 
       <!-- Graph View -->
       <div
-v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContainer" class="graph-view" :class="{ dragging: draggingNode, panning: isPanning }"
+        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'graph'" ref="graphContainer" class="graph-view" :class="{ dragging: draggingNode, panning: isPanning }"
         @wheel.prevent="onGraphWheel"
         @mousedown="onGraphMouseDown"
         @mousemove="onGraphMouseMove"
@@ -483,7 +509,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
           <button @click="graphZoom = Math.max(0.3, graphZoom - 0.1)">-</button>
           <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
           <button @click="graphZoom = Math.min(3, graphZoom + 0.1)">+</button>
-          <button @click="resetGraphView">Reset</button>
+          <button @click="resetGraphView">Center</button>
           <div class="control-divider"></div>
           <select v-model="graphLayoutType" class="layout-select" @change="onLayoutTypeChange">
             <option value="force">Force</option>
@@ -555,8 +581,9 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       :persons="persons"
       :subtasks="subtasks"
       :linked-todos="linkedTodos"
+      :child-todos="childTodos"
       :assigned-persons="assignedPersons"
-      :active-tab="activeTab"
+      :active-tab="detailTab"
       :new-subtask-title="newSubtaskTitle"
       :link-query="linkQuery"
       :link-results="linkResults"
@@ -579,7 +606,7 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       @update:title="selectedTodo.title = $event; saveSelectedTodo()"
       @update:notes="selectedTodo.notes = $event; saveSelectedTodo()"
       @update:notes-sensitive="selectedTodo.notes_sensitive = $event; saveSelectedTodo()"
-      @update:active-tab="activeTab = $event"
+      @update:active-tab="detailTab = $event"
       @project-change="handleProjectChange"
       @category-change="handleCategoryChange"
       @status-change="handleStatusChange"
@@ -609,6 +636,9 @@ v-if="currentFilter !== 'persons' && currentView === 'graph'" ref="graphContaine
       @open-person="openPersonDetails"
       @reveal-notes="revealNotes"
       @markdown-click="handleMarkdownClick"
+      @update-milestone-date="updateMilestoneDate"
+      @clear-milestone-date="clearMilestoneDate"
+      @select-child="selectTodo"
     />
     </div>
 
@@ -629,6 +659,7 @@ import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
 import PersonsView from './PersonsView.vue'
 import GlobalSearch from './components/GlobalSearch.vue'
+import MainTabs from './components/MainTabs.vue'
 import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView } from './components/index.js'
 import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
@@ -778,6 +809,7 @@ export default {
   name: 'App',
   components: {
     PersonsView,
+    MainTabs,
     AppSidebar,
     CardsView,
     CategoryModal,
@@ -797,10 +829,12 @@ export default {
       statuses: [],
       allTodos: [],
       currentFilter: null,
-      currentView: localStorage.getItem('current-view') || 'cards',
+      tabViews: JSON.parse(localStorage.getItem('tab-views') || '{}'),
+      activeTab: localStorage.getItem('active-tab') || 'todos',
       hideCompleted: localStorage.getItem('hide-completed') === 'true',
       kanbanGroupBy: 'status',
       newTodoTitle: '',
+      newPersonName: '',
       newProjectName: '',
       newCategoryName: '',
       newStatusName: '',
@@ -813,9 +847,11 @@ export default {
       selectedTodo: null,
       detailFullscreen: localStorage.getItem('detail-fullscreen') === 'true',
       linkedTodos: [],
+      childTodos: [],
       subtasks: [],
+      allSubtasksMap: {},
       newSubtaskTitle: '',
-      activeTab: 'edit',
+      detailTab: 'edit',
       showLinkSearch: false,
       linkQuery: '',
       linkResults: [],
@@ -952,6 +988,19 @@ export default {
     }
   },
   computed: {
+    currentView: {
+      get() {
+        const view = this.tabViews[this.activeTab]
+        if (view && this.availableViews.includes(view)) {
+          return view
+        }
+        return this.availableViews[0] || 'cards'
+      },
+      set(val) {
+        this.tabViews[this.activeTab] = val
+        localStorage.setItem('tab-views', JSON.stringify(this.tabViews))
+      }
+    },
     currentProjectColor() {
       if (this.currentFilter && this.currentFilter !== 'inbox' && this.currentFilter !== 'trash') {
         const project = this.projects.find(p => p.id === this.currentFilter)
@@ -960,7 +1009,7 @@ export default {
       return '#333'
     },
     isProjectSelected() {
-      return this.currentFilter !== null && this.currentFilter !== 'inbox'
+      return typeof this.currentFilter === 'number'
     },
     effectiveKanbanGroupBy() {
       // When project is selected, allow category or status (not project)
@@ -999,6 +1048,10 @@ export default {
       if (!this.editingProject || !this.editingProject.id) return []
       return this.projectPersons[this.editingProject.id] || []
     },
+    selectedProjectStakeholders() {
+      if (!this.isProjectSelected) return []
+      return this.projectPersons[this.currentFilter] || []
+    },
     allCount() {
       return this.allTodos.length
     },
@@ -1025,6 +1078,39 @@ export default {
         counts[category.id] = this.allTodos.filter(t => t.category_id === category.id).length
       }
       return counts
+    },
+    // Tab-related computed properties
+    notesCount() {
+      const todos = this.isProjectSelected
+        ? this.allTodos.filter(t => t.project_id === this.currentFilter)
+        : this.allTodos
+      return todos.filter(t => t.type === 'note' && !t.deleted_at).length
+    },
+    todosCount() {
+      const todos = this.isProjectSelected
+        ? this.allTodos.filter(t => t.project_id === this.currentFilter)
+        : this.allTodos
+      return todos.filter(t => (t.type === 'todo' || t.type === 'milestone') && !t.deleted_at).length
+    },
+    milestonesCount() {
+      const todos = this.isProjectSelected
+        ? this.allTodos.filter(t => t.project_id === this.currentFilter)
+        : this.allTodos
+      return todos.filter(t => t.type === 'milestone' && !t.deleted_at).length
+    },
+    stakeholdersCount() {
+      if (this.isProjectSelected) {
+        return this.selectedProjectStakeholders.length
+      }
+      return this.persons.length
+    },
+    availableViews() {
+      const views = {
+        notes: ['cards', 'graph'],
+        todos: ['cards', 'table', 'kanban', 'timeline'],
+        stakeholders: ['cards', 'table']
+      }
+      return views[this.activeTab] || ['cards']
     },
     inboxTodos() {
       return this.filteredTodos.filter(t => !t.project_id)
@@ -1125,9 +1211,11 @@ export default {
       if (this.filterCategoryId !== null) {
         todos = todos.filter(t => t.category_id === this.filterCategoryId)
       }
-      // Apply type filter (all, todo, note)
-      if (this.typeFilter !== 'all') {
-        todos = todos.filter(t => t.type === this.typeFilter)
+      // Filter by active tab
+      if (this.activeTab === 'notes') {
+        todos = todos.filter(t => t.type === 'note')
+      } else if (this.activeTab === 'todos') {
+        todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
       }
       // Apply importance filter
       if (this.importanceFilterOp !== 'none') {
@@ -1369,6 +1457,35 @@ export default {
             rows.push({ id: `imp-${i}`, name: `Importance ${i}`, color: this.getImportanceColor(i), todos: impTodos, todoLanes, laneCount })
           }
         }
+      } else if (this.ganttGroupBy === 'milestone') {
+        // Milestones are todos with type='milestone'
+        const milestones = todos.filter(t => t.type === 'milestone')
+        const unassignedTodos = todos.filter(t => t.type !== 'milestone' && !t.parent_id)
+
+        // Unassigned todos row
+        if (unassignedTodos.length > 0) {
+          const { todoLanes, laneCount } = assignLanes(unassignedTodos)
+          rows.push({ id: 'unassigned', name: 'Unassigned', color: '#666', todos: unassignedTodos, todoLanes, laneCount })
+        }
+
+        // Milestone rows with their child todos
+        for (const milestone of milestones) {
+          const childTodos = todos.filter(t => t.parent_id === milestone.id)
+          const milestoneTodos = [milestone, ...childTodos]
+          if (milestoneTodos.length > 0) {
+            const { todoLanes, laneCount } = assignLanes(milestoneTodos)
+            rows.push({
+              id: `milestone-${milestone.id}`,
+              name: milestone.title,
+              color: milestone.project_color || '#ffc107',
+              todos: milestoneTodos,
+              todoLanes,
+              laneCount,
+              isMilestone: true,
+              milestone: milestone
+            })
+          }
+        }
       }
 
       return rows
@@ -1394,8 +1511,12 @@ export default {
         this.$nextTick(() => {
           this.applyMasonryLayout()
         })
+      } else if (val === 'stakeholders') {
+        // Load project stakeholders when switching to stakeholders view
+        if (this.isProjectSelected) {
+          this.loadProjectPersons(this.currentFilter)
+        }
       }
-      localStorage.setItem('current-view', val)
     },
     sortedTodos() {
       if (this.currentView === 'cards') {
@@ -1431,13 +1552,13 @@ export default {
         })
       }
     },
-    activeTab(val) {
+    detailTab(val) {
       if (val === 'preview' || val === 'split') {
         this.renderMermaid()
       }
     },
     renderedNotes() {
-      if (this.activeTab === 'preview' || this.activeTab === 'split') {
+      if (this.detailTab === 'preview' || this.detailTab === 'split') {
         this.renderMermaid()
       }
     }
@@ -1601,6 +1722,18 @@ export default {
         console.log('Found', sensitiveTodos.length, 'sensitive todos:', sensitiveTodos.map(t => ({ id: t.id, title: t.title, notes_sensitive: t.notes_sensitive })))
       }
       this.trashCount = await window.api.getTrashCount()
+      await this.loadAllSubtasks()
+    },
+    async loadAllSubtasks() {
+      const subtasks = await window.api.getAllSubtasks()
+      const map = {}
+      for (const subtask of subtasks) {
+        if (!map[subtask.todo_id]) {
+          map[subtask.todo_id] = []
+        }
+        map[subtask.todo_id].push(subtask)
+      }
+      this.allSubtasksMap = map
     },
     async loadTodos() {
       this.todos = await window.api.getTodos(this.currentFilter)
@@ -1677,6 +1810,20 @@ export default {
         await this.loadTodos()
       }
     },
+    async onStackedKanbanDrop(event, projectId, statusId) {
+      const todoId = event.item?.__draggable_context?.element?.id
+      if (!todoId) return
+
+      const todo = this.allTodos.find(t => t.id === todoId)
+      if (todo) {
+        const todoData = this.toPlainTodo(todo)
+        // Update status based on where it was dropped
+        todoData.status_id = statusId
+        await window.api.updateTodo(todoData)
+        await this.loadAllTodos()
+        await this.loadTodos()
+      }
+    },
     async setFilter(filter) {
       this.currentFilter = filter
       await this.loadTodos()
@@ -1684,20 +1831,27 @@ export default {
       if (this.showPersonsInGraph) {
         await this.updateGraphData()
       }
+      // Load stakeholders if in stakeholders view and a project is selected
+      if (this.currentView === 'stakeholders' && typeof filter === 'number') {
+        await this.loadProjectPersons(filter)
+      }
     },
     async addTodo() {
       if (!this.newTodoTitle.trim()) return
       const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
         ? this.currentFilter
         : null
-      await window.api.createTodo(this.newTodoTitle.trim(), projectId)
+      // Type is determined by the active tab: notes = note, todos = todo
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      await window.api.createTodo(this.newTodoTitle.trim(), projectId, type)
       this.newTodoTitle = ''
       await this.loadAllTodos()
       await this.loadTodos()
     },
     async addTodoToProject(projectId) {
       try {
-        const todo = await window.api.createTodo('Untitled', projectId)
+        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const todo = await window.api.createTodo('Untitled', projectId, type)
         await this.loadAllTodos()
         await this.loadTodos()
         if (todo) this.selectTodo(todo)
@@ -1728,7 +1882,8 @@ export default {
         : null
 
       // Create todo and update with start date
-      const todo = await window.api.createTodo('New Todo', projectId)
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const todo = await window.api.createTodo('New Todo', projectId, type)
       todo.start_date = dateStr
       const todoData = this.toPlainTodo(todo)
       await window.api.updateTodo(todoData)
@@ -1739,7 +1894,8 @@ export default {
     async addTodoToCategory(categoryId) {
       try {
         const projectId = this.isProjectSelected ? this.currentFilter : null
-        const todo = await window.api.createTodo('Untitled', projectId)
+        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const todo = await window.api.createTodo('Untitled', projectId, type)
         if (categoryId !== null) {
           const todoData = this.toPlainTodo(todo)
           todoData.category_id = categoryId
@@ -1755,7 +1911,8 @@ export default {
     async addTodoToStatus(statusId) {
       try {
         const projectId = this.isProjectSelected ? this.currentFilter : null
-        const todo = await window.api.createTodo('Untitled', projectId)
+        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const todo = await window.api.createTodo('Untitled', projectId, type)
         if (statusId !== null) {
           const todoData = this.toPlainTodo(todo)
           todoData.status_id = statusId
@@ -1957,13 +2114,19 @@ export default {
       this.linkedTodos = await window.api.getLinkedTodos(id)
       this.subtasks = await window.api.getSubtasks(id)
       this.assignedPersons = await window.api.getTodoPersons(id)
+      // Load child todos if this is a milestone
+      if (this.selectedTodo.type === 'milestone') {
+        this.childTodos = await window.api.getChildTodos(id)
+      } else {
+        this.childTodos = []
+      }
       this.newSubtaskTitle = ''
       this.showLinkSearch = false
       this.showPersonPicker = false
       this.linkQuery = ''
       this.linkResults = []
       // Show preview if todo has notes, otherwise edit
-      this.activeTab = this.selectedTodo.notes && this.selectedTodo.notes.trim() ? 'preview' : 'edit'
+      this.detailTab = this.selectedTodo.notes && this.selectedTodo.notes.trim() ? 'preview' : 'edit'
     },
     async closeDetail() {
       // Flush any pending saves before closing
@@ -1975,6 +2138,7 @@ export default {
 
       this.selectedTodo = null
       this.linkedTodos = []
+      this.childTodos = []
       this.subtasks = []
       this.assignedPersons = []
       this.newSubtaskTitle = ''
@@ -2015,7 +2179,10 @@ export default {
         project_id: todo.project_id,
         category_id: todo.category_id,
         status_id: todo.status_id,
-        sort_order: todo.sort_order
+        sort_order: todo.sort_order,
+        type: todo.type,
+        parent_id: todo.parent_id,
+        milestone_date: todo.milestone_date
       }
     },
     async saveProjectChange() {
@@ -2409,6 +2576,22 @@ export default {
     },
     async updateEndDateFromPanel(value) {
       this.selectedTodo.end_date = value || null
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async updateMilestoneDate(value) {
+      this.selectedTodo.milestone_date = value || null
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async clearMilestoneDate() {
+      this.selectedTodo.milestone_date = null
       const todoData = this.toPlainTodo(this.selectedTodo)
       const updated = await window.api.updateTodo(todoData)
       this.selectedTodo = updated
@@ -2921,9 +3104,10 @@ export default {
 
       // Use the same project as the parent todo
       const projectId = parentTodo.project_id
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
 
       try {
-        const todo = await window.api.createTodo('Untitled', projectId)
+        const todo = await window.api.createTodo('Untitled', projectId, type)
         await this.loadAllTodos()
         await this.loadTodos()
 
@@ -3025,12 +3209,13 @@ export default {
 
       // Determine project ID - use current filter if it's a project
       const projectId = this.isProjectSelected ? this.currentFilter : null
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
 
       // Remember selected node to link to
       const linkToNodeId = this.selectedTodo?.id
 
       try {
-        const todo = await window.api.createTodo('Untitled', projectId)
+        const todo = await window.api.createTodo('Untitled', projectId, type)
         await this.loadAllTodos()
         await this.loadTodos()
 
@@ -3085,10 +3270,28 @@ export default {
       }
     },
     resetGraphView() {
-      this.graphZoom = 1
-      this.graphPan = { x: 0, y: 0 }
-      this.nodePositions = {}
-      localStorage.removeItem('graph-node-positions')
+      // Center the view on all nodes
+      const positions = Object.values(this.nodePositions)
+      if (positions.length === 0) {
+        this.graphZoom = 1
+        this.graphPan = { x: 0, y: 0 }
+        return
+      }
+      // Calculate bounding box of all nodes
+      const xs = positions.map(p => p.x)
+      const ys = positions.map(p => p.y)
+      const centerX = (Math.min(...xs) + Math.max(...xs)) / 2
+      const centerY = (Math.min(...ys) + Math.max(...ys)) / 2
+      // Get SVG container size
+      const svg = this.$refs.graphSvg
+      if (svg) {
+        const rect = svg.getBoundingClientRect()
+        this.graphZoom = 1
+        this.graphPan = {
+          x: rect.width / 2 - centerX,
+          y: rect.height / 2 - centerY
+        }
+      }
     },
     onLinkRightClick(event, link) {
       // Show context menu at mouse position
@@ -3120,10 +3323,11 @@ export default {
 
       // Use project from source node
       const projectId = sourceNode?.project_id || null
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
 
       try {
         // Create new node
-        const todo = await window.api.createTodo('New Node', projectId)
+        const todo = await window.api.createTodo('New Node', projectId, type)
 
         // Position at midpoint
         this.nodePositions[todo.id] = { x: midX, y: midY }
@@ -3613,9 +3817,14 @@ export default {
           break
       }
     },
-    setTypeFilter(type) {
-      this.typeFilter = type
-      localStorage.setItem('type-filter', type)
+    setTab(tab) {
+      this.activeTab = tab
+      localStorage.setItem('active-tab', tab)
+      // currentView computed property will automatically get the saved view for this tab
+    },
+    setView(view) {
+      this.currentView = view
+      // Saved automatically by the computed setter
     },
     async onGlobalSearchSelectTodo(todoId) {
       // Find the todo to get its project
@@ -3639,8 +3848,8 @@ export default {
       }
     },
     async onGlobalSearchSelectPerson(person) {
-      await this.setFilter('persons')
-      // Trigger edit of the person
+      // Switch to stakeholders tab and trigger edit of the person
+      this.setTab('stakeholders')
       this.pendingPersonEdit = person
     },
     async onGlobalSearchSelectProject(project) {
@@ -3813,6 +4022,41 @@ export default {
       if (this.editingProject && this.editingProject.id) {
         window.api.openStakeholderRegister(this.editingProject.id)
       }
+    },
+    async addPersonFromHeader() {
+      if (!this.newPersonName.trim()) return
+      try {
+        const person = await window.api.createPerson({
+          name: this.newPersonName.trim(),
+          color: '#1a73e8'
+        })
+        this.newPersonName = ''
+        await this.loadPersons()
+        // If in stakeholders view with a project selected, also link the person
+        if (this.isProjectSelected) {
+          await window.api.linkProjectPerson(this.currentFilter, person.id)
+          await this.loadProjectPersons(this.currentFilter)
+        }
+      } catch (error) {
+        console.error('Failed to create person:', error)
+      }
+    },
+    async loadProjectStakeholders() {
+      if (!this.isProjectSelected) return
+      await this.loadProjectPersons(this.currentFilter)
+      await this.loadPersons()
+    },
+    async assignStakeholder(person) {
+      if (!this.isProjectSelected) return
+      const stakeholders = this.projectPersons[this.currentFilter] || []
+      if (stakeholders.some(p => p.id === person.id)) return
+      await window.api.linkProjectPerson(this.currentFilter, person.id)
+      await this.loadProjectPersons(this.currentFilter)
+    },
+    async unassignStakeholder(person) {
+      if (!this.isProjectSelected) return
+      await window.api.unlinkProjectPerson(this.currentFilter, person.id)
+      await this.loadProjectPersons(this.currentFilter)
     },
     async handleExport() {
       try {

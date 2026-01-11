@@ -4,6 +4,11 @@
     @click="$emit('select')"
   >
     <td class="col-check">
+      <button
+        v-if="hasSubtasks"
+        class="expand-btn"
+        @click.stop="$emit('toggle-expand')"
+      >{{ isExpanded ? '▼' : '▶' }}</button>
       <input
         v-if="!isTrashView"
         type="checkbox"
@@ -11,12 +16,18 @@
         @click.stop="$emit('toggle-complete')"
       />
     </td>
-    <td class="col-title">{{ todo.title }}</td>
+    <td class="col-title" :class="{ 'has-subtasks': hasSubtasks }">{{ todo.title }}</td>
     <td class="col-project">
-      <span v-if="todo.project_name" class="project-badge" :style="{ background: todo.project_color }">
+      <span
+        v-if="todo.project_name"
+        class="project-badge clickable"
+        :style="{ background: todo.project_color }"
+        @click.stop="$emit('add-to-project', todo.project_id)"
+        title="Click to add new item to this project"
+      >
         {{ todo.project_name }}
       </span>
-      <span v-else class="inbox-badge">-</span>
+      <span v-else class="inbox-badge clickable" @click.stop="$emit('add-to-project', null)" title="Click to add new item to inbox">-</span>
     </td>
     <td class="col-category">
       <span v-if="todo.category_name" class="category-badge">
@@ -95,9 +106,17 @@ export default {
     isTrashView: {
       type: Boolean,
       default: false
+    },
+    hasSubtasks: {
+      type: Boolean,
+      default: false
+    },
+    isExpanded: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['select', 'toggle-complete', 'delete', 'restore', 'permanent-delete'],
+  emits: ['select', 'toggle-complete', 'toggle-expand', 'delete', 'restore', 'permanent-delete', 'add-to-project'],
   methods: {
     getIconComponent(name) {
       return iconMap[name] || null

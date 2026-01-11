@@ -2399,6 +2399,35 @@ body {
   text-align: center;
 }
 
+.table-view .expand-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  margin-right: 4px;
+}
+
+.table-view .expand-btn:hover {
+  color: #fff;
+}
+
+.table-view .subtask-row {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table-view .subtask-row .subtask-title {
+  padding-left: 40px;
+  font-size: 12px;
+  color: #888;
+}
+
+.table-view .subtask-row.completed .subtask-title {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
 .table-view .col-title {
   min-width: 150px;
 }
@@ -2447,6 +2476,18 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.table-view .project-badge.clickable,
+.table-view .inbox-badge.clickable {
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.table-view .project-badge.clickable:hover,
+.table-view .inbox-badge.clickable:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
 }
 
 .table-view .inbox-badge {
@@ -4109,6 +4150,40 @@ body {
 
 .gantt-bar:active {
   cursor: grabbing;
+}
+
+/* Milestone diamond marker */
+.gantt-bar.milestone {
+  background: #ffc107 !important;
+  min-width: 20px;
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0;
+  transform: rotate(45deg);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gantt-bar.milestone .gantt-bar-title {
+  display: none;
+}
+
+.gantt-bar.milestone .gantt-bar-handle {
+  display: none;
+}
+
+.gantt-bar.milestone::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) rotate(-45deg);
+  white-space: nowrap;
+  top: 24px;
+  font-size: 10px;
+  color: #ffc107;
+  font-weight: 600;
 }
 
 .gantt-bar-title {

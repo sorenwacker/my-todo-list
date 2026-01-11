@@ -464,6 +464,24 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('empty-trash', () => database.emptyTrash())
   ipcMain.handle('get-trash-count', () => database.getTrashCount())
+
+  // Milestone operations
+  ipcMain.handle('get-child-todos', handleWithValidation((_, parentId) => {
+    return database.getChildTodos(validateId(parentId))
+  }))
+  ipcMain.handle('get-milestones', handleWithValidation((_, projectId) => {
+    if (projectId === null) {
+      return database.getAllMilestones()
+    }
+    return database.getAllMilestones(validateId(projectId))
+  }))
+  ipcMain.handle('assign-to-milestone', handleWithValidation((_, todoId, milestoneId) => {
+    return database.assignToMilestone(validateId(todoId), milestoneId ? validateId(milestoneId) : null)
+  }))
+  ipcMain.handle('unassign-from-milestone', handleWithValidation((_, todoId) => {
+    return database.unassignFromMilestone(validateId(todoId))
+  }))
+
   ipcMain.handle('reorder-todos', handleWithValidation((_, ids) => {
     return database.reorderTodos(validateIdArray(ids))
   }))
@@ -547,6 +565,9 @@ app.whenReady().then(() => {
   // Subtask handlers
   ipcMain.handle('get-subtasks', handleWithValidation((_, todoId) => {
     return database.getSubtasks(validateId(todoId))
+  }))
+  ipcMain.handle('get-all-subtasks', handleWithValidation(() => {
+    return database.getAllSubtasks()
   }))
   ipcMain.handle('create-subtask', handleWithValidation((_, todoId, title) => {
     return database.createSubtask(

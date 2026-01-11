@@ -192,15 +192,6 @@
       </div>
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-header persons-header" @click="personsCollapsed = !personsCollapsed">
-        <span class="collapse-indicator">{{ personsCollapsed ? '+' : '-' }}</span>
-        <h2>Persons</h2>
-      </div>
-      <div v-show="!personsCollapsed">
-        <button class="manage-persons-btn" @click="$emit('manage-persons')">Manage Persons</button>
-      </div>
-    </div>
   </aside>
 </template>
 
@@ -251,7 +242,7 @@ export default {
     'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
     'update:categories', 'categories-reorder', 'add-category', 'edit-category',
     'update:open-todos-in-window', 'update:grid-lock',
-    'export', 'show-import', 'manage-persons',
+    'export', 'show-import',
     'toggle-pin', 'mouseleave', 'mouseenter'
   ],
   data() {
@@ -264,8 +255,7 @@ export default {
       newCategoryName: '',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') !== 'false',
-      settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
-      personsCollapsed: localStorage.getItem('persons-collapsed') !== 'false'
+      settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false'
     }
   },
   watch: {
@@ -277,9 +267,6 @@ export default {
     },
     settingsCollapsed(val) {
       localStorage.setItem('settings-collapsed', val)
-    },
-    personsCollapsed(val) {
-      localStorage.setItem('persons-collapsed', val)
     }
   },
   methods: {
@@ -522,22 +509,6 @@ export default {
   font-size: 11px;
   color: var(--text-secondary, #a0a0a0);
   word-break: break-all;
-}
-
-.manage-persons-btn {
-  width: calc(100% - 32px);
-  margin: 8px 16px;
-  padding: 6px 8px;
-  background: var(--bg-primary, #1a1f2e);
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 4px;
-  color: var(--text-primary, #e0e0e0);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.manage-persons-btn:hover {
-  background: var(--bg-hover, #2a2f3d);
 }
 
 .pin-btn {

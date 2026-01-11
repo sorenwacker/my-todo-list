@@ -27,18 +27,25 @@
                 <h3>{{ status.name }}</h3>
                 <span class="column-count">{{ getProjectStatusTodos(group.id, status.id).length }}</span>
               </div>
-              <div class="kanban-cards">
-                <KanbanCard
-                  v-for="todo in getProjectStatusTodos(group.id, status.id)"
-                  :key="todo.id"
-                  :todo="todo"
-                  :selected="selectedTodoId === todo.id"
-                  :border-color="group.color"
-                  @select="$emit('select-todo', todo.id)"
-                  @toggle-complete="$emit('toggle-complete', todo)"
-                  @delete="$emit('delete-todo', todo.id)"
-                />
-              </div>
+              <draggable
+                :model-value="getProjectStatusTodos(group.id, status.id)"
+                item-key="id"
+                class="kanban-cards"
+                group="kanban"
+                ghost-class="ghost"
+                @end="onStackedKanbanDrop($event, group.id, status.id)"
+              >
+                <template #item="{ element }">
+                  <KanbanCard
+                    :todo="element"
+                    :selected="selectedTodoId === element.id"
+                    :border-color="group.color"
+                    @select="$emit('select-todo', element.id)"
+                    @toggle-complete="$emit('toggle-complete', element)"
+                    @delete="$emit('delete-todo', element.id)"
+                  />
+                </template>
+              </draggable>
             </div>
             <div class="kanban-column" style="border-top-color: #666">
               <div class="column-header">
@@ -46,18 +53,25 @@
                 <h3>No Status</h3>
                 <span class="column-count">{{ getProjectStatusTodos(group.id, null).length }}</span>
               </div>
-              <div class="kanban-cards">
-                <KanbanCard
-                  v-for="todo in getProjectStatusTodos(group.id, null)"
-                  :key="todo.id"
-                  :todo="todo"
-                  :selected="selectedTodoId === todo.id"
-                  :border-color="group.color"
-                  @select="$emit('select-todo', todo.id)"
-                  @toggle-complete="$emit('toggle-complete', todo)"
-                  @delete="$emit('delete-todo', todo.id)"
-                />
-              </div>
+              <draggable
+                :model-value="getProjectStatusTodos(group.id, null)"
+                item-key="id"
+                class="kanban-cards"
+                group="kanban"
+                ghost-class="ghost"
+                @end="onStackedKanbanDrop($event, group.id, null)"
+              >
+                <template #item="{ element }">
+                  <KanbanCard
+                    :todo="element"
+                    :selected="selectedTodoId === element.id"
+                    :border-color="group.color"
+                    @select="$emit('select-todo', element.id)"
+                    @toggle-complete="$emit('toggle-complete', element)"
+                    @delete="$emit('delete-todo', element.id)"
+                  />
+                </template>
+              </draggable>
             </div>
           </div>
         </div>
@@ -365,7 +379,8 @@ export default {
     'update-status-todos',
     'kanban-drop',
     'kanban-drop-category',
-    'kanban-drop-status'
+    'kanban-drop-status',
+    'stacked-kanban-drop'
   ],
   computed: {
     localInboxTodos: {
@@ -406,6 +421,9 @@ export default {
     },
     onKanbanDropStatus(event) {
       this.$emit('kanban-drop-status', event)
+    },
+    onStackedKanbanDrop(event, projectId, statusId) {
+      this.$emit('stacked-kanban-drop', event, projectId, statusId)
     }
   }
 }

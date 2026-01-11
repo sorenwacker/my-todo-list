@@ -60,6 +60,13 @@ contextBridge.exposeInMainWorld('api', {
   permanentlyDeleteTodo: (id) => ipcRenderer.invoke('permanently-delete-todo', id),
   emptyTrash: () => ipcRenderer.invoke('empty-trash'),
   getTrashCount: () => ipcRenderer.invoke('get-trash-count'),
+
+  // Milestone operations
+  getChildTodos: (parentId) => ipcRenderer.invoke('get-child-todos', parentId),
+  getMilestones: (projectId) => ipcRenderer.invoke('get-milestones', projectId),
+  assignToMilestone: (todoId, milestoneId) => ipcRenderer.invoke('assign-to-milestone', todoId, milestoneId),
+  unassignFromMilestone: (todoId) => ipcRenderer.invoke('unassign-from-milestone', todoId),
+
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),
   reorderProjects: (ids) => ipcRenderer.invoke('reorder-projects', ids),
   reorderCategories: (ids) => ipcRenderer.invoke('reorder-categories', ids),
@@ -81,6 +88,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Subtask operations
   getSubtasks: (todoId) => ipcRenderer.invoke('get-subtasks', todoId),
+  getAllSubtasks: () => ipcRenderer.invoke('get-all-subtasks'),
   createSubtask: (todoId, title) => ipcRenderer.invoke('create-subtask', todoId, title),
   updateSubtask: (subtask) => ipcRenderer.invoke('update-subtask', subtask),
   deleteSubtask: (id) => ipcRenderer.invoke('delete-subtask', id),

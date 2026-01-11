@@ -207,6 +207,16 @@ export class Database {
       this.db.exec("ALTER TABLE todos ADD COLUMN type TEXT DEFAULT 'todo'")
     } catch { /* column exists */ }
 
+    // Migration: add parent_id for milestone hierarchy
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN parent_id INTEGER REFERENCES todos(id) ON DELETE SET NULL')
+    } catch { /* column exists */ }
+
+    // Migration: add milestone_date for milestone markers
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN milestone_date TEXT')
+    } catch { /* column exists */ }
+
     // Seed default statuses if none exist
     const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
     if (statusCount === 0) {
@@ -609,6 +619,50 @@ export class Database {
     return result.count
   }
 
+  // Milestone operations
+  getChildTodos(parentId) {
+    return this.db.prepare(`
+      SELECT t.*, p.name as project_name, p.color as project_color,
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
+      FROM todos t
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
+      WHERE t.parent_id = ? AND t.deleted_at IS NULL
+      ORDER BY t.sort_order ASC
+    `).all(parentId)
+  }
+
+  getAllMilestones(projectId = null) {
+    if (projectId) {
+      return this.db.prepare(`
+        SELECT t.*, p.name as project_name, p.color as project_color
+        FROM todos t
+        LEFT JOIN projects p ON t.project_id = p.id
+        WHERE t.type = 'milestone' AND t.project_id = ? AND t.deleted_at IS NULL
+        ORDER BY t.milestone_date ASC, t.created_at ASC
+      `).all(projectId)
+    }
+    return this.db.prepare(`
+      SELECT t.*, p.name as project_name, p.color as project_color
+      FROM todos t
+      LEFT JOIN projects p ON t.project_id = p.id
+      WHERE t.type = 'milestone' AND t.deleted_at IS NULL
+      ORDER BY t.milestone_date ASC, t.created_at ASC
+    `).all()
+  }
+
+  assignToMilestone(todoId, milestoneId) {
+    this.db.prepare('UPDATE todos SET parent_id = ? WHERE id = ?').run(milestoneId, todoId)
+    return this.getTodo(todoId)
+  }
+
+  unassignFromMilestone(todoId) {
+    this.db.prepare('UPDATE todos SET parent_id = NULL WHERE id = ?').run(todoId)
+    return this.getTodo(todoId)
+  }
+
   reorderTodos(ids) {
     const stmt = this.db.prepare('UPDATE todos SET sort_order = ? WHERE id = ?')
     const transaction = this.db.transaction((ids) => {
@@ -798,6 +852,12 @@ export class Database {
     return this.db.prepare(`
       SELECT * FROM subtasks WHERE todo_id = ? ORDER BY sort_order ASC
     `).all(todoId)
+  }
+
+  getAllSubtasks() {
+    return this.db.prepare(`
+      SELECT * FROM subtasks ORDER BY todo_id, sort_order ASC
+    `).all()
   }
 
   getSubtask(id) {

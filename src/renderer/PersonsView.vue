@@ -1,11 +1,66 @@
 <template>
   <div class="persons-view" :class="{ 'light-theme': theme === 'light' }">
     <div class="persons-header">
-      <h2>Manage Persons</h2>
-      <button class="add-btn" @click="showAddPerson">+ Add Person</button>
+      <h2>{{ isProjectMode ? 'Stakeholders' : 'People' }}</h2>
+      <div v-if="isProjectMode" class="stakeholder-actions">
+        <button class="add-btn" @click="togglePersonPicker">+ Add Stakeholder</button>
+        <div v-if="showPersonPicker" class="person-picker">
+          <input
+            ref="personSearchInput"
+            v-model="personSearchQuery"
+            type="text"
+            class="person-search"
+            placeholder="Search people..."
+            @keydown.esc="showPersonPicker = false"
+          />
+          <div v-if="filteredAvailablePersons.length === 0" class="picker-empty">
+            {{ personSearchQuery ? 'No matches found' : 'No more persons to add' }}
+          </div>
+          <div
+            v-for="person in filteredAvailablePersons"
+            :key="person.id"
+            class="picker-item"
+            @click="assignPerson(person)"
+          >
+            <div class="person-avatar-small" :style="{ background: person.color }">
+              {{ getInitials(person.name) }}
+            </div>
+            <span>{{ person.name }}</span>
+            <span v-if="person.role" class="picker-item-role">{{ person.role }}</span>
+          </div>
+        </div>
+      </div>
+      <button v-else class="add-btn" @click="showAddPerson">+ Add Person</button>
     </div>
 
-    <div class="table-container">
+    <!-- Cards View -->
+    <div v-if="currentView === 'cards'" class="persons-cards">
+      <div
+        v-for="person in sortedPersons"
+        :key="person.id"
+        class="person-card"
+        :style="{ borderLeftColor: person.color }"
+        @click="editPerson(person)"
+      >
+        <button v-if="isProjectMode" class="remove-btn" @click.stop="unassignPerson(person)" title="Remove from project">x</button>
+        <div class="card-header">
+          <div class="person-avatar" :style="{ background: person.color }">
+            {{ getInitials(person.name) }}
+          </div>
+          <div class="person-info">
+            <div class="person-name">{{ person.name }}</div>
+            <div v-if="person.role" class="person-role">{{ person.role }}</div>
+          </div>
+        </div>
+        <div v-if="person.company" class="person-company">{{ person.company }}</div>
+        <div v-if="person.email" class="person-email">{{ person.email }}</div>
+        <div v-if="person.notes" class="person-notes" v-html="renderCardMarkdown(person.notes)"></div>
+      </div>
+      <div v-if="sortedPersons.length === 0" class="empty-state">{{ isProjectMode ? 'No stakeholders assigned to this project' : 'No persons added yet' }}</div>
+    </div>
+
+    <!-- Table View -->
+    <div v-if="currentView === 'table'" class="table-container">
       <table class="persons-table">
         <thead>
           <tr>
@@ -49,7 +104,7 @@
       </table>
     </div>
 
-    <div v-if="totalPages > 1" class="pagination">
+    <div v-if="totalPages > 1 && currentView === 'table'" class="pagination">
       <button :disabled="currentPage === 1" @click="currentPage = 1">First</button>
       <button :disabled="currentPage === 1" @click="currentPage--">Prev</button>
       <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
@@ -158,7 +213,8 @@
 </template>
 
 <script>
-import { renderMarkdown } from './utils/markdown.js'
+import { renderMarkdown, renderCardMarkdown } from './utils/markdown.js'
+import { getInitials } from './utils/helpers.js'
 
 export default {
   name: 'PersonsView',
@@ -167,6 +223,14 @@ export default {
       type: Array,
       default: () => []
     },
+    allPersons: {
+      type: Array,
+      default: () => []
+    },
+    projectId: {
+      type: Number,
+      default: null
+    },
     theme: {
       type: String,
       default: 'dark'
@@ -174,9 +238,13 @@ export default {
     pendingEdit: {
       type: Object,
       default: null
+    },
+    currentView: {
+      type: String,
+      default: 'cards'
     }
   },
-  emits: ['refresh', 'edit-opened'],
+  emits: ['refresh', 'edit-opened', 'assign-person', 'unassign-person'],
   data() {
     return {
       editingPerson: null,
@@ -185,25 +253,51 @@ export default {
       sortDir: 'asc',
       currentPage: 1,
       pageSize: 25,
+      showPersonPicker: false,
+      personSearchQuery: '',
       personColors: [
-        // Blues
-        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1', '#0288d1', '#03a9f4', '#29b6f6',
+        // Reds
+        '#d93025', '#ea4335', '#ef5350', '#ff5252', '#ff1744',
+        // Pinks
+        '#c2185b', '#e91e63', '#f06292',
+        // Oranges
+        '#ef6c00', '#ff7043', '#ff9800', '#ff8f00',
+        // Yellows
+        '#f9a825', '#ffb300', '#ffc107', '#ffca28',
         // Greens
-        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342', '#4caf50', '#81c784', '#00bcd4',
-        // Reds & Pinks
-        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292', '#ef5350', '#ff5252', '#ff1744',
-        // Oranges & Yellows
-        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300', '#ffc107', '#ffca28', '#ff9800',
+        '#0f9d58', '#34a853', '#43a047', '#4caf50', '#7cb342', '#81c784',
+        // Teals
+        '#009688', '#00897b', '#26a69a', '#4db6ac', '#00bfa5', '#1de9b6', '#64ffda',
+        // Cyans
+        '#00bcd4', '#00acc1',
+        // Blues
+        '#0288d1', '#039be5', '#03a9f4', '#29b6f6', '#4285f4', '#1a73e8', '#0d47a1',
         // Purples
-        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2', '#ab47bc', '#ba68c8', '#9575cd',
-        // Teals & Cyans
-        '#009688', '#26a69a', '#4db6ac', '#00bfa5', '#1de9b6', '#64ffda',
+        '#673ab7', '#5e35b1', '#7b1fa2', '#9c27b0', '#7e57c2', '#ab47bc', '#ba68c8', '#9575cd',
         // Neutrals
-        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f', '#263238', '#90a4ae', '#b0bec5'
+        '#263238', '#37474f', '#455a64', '#546e7a', '#607d8b', '#78909c', '#90a4ae', '#b0bec5'
       ]
     }
   },
   computed: {
+    isProjectMode() {
+      return this.projectId !== null
+    },
+    availablePersons() {
+      if (!this.isProjectMode || !this.allPersons) return []
+      const assignedIds = new Set(this.persons.map(p => p.id))
+      return this.allPersons.filter(p => !assignedIds.has(p.id))
+    },
+    filteredAvailablePersons() {
+      if (!this.personSearchQuery.trim()) return this.availablePersons
+      const query = this.personSearchQuery.toLowerCase()
+      return this.availablePersons.filter(p =>
+        p.name.toLowerCase().includes(query) ||
+        (p.role && p.role.toLowerCase().includes(query)) ||
+        (p.company && p.company.toLowerCase().includes(query)) ||
+        (p.email && p.email.toLowerCase().includes(query))
+      )
+    },
     sortedPersons() {
       const sorted = [...this.persons]
       sorted.sort((a, b) => {
@@ -247,12 +341,24 @@ export default {
     }
   },
   methods: {
+    getInitials,
+    renderCardMarkdown,
     toggleSort(column) {
       if (this.sortBy === column) {
         this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'
       } else {
         this.sortBy = column
         this.sortDir = 'asc'
+      }
+    },
+
+    togglePersonPicker() {
+      this.showPersonPicker = !this.showPersonPicker
+      this.personSearchQuery = ''
+      if (this.showPersonPicker) {
+        this.$nextTick(() => {
+          this.$refs.personSearchInput?.focus()
+        })
       }
     },
 
@@ -327,6 +433,17 @@ export default {
 
     cancelEdit() {
       this.editingPerson = null
+    },
+
+    // Stakeholder assignment methods
+    assignPerson(person) {
+      this.$emit('assign-person', person)
+      this.showPersonPicker = false
+    },
+    unassignPerson(person) {
+      if (confirm(`Remove ${person.name} from this project?`)) {
+        this.$emit('unassign-person', person)
+      }
     }
   }
 }
@@ -341,9 +458,488 @@ export default {
 
 .persons-header {
   display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: #aaa;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.back-btn:hover {
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
+.view-switcher {
+  display: flex;
+  gap: 4px;
+  background: #1a1a1a;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.view-switcher button {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: #bbb;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.view-switcher button:hover {
+  color: #fff;
+}
+
+.view-switcher button.active {
+  background: #0f4c75;
+  color: #fff;
+}
+
+/* Stakeholder Actions */
+.stakeholder-actions {
+  position: relative;
+}
+
+.person-picker {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 280px;
+  max-height: 350px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.person-search {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #0d0d0d;
+  color: #e0e0e0;
+  font-size: 13px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.person-search:focus {
+  outline: none;
+  border-color: #0f4c75;
+}
+
+.picker-item-role {
+  margin-left: auto;
+  font-size: 11px;
+  color: #666;
+}
+
+.picker-empty {
+  padding: 12px;
+  color: #666;
+  text-align: center;
+  font-size: 12px;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.picker-item:hover {
+  background: #2a2a2a;
+}
+
+.picker-item span {
+  font-size: 13px;
+  color: #f0f0f0;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: #e74c3c;
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.person-card {
+  position: relative;
+}
+
+.person-card:hover .remove-btn {
+  opacity: 1;
+}
+
+.remove-btn:hover {
+  background: #c0392b;
+}
+
+/* Cards View */
+.persons-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.person-card {
+  background: #0d0d0d;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 4px solid #0f4c75;
+}
+
+.person-card:hover {
+  background: #1a1a1a;
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.person-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.person-info .person-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #f0f0f0;
+}
+
+.person-info .person-role {
+  font-size: 12px;
+  color: #888;
+}
+
+.person-company {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+
+.person-email {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.person-notes {
+  font-size: 12px;
+  color: #aaa;
+  max-height: 60px;
+  overflow: hidden;
+}
+
+.empty-state {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+  grid-column: 1 / -1;
+}
+
+/* Kanban View */
+.persons-kanban {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 16px 0;
+  min-height: 400px;
+}
+
+.kanban-column {
+  flex: 0 0 280px;
+  background: #0d0d0d;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 200px);
+}
+
+.column-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.column-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #f0f0f0;
+}
+
+.column-count {
+  background: #333;
+  color: #aaa;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.column-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-card {
+  background: #1a1a1a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid #0f4c75;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.kanban-card:hover {
+  background: #2a2a2a;
+}
+
+.person-avatar-small {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.kanban-card .person-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+.kanban-card .person-role {
+  font-size: 11px;
+  color: #888;
+  align-items: center;
   margin-bottom: 16px;
+}
+
+/* Timeline View */
+.persons-timeline {
+  padding: 16px 0;
+}
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.timeline-group {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.timeline-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: absolute;
+  left: 0;
+  top: 4px;
+}
+
+.timeline-company {
+  font-weight: 600;
+  font-size: 14px;
+  color: #f0f0f0;
+}
+
+.timeline-count {
+  background: #333;
+  color: #aaa;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.timeline-persons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-left: 2px solid #333;
+  padding-left: 20px;
+  margin-left: 5px;
+}
+
+.timeline-person {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: #1a1a1a;
+  border-radius: 6px;
+  cursor: pointer;
+  border-left: 3px solid #0f4c75;
+  transition: all 0.15s;
+}
+
+.timeline-person:hover {
+  background: #2a2a2a;
+}
+
+.timeline-person-info {
+  flex: 1;
+}
+
+.timeline-person-info .person-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+.timeline-person-info .person-role {
+  font-size: 11px;
+  color: #888;
+}
+
+.timeline-person-info .person-email {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Graph View */
+.persons-graph {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  background: #0a0a0a;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.graph-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.graph-link {
+  stroke-width: 2;
+  opacity: 0.5;
+}
+
+.graph-node {
+  position: absolute;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 2px solid #333;
+  cursor: grab;
+  transition: box-shadow 0.15s;
+  transform: translate(-50%, -50%);
+}
+
+.graph-node:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.graph-node:active {
+  cursor: grabbing;
+}
+
+.graph-node .person-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.graph-node .node-info {
+  white-space: nowrap;
+}
+
+.graph-node .person-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+.graph-node .person-company {
+  font-size: 10px;
+  color: #888;
+  margin: 0;
 }
 
 .persons-header h2 {
@@ -353,18 +949,31 @@ export default {
 }
 
 .add-btn {
-  background: #2ecc71;
-  color: white;
-  border: none;
+  background: #1a1a1a;
+  color: #bbb;
+  border: 1px solid #444;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  transition: background 0.2s;
+  transition: all 0.15s;
 }
 
 .add-btn:hover {
-  background: #27ae60;
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
+.light-theme .add-btn {
+  background: #f5f5f5;
+  color: #333;
+  border-color: #ddd;
+}
+
+.light-theme .add-btn:hover {
+  background: #e8e8e8;
+  border-color: #ccc;
 }
 
 .table-container {
@@ -583,13 +1192,19 @@ export default {
 
 .person-modal .modal-content {
   background: #0d0d0d;
-  padding: 24px;
+  padding: 24px 32px;
   border-radius: 12px;
-  max-width: 600px;
+  max-width: 800px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
   border: 1px solid #333;
+}
+
+@media (min-width: 1200px) {
+  .person-modal .modal-content {
+    max-width: 900px;
+  }
 }
 
 .person-modal.light-theme .modal-content {
@@ -611,8 +1226,14 @@ export default {
 .person-modal .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
   margin: 16px 0;
+}
+
+@media (min-width: 700px) {
+  .person-modal .form-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 .person-modal .form-field {
@@ -623,6 +1244,10 @@ export default {
 
 .person-modal .form-field.full-width {
   grid-column: 1 / -1;
+}
+
+.person-modal .form-field.full-width textarea {
+  min-height: 120px;
 }
 
 .person-modal .form-field label {
@@ -660,6 +1285,7 @@ export default {
 }
 
 .person-modal .color-picker {
+  display: block !important;
   margin: 16px 0;
 }
 
@@ -675,19 +1301,20 @@ export default {
   color: #666;
 }
 
-.person-modal .color-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.person-modal .color-picker .color-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
 }
 
-.person-modal .color-option {
+.person-modal .color-picker .color-grid .color-option {
   width: 28px;
   height: 28px;
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
   transition: all 0.15s;
+  flex-shrink: 0;
 }
 
 .person-modal .color-option:hover {
@@ -734,22 +1361,26 @@ export default {
   background: #d0d0d0;
 }
 
-.person-modal .modal-actions button.primary {
+.person-modal .modal-actions button.primary,
+.person-modal.light-theme .modal-actions button.primary {
   background: #2ecc71;
   color: white;
 }
 
-.person-modal .modal-actions button.primary:hover {
+.person-modal .modal-actions button.primary:hover,
+.person-modal.light-theme .modal-actions button.primary:hover {
   background: #27ae60;
 }
 
-.person-modal .modal-actions button.delete-btn {
+.person-modal .modal-actions button.delete-btn,
+.person-modal.light-theme .modal-actions button.delete-btn {
   background: #e74c3c;
   margin-right: auto;
   color: white;
 }
 
-.person-modal .modal-actions button.delete-btn:hover {
+.person-modal .modal-actions button.delete-btn:hover,
+.person-modal.light-theme .modal-actions button.delete-btn:hover {
   background: #c0392b;
 }
 

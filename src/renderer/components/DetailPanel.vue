@@ -44,14 +44,33 @@
         />
       </div>
 
-      <div class="meta-row project-row">
-        <label>Project:</label>
-        <select :value="todo.project_id" @change="$emit('project-change', $event.target.value ? parseInt($event.target.value) : null)">
-          <option :value="null">Inbox (No Project)</option>
-          <option v-for="project in projects" :key="project.id" :value="project.id">
-            {{ project.name }}
-          </option>
-        </select>
+      <div v-if="todo.type === 'milestone'" class="milestone-section">
+        <div class="meta-row milestone-date-row">
+          <label>Milestone Date:</label>
+          <div class="date-field">
+            <input type="date" :value="milestoneDate" lang="sv-SE" @change="$emit('update-milestone-date', $event.target.value)" />
+            <button v-if="todo.milestone_date" class="clear-btn" @click="$emit('clear-milestone-date')">x</button>
+          </div>
+        </div>
+        <div v-if="childTodos.length" class="child-todos-section">
+          <label>Assigned Todos ({{ childTodos.length }})</label>
+          <div class="child-todos-list">
+            <div
+              v-for="child in childTodos"
+              :key="child.id"
+              class="child-todo-item"
+              :class="{ completed: child.completed }"
+              @click="$emit('select-child', child.id)"
+            >
+              <input type="checkbox" :checked="child.completed" @click.stop />
+              <span class="child-title">{{ child.title }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else class="child-todos-empty">
+          <p>No todos assigned to this milestone</p>
+          <small>Drag todos to this milestone in Timeline view to assign them</small>
+        </div>
       </div>
 
       <div class="notes-section">
@@ -292,6 +311,7 @@ export default {
     subtasks: { type: Array, default: () => [] },
     linkedTodos: { type: Array, default: () => [] },
     assignedPersons: { type: Array, default: () => [] },
+    childTodos: { type: Array, default: () => [] },
     activeTab: { type: String, default: 'edit' },
     newSubtaskTitle: { type: String, default: '' },
     linkQuery: { type: String, default: '' },
@@ -319,7 +339,8 @@ export default {
     'toggle-subtask', 'delete-subtask', 'add-subtask', 'update:new-subtask-title', 'reorder-subtasks',
     'select-linked', 'unlink', 'toggle-link-search', 'update:link-query', 'link-to',
     'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings', 'open-person',
-    'reveal-notes', 'markdown-click'
+    'reveal-notes', 'markdown-click',
+    'update-milestone-date', 'clear-milestone-date', 'select-child'
   ],
   computed: {
     panelStyle() {
@@ -352,6 +373,10 @@ export default {
     endDate() {
       if (!this.todo?.end_date) return ''
       return this.todo.end_date.split('T')[0]
+    },
+    milestoneDate() {
+      if (!this.todo?.milestone_date) return ''
+      return this.todo.milestone_date.split('T')[0]
     },
     formattedCreatedDate() {
       if (!this.todo?.created_at) return ''
@@ -953,5 +978,80 @@ export default {
   height: 6px;
   width: 100%;
   cursor: ns-resize;
+}
+
+/* Milestone section */
+.milestone-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-primary, #1a1f2e);
+  border-radius: 8px;
+  border-left: 3px solid #ffc107;
+}
+
+.milestone-date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.milestone-date-row label {
+  font-size: 12px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.child-todos-section label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #a0a0a0);
+  margin-bottom: 8px;
+}
+
+.child-todos-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.child-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.child-todo-item:hover {
+  background: var(--bg-hover, #2a2f3d);
+}
+
+.child-todo-item.completed .child-title {
+  text-decoration: line-through;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.child-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.child-todos-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.child-todos-empty p {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+}
+
+.child-todos-empty small {
+  font-size: 11px;
+  opacity: 0.7;
 }
 </style>
