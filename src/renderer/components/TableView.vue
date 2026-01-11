@@ -165,6 +165,7 @@ export default {
       return this.expandedRows.has(todoId)
     },
     getSubtasks(todoId) {
+      console.log('getSubtasks called for todoId:', todoId, 'subtasksMap:', this.subtasksMap, 'result:', this.subtasksMap[todoId])
       return this.subtasksMap[todoId] || []
     }
   }

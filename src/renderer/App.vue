@@ -1726,6 +1726,7 @@ export default {
     },
     async loadAllSubtasks() {
       const subtasks = await window.api.getAllSubtasks()
+      console.log('Loaded subtasks:', subtasks.length, subtasks)
       const map = {}
       for (const subtask of subtasks) {
         if (!map[subtask.todo_id]) {
@@ -1733,6 +1734,7 @@ export default {
         }
         map[subtask.todo_id].push(subtask)
       }
+      console.log('Subtasks map:', map)
       this.allSubtasksMap = map
     },
     async loadTodos() {
@@ -3734,10 +3736,14 @@ export default {
         return
       }
 
-      // Escape closes global search or detail panel
+      // Escape closes global search, exits fullscreen, or closes detail panel
       if (e.key === 'Escape') {
         if (this.showGlobalSearch) {
           this.showGlobalSearch = false
+        } else if (this.detailFullscreen && this.selectedTodo) {
+          // First press exits fullscreen, second press closes detail
+          this.detailFullscreen = false
+          localStorage.setItem('detail-fullscreen', 'false')
         } else if (this.selectedTodo) {
           this.closeDetail()
           this.focusedTodoIndex = -1
