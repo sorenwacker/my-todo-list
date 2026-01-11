@@ -3,7 +3,8 @@
     <table>
       <thead>
         <tr>
-          <th class="col-check resizable"></th>
+          <th class="col-check"></th>
+          <th class="col-expand"></th>
           <th class="col-title resizable">Title</th>
           <th class="col-project resizable">Project</th>
           <th class="col-category resizable">Category</th>
@@ -19,7 +20,7 @@
       <template v-if="groupByProject">
         <tbody v-for="group in groupedTodos" :key="group.id">
           <tr class="group-row">
-            <td colspan="11">
+            <td colspan="12">
               <span class="group-dot" :style="{ background: group.color }"></span>
               <span class="group-name">{{ group.name }}</span>
               <span class="group-count">{{ group.todos.length }}</span>
@@ -55,7 +56,7 @@
                 />
               </td>
               <td class="col-title subtask-title">{{ subtask.title }}</td>
-              <td colspan="9"></td>
+              <td colspan="10"></td>
             </tr>
           </template>
         </tbody>
@@ -91,7 +92,7 @@
               />
             </td>
             <td class="col-title subtask-title">{{ subtask.title }}</td>
-            <td colspan="9"></td>
+            <td colspan="10"></td>
           </tr>
         </template>
       </tbody>

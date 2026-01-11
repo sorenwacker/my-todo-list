@@ -4,17 +4,19 @@
     @click="$emit('select')"
   >
     <td class="col-check">
-      <button
-        v-if="hasSubtasks"
-        class="expand-btn"
-        @click.stop="$emit('toggle-expand')"
-      >{{ isExpanded ? '▼' : '▶' }}</button>
       <input
         v-if="!isTrashView"
         type="checkbox"
         :checked="todo.completed"
         @click.stop="$emit('toggle-complete')"
       />
+    </td>
+    <td class="col-expand">
+      <button
+        v-if="hasSubtasks"
+        class="expand-btn"
+        @click.stop="$emit('toggle-expand')"
+      >{{ isExpanded ? '−' : '+' }}</button>
     </td>
     <td class="col-title" :class="{ 'has-subtasks': hasSubtasks }">{{ todo.title }}</td>
     <td class="col-project">
