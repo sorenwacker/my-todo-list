@@ -1205,6 +1205,8 @@ export default {
     },
     filteredTodos() {
       let todos = this.currentFilter === null ? this.allTodos : this.todos
+      console.log('filteredTodos - activeTab:', this.activeTab, 'currentFilter:', this.currentFilter, 'allTodos count:', this.allTodos.length, 'todos count:', this.todos.length)
+      console.log('Types in allTodos:', [...new Set(this.allTodos.map(t => t.type))])
       if (this.filterProjectId !== null) {
         todos = todos.filter(t => t.project_id === this.filterProjectId)
       }
@@ -1214,6 +1216,7 @@ export default {
       // Filter by active tab
       if (this.activeTab === 'notes') {
         todos = todos.filter(t => t.type === 'note')
+        console.log('After notes filter:', todos.length)
       } else if (this.activeTab === 'todos') {
         todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
       }
