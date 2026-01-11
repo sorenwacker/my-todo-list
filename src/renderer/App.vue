@@ -3280,6 +3280,12 @@ export default {
       }
     },
     resetGraphView() {
+      // Ensure node positions exist for all nodes
+      this.graphNodes.forEach(node => {
+        if (!this.nodePositions[node.id]) {
+          this.nodePositions[node.id] = this.calculateNodePosition(node.id)
+        }
+      })
       // Center the view on all nodes
       const positions = Object.values(this.nodePositions)
       if (positions.length === 0) {
