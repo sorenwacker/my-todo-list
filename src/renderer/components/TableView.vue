@@ -48,15 +48,15 @@
               class="subtask-row"
               :class="{ completed: subtask.completed }"
             >
-              <td class="col-check">
+              <td class="col-check"></td>
+              <td class="col-expand">
                 <input
                   type="checkbox"
                   :checked="subtask.completed"
                   @click.stop="$emit('toggle-subtask', subtask)"
                 />
               </td>
-              <td class="col-title subtask-title">{{ subtask.title }}</td>
-              <td colspan="10"></td>
+              <td class="subtask-title" colspan="10">{{ subtask.title }}</td>
             </tr>
           </template>
         </tbody>
@@ -84,15 +84,15 @@
             class="subtask-row"
             :class="{ completed: subtask.completed }"
           >
-            <td class="col-check">
+            <td class="col-check"></td>
+            <td class="col-expand">
               <input
                 type="checkbox"
                 :checked="subtask.completed"
                 @click.stop="$emit('toggle-subtask', subtask)"
               />
             </td>
-            <td class="col-title subtask-title">{{ subtask.title }}</td>
-            <td colspan="10"></td>
+            <td class="subtask-title" colspan="10">{{ subtask.title }}</td>
           </tr>
         </template>
       </tbody>
