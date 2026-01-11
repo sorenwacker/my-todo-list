@@ -3734,12 +3734,12 @@ export default {
         return
       }
 
-      // Escape closes global search or clears selection
+      // Escape closes global search or detail panel
       if (e.key === 'Escape') {
         if (this.showGlobalSearch) {
           this.showGlobalSearch = false
         } else if (this.selectedTodo) {
-          this.selectedTodo = null
+          this.closeDetail()
           this.focusedTodoIndex = -1
         }
         return
