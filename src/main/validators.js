@@ -172,7 +172,10 @@ function validateTodo(todo) {
     recurrence_type: validateOptionalRecurrenceType(todo.recurrence_type),
     recurrence_interval: validateOptionalPositiveInt(todo.recurrence_interval, 'todo.recurrence_interval', 365),
     recurrence_end_date: validateOptionalDate(todo.recurrence_end_date, 'todo.recurrence_end_date'),
-    notes_sensitive: validateBoolean(todo.notes_sensitive, 'todo.notes_sensitive')
+    notes_sensitive: validateBoolean(todo.notes_sensitive, 'todo.notes_sensitive'),
+    type: validateTodoType(todo.type),
+    parent_id: validateOptionalId(todo.parent_id, 'todo.parent_id'),
+    milestone_date: validateOptionalDate(todo.milestone_date, 'todo.milestone_date')
   }
 }
 

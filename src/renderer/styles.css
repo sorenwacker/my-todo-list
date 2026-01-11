@@ -2414,13 +2414,19 @@ body {
 }
 
 .table-view .subtask-row {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-view .subtask-row .col-check {
+  padding-left: 32px;
 }
 
 .table-view .subtask-row .subtask-title {
-  padding-left: 40px;
+  padding-left: 48px;
   font-size: 12px;
   color: #888;
+  font-style: italic;
 }
 
 .table-view .subtask-row.completed .subtask-title {
