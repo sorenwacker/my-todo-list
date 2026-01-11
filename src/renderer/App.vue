@@ -550,8 +550,8 @@
         </div>
       </div>
 
-      <div v-if="todos.length === 0 && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
-        <p>No todos yet. Add one above.</p>
+      <div v-if="filteredTodos.length === 0 && activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
+        <p>{{ activeTab === 'notes' ? 'No notes yet.' : 'No todos yet.' }} Add one above.</p>
       </div>
 
       <!-- Bottom Bar with Card Size Slider -->
