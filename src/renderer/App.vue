@@ -1305,13 +1305,17 @@ export default {
     graphNodes() {
       let todos = [...this.filteredTodos]
 
-      // When inbox is selected (or no filter), only show items without a project
-      if (this.currentFilter === null || this.currentFilter === 'inbox') {
-        todos = todos.filter(t => t.project_id === null)
-      }
-      // When a specific project is selected, ensure only that project's todos are shown
-      else if (typeof this.currentFilter === 'number') {
-        todos = todos.filter(t => t.project_id === this.currentFilter)
+      // For Notes tab, show all notes regardless of project
+      // For Todos tab, filter by project as before
+      if (this.activeTab !== 'notes') {
+        // When inbox is selected (or no filter), only show items without a project
+        if (this.currentFilter === null || this.currentFilter === 'inbox') {
+          todos = todos.filter(t => t.project_id === null)
+        }
+        // When a specific project is selected, ensure only that project's todos are shown
+        else if (typeof this.currentFilter === 'number') {
+          todos = todos.filter(t => t.project_id === this.currentFilter)
+        }
       }
 
       const nodes = [...todos]
@@ -2166,6 +2170,7 @@ export default {
 
       this.saveTimeout = setTimeout(async () => {
         const todoData = this.toPlainTodo(this.selectedTodo)
+        console.log('Saving todo with type:', todoData.type, 'id:', todoData.id)
         await window.api.updateTodo(todoData, { skipHistory: true })
         await this.loadAllTodos()
         await this.loadTodos()
