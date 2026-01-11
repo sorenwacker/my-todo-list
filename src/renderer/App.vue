@@ -2120,6 +2120,7 @@ export default {
       await window.api.closeDetailWindow(id)
 
       this.selectedTodo = await window.api.getTodo(id)
+      console.log('Loaded selectedTodo:', this.selectedTodo.id, 'type:', this.selectedTodo.type)
       this.linkedTodos = await window.api.getLinkedTodos(id)
       this.subtasks = await window.api.getSubtasks(id)
       this.assignedPersons = await window.api.getTodoPersons(id)
