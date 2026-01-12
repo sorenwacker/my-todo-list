@@ -25,7 +25,11 @@
       />
     </div>
 
-    <div class="notes-section">
+    <div class="notes-section" :class="{ collapsed: notesCollapsed }">
+      <div class="section-header" @click="notesCollapsed = !notesCollapsed">
+        <span class="section-title">Notes</span>
+      </div>
+      <div v-show="!notesCollapsed" class="section-content">
       <div class="tabs">
         <button
           :class="{ active: activeTab === 'edit' }"
@@ -79,25 +83,28 @@
           <div v-else @click="handleMarkdownClick" v-html="renderedNotes"></div>
         </div>
       </div>
-    </div>
 
-    <div class="sensitive-notes-row" style="text-align: right; padding: 8px 0;">
-      <label class="sensitive-checkbox" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #bbb; cursor: pointer;">
-        <input
-          v-model="todo.notes_sensitive"
-          type="checkbox"
-          @change="save"
-        />
-        <span class="lock-icon">🔒</span>
-        <span>Sensitive Notes</span>
-      </label>
-    </div>
-
-    <div class="subtasks-section">
-      <div class="subtasks-header">
-        <label>Tasks</label>
-        <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
+      <div class="sensitive-notes-row">
+        <label class="sensitive-checkbox">
+          <input
+            v-model="todo.notes_sensitive"
+            type="checkbox"
+            @change="save"
+          />
+          <span class="lock-icon">🔒</span>
+          <span>Sensitive Notes</span>
+        </label>
       </div>
+      </div>
+    </div>
+
+    <div class="bottom-sections" :class="{ 'both-collapsed': tasksCollapsed && metaExpanded === false }">
+      <div class="subtasks-section" :class="{ collapsed: tasksCollapsed }">
+        <div class="section-header" @click="tasksCollapsed = !tasksCollapsed">
+          <span class="section-title">Tasks</span>
+          <span v-if="subtasks.length" class="section-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
+        </div>
+        <div v-show="!tasksCollapsed" class="section-content">
       <draggable
         :list="subtasks"
         item-key="id"
@@ -114,26 +121,23 @@
           </div>
         </template>
       </draggable>
-      <div class="subtask-add">
-        <input
-          v-model="newSubtaskTitle"
-          placeholder="Add subtask..."
-          class="subtask-input"
-          @keyup.enter="addSubtask"
-        />
-        <button :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn" @click="addSubtask">+</button>
-      </div>
-    </div>
-
-    <div class="meta-section compact collapsible">
-      <div class="section-header clickable" @click="metaExpanded = !metaExpanded">
-        <h3>
-          <span class="collapse-icon">{{ metaExpanded ? '▼' : '▶' }}</span>
-          Metadata
-        </h3>
+        <div class="subtask-add">
+          <input
+            v-model="newSubtaskTitle"
+            placeholder="Add subtask..."
+            class="subtask-input"
+            @keyup.enter="addSubtask"
+          />
+          <button :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn" @click="addSubtask">+</button>
+        </div>
+        </div>
       </div>
 
-      <div v-if="metaExpanded">
+      <div class="meta-section compact" :class="{ collapsed: !metaExpanded }">
+        <div class="section-header" @click="metaExpanded = !metaExpanded">
+          <span class="section-title">Metadata</span>
+        </div>
+        <div v-show="metaExpanded" class="section-content">
         <!-- Properties Grid -->
         <div class="meta-grid">
         <div class="meta-item">
@@ -257,6 +261,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
     </div>
 
@@ -340,7 +345,9 @@ export default {
       persons: [],
       theme: localStorage.getItem('todo-theme') || 'dark',
       metaExpanded: false,
-      notesRevealed: false
+      notesRevealed: false,
+      notesCollapsed: false,
+      tasksCollapsed: false
     }
   },
   computed: {
@@ -1064,5 +1071,134 @@ export default {
 
 .link-result:hover {
   background: var(--bg-hover, #2a2f3d);
+}
+
+/* Collapsible sections */
+.detail-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 0 12px 12px 12px;
+  box-sizing: border-box;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 0;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.section-header:hover {
+  color: var(--accent-color, #0f4c75);
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary, #e0e0e0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.section-count {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+  margin-left: auto;
+}
+
+.notes-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.notes-section.collapsed {
+  flex: 0 0 auto;
+  margin-bottom: 4px;
+  min-height: 0;
+}
+
+.notes-section .section-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.bottom-sections {
+  flex-shrink: 0;
+}
+
+.notes-section.collapsed ~ .bottom-sections {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-section.collapsed ~ .bottom-sections .subtasks-section {
+  flex: 1;
+}
+
+.notes-section.collapsed ~ .bottom-sections .subtasks-section .section-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.bottom-sections.both-collapsed {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.bottom-sections.both-collapsed .subtasks-section,
+.bottom-sections.both-collapsed .meta-section {
+  margin-bottom: 0;
+  padding: 4px 8px;
+}
+
+.subtasks-section.collapsed,
+.meta-section.collapsed {
+  flex: 0;
+}
+
+/* Split view layout */
+.notes-split {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.notes-split .split-editor,
+.notes-split .split-preview {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: auto;
+}
+
+.notes-split .split-editor {
+  resize: none;
+}
+
+.sensitive-notes-row {
+  text-align: right;
+  padding: 4px 0;
+}
+
+.sensitive-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
 }
 </style>

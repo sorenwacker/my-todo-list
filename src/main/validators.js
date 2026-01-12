@@ -175,7 +175,8 @@ function validateTodo(todo) {
     notes_sensitive: validateBoolean(todo.notes_sensitive, 'todo.notes_sensitive'),
     type: validateTodoType(todo.type),
     parent_id: validateOptionalId(todo.parent_id, 'todo.parent_id'),
-    milestone_date: validateOptionalDate(todo.milestone_date, 'todo.milestone_date')
+    milestone_date: validateOptionalDate(todo.milestone_date, 'todo.milestone_date'),
+    topic_id: validateOptionalId(todo.topic_id, 'todo.topic_id')
   }
 }
 

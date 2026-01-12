@@ -74,7 +74,11 @@
         </div>
       </div>
 
-      <div class="notes-section">
+      <div class="notes-section" :class="{ collapsed: notesCollapsed }">
+        <div class="section-header" @click="notesCollapsed = !notesCollapsed">
+          <span class="section-title">Notes</span>
+        </div>
+        <div v-show="!notesCollapsed" class="section-content">
         <div class="tabs">
           <button
             :class="{ active: activeTab === 'edit' }"
@@ -142,42 +146,50 @@
             <span>Sensitive Notes</span>
           </label>
         </div>
-      </div>
-
-      <div class="subtasks-section">
-        <div class="subtasks-header">
-          <label>Tasks</label>
-          <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
-        </div>
-        <draggable
-          :list="localSubtasks"
-          item-key="id"
-          class="subtasks-list"
-          handle=".subtask-drag-handle"
-          @end="onSubtaskReorder"
-        >
-          <template #item="{ element: subtask }">
-            <div class="subtask-item" :class="{ completed: subtask.completed }">
-              <span class="subtask-drag-handle">⋮⋮</span>
-              <input type="checkbox" :checked="subtask.completed" @change="$emit('toggle-subtask', subtask)" />
-              <span class="subtask-title">{{ subtask.title }}</span>
-              <button class="subtask-delete" @click="$emit('delete-subtask', subtask.id)">x</button>
-            </div>
-          </template>
-        </draggable>
-        <div class="subtask-add">
-          <input
-            :value="newSubtaskTitle"
-            placeholder="Add subtask..."
-            class="subtask-input"
-            @input="$emit('update:new-subtask-title', $event.target.value)"
-            @keyup.enter="$emit('add-subtask')"
-          />
-          <button :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn" @click="$emit('add-subtask')">+</button>
         </div>
       </div>
 
-      <div class="meta-section compact">
+      <div class="bottom-sections" :class="{ 'both-collapsed': tasksCollapsed && metadataCollapsed }">
+        <div class="subtasks-section" :class="{ collapsed: tasksCollapsed }">
+          <div class="section-header" @click="tasksCollapsed = !tasksCollapsed">
+            <span class="section-title">Tasks</span>
+            <span v-if="subtasks.length" class="section-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
+          </div>
+          <div v-show="!tasksCollapsed" class="section-content">
+          <draggable
+            :list="localSubtasks"
+            item-key="id"
+            class="subtasks-list"
+            handle=".subtask-drag-handle"
+            @end="onSubtaskReorder"
+          >
+            <template #item="{ element: subtask }">
+              <div class="subtask-item" :class="{ completed: subtask.completed }">
+                <span class="subtask-drag-handle">⋮⋮</span>
+                <input type="checkbox" :checked="subtask.completed" @change="$emit('toggle-subtask', subtask)" />
+                <span class="subtask-title">{{ subtask.title }}</span>
+                <button class="subtask-delete" @click="$emit('delete-subtask', subtask.id)">x</button>
+              </div>
+            </template>
+          </draggable>
+          <div class="subtask-add">
+            <input
+              :value="newSubtaskTitle"
+              placeholder="Add subtask..."
+              class="subtask-input"
+              @input="$emit('update:new-subtask-title', $event.target.value)"
+              @keyup.enter="$emit('add-subtask')"
+            />
+            <button :disabled="!newSubtaskTitle.trim()" class="subtask-add-btn" @click="$emit('add-subtask')">+</button>
+          </div>
+          </div>
+        </div>
+
+        <div class="meta-section compact" :class="{ collapsed: metadataCollapsed }">
+          <div class="section-header" @click="metadataCollapsed = !metadataCollapsed">
+            <span class="section-title">Metadata</span>
+          </div>
+        <div v-show="!metadataCollapsed" class="section-content">
         <div class="meta-grid">
           <div class="meta-item">
             <label>Category</label>
@@ -191,6 +203,13 @@
             <select :value="todo.status_id" @change="$emit('status-change', $event.target.value ? parseInt($event.target.value) : null)">
               <option :value="null">None</option>
               <option v-for="status in statuses" :key="status.id" :value="status.id">{{ status.name }}</option>
+            </select>
+          </div>
+          <div v-if="todo.project_id && topics.length > 0" class="meta-item">
+            <label>Topic</label>
+            <select :value="todo.topic_id" @change="$emit('topic-change', $event.target.value ? parseInt($event.target.value) : null)">
+              <option :value="null">None</option>
+              <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
             </select>
           </div>
           <div class="meta-item">
@@ -270,6 +289,26 @@
               <button class="add-person-btn" @click="$emit('toggle-person-picker')">+</button>
             </div>
           </div>
+          <div class="meta-item tags-item">
+            <label>Tags</label>
+            <div class="inline-tags">
+              <span v-for="tag in tags" :key="tag.id" class="tag-chip">
+                {{ tag.name }}<button class="chip-x" @click.stop="$emit('remove-tag', tag.id)">x</button>
+              </span>
+              <input
+                v-model="newTagInput"
+                type="text"
+                class="tag-input"
+                placeholder="Add tag..."
+                list="tag-suggestions"
+                @keyup.enter="addTag"
+              />
+              <datalist id="tag-suggestions">
+                <option v-for="tag in allTags" :key="tag.id" :value="tag.name" />
+              </datalist>
+            </div>
+          </div>
+        </div>
         </div>
         <div v-if="showLinkSearch" class="link-search-popup">
           <input ref="linkInput" :value="linkQuery" placeholder="Search todos..." @input="$emit('update:link-query', $event.target.value)" />
@@ -280,18 +319,30 @@
           </div>
         </div>
         <div v-if="showPersonPicker" class="person-picker-popup">
+          <div class="new-person-row">
+            <input
+              v-model="newPersonName"
+              type="text"
+              placeholder="New person name..."
+              @keyup.enter="createNewPerson"
+            />
+            <button :disabled="!newPersonName.trim()" @click="createNewPerson">Add</button>
+          </div>
           <div class="person-picker-list">
-            <div v-for="person in persons" :key="person.id" class="person-option" :class="{ assigned: assignedPersons.some(p => p.id === person.id) }" @click="$emit('assign-person', person)">
+            <div v-for="person in persons.slice(0, 10)" :key="person.id" class="person-option" :class="{ assigned: assignedPersons.some(p => p.id === person.id) }" @click="$emit('assign-person', person)">
               <span class="person-color-dot" :style="{ background: person.color }"></span>
               <span class="person-name">{{ person.name }}</span>
               <span v-if="person.email" class="person-email">{{ person.email }}</span>
             </div>
+            <div v-if="persons.length > 10" class="person-picker-more">
+              +{{ persons.length - 10 }} more
+            </div>
             <div v-if="!persons.length" class="person-picker-empty">
-              <p>No persons available</p>
-              <button @click="$emit('open-settings')">Manage Persons</button>
+              <p>No persons yet</p>
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </aside>
@@ -310,10 +361,13 @@ export default {
     projects: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
+    topics: { type: Array, default: () => [] },
     persons: { type: Array, default: () => [] },
     subtasks: { type: Array, default: () => [] },
     linkedTodos: { type: Array, default: () => [] },
     assignedPersons: { type: Array, default: () => [] },
+    tags: { type: Array, default: () => [] },
+    allTags: { type: Array, default: () => [] },
     childTodos: { type: Array, default: () => [] },
     activeTab: { type: String, default: 'edit' },
     newSubtaskTitle: { type: String, default: '' },
@@ -333,7 +387,7 @@ export default {
     'close', 'detach', 'toggle-layout', 'resize-start', 'toggle-fullscreen',
     'toggle-complete', 'save',
     'update:title', 'update:notes', 'update:notes-sensitive', 'update:active-tab',
-    'project-change', 'category-change', 'status-change',
+    'project-change', 'category-change', 'status-change', 'topic-change',
     'set-importance',
     'update-start-date', 'clear-start-date',
     'update-end-date', 'clear-end-date',
@@ -341,9 +395,10 @@ export default {
     'update-recurrence-end-date', 'clear-recurrence-end-date',
     'toggle-subtask', 'delete-subtask', 'add-subtask', 'update:new-subtask-title', 'reorder-subtasks',
     'select-linked', 'unlink', 'toggle-link-search', 'update:link-query', 'link-to',
-    'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings', 'open-person',
+    'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings', 'open-person', 'create-person',
     'reveal-notes', 'markdown-click',
-    'update-milestone-date', 'clear-milestone-date', 'select-child'
+    'update-milestone-date', 'clear-milestone-date', 'select-child',
+    'add-tag', 'remove-tag'
   ],
   computed: {
     displayTitle() {
@@ -406,7 +461,12 @@ export default {
   },
   data() {
     return {
-      localSubtasks: []
+      localSubtasks: [],
+      newPersonName: '',
+      newTagInput: '',
+      notesCollapsed: false,
+      tasksCollapsed: false,
+      metadataCollapsed: false
     }
   },
   watch: {
@@ -421,6 +481,16 @@ export default {
     onSubtaskReorder() {
       const ids = this.localSubtasks.map(s => s.id)
       this.$emit('reorder-subtasks', ids)
+    },
+    createNewPerson() {
+      if (!this.newPersonName.trim()) return
+      this.$emit('create-person', this.newPersonName.trim())
+      this.newPersonName = ''
+    },
+    addTag() {
+      if (!this.newTagInput.trim()) return
+      this.$emit('add-tag', this.newTagInput.trim())
+      this.newTagInput = ''
     }
   }
 }
@@ -456,7 +526,7 @@ export default {
 }
 
 .detail-panel-header {
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--border-color, #3a3f4b);
   display: flex;
   justify-content: flex-end;
@@ -485,20 +555,54 @@ export default {
 .detail-panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 4px 12px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .title-checkbox {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 3px;
+  background: var(--bg-secondary, #0d0d0d);
+  cursor: pointer;
+  position: relative;
+  outline: none;
+}
+
+.title-checkbox:checked {
+  background: var(--accent-color, #0f4c75);
+  border-color: var(--accent-color, #0f4c75);
+}
+
+.title-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.title-checkbox:hover {
+  border-color: var(--text-secondary, #a0a0a0);
 }
 
 .title-input {
@@ -531,8 +635,120 @@ export default {
   color: var(--text-primary, #e0e0e0);
 }
 
+/* Collapsible section headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 0;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.notes-section .section-header {
+  padding: 0;
+  margin-bottom: 2px;
+}
+
+.section-header:hover {
+  color: var(--accent-color, #0f4c75);
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary, #e0e0e0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.section-count {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+  margin-left: auto;
+}
+
+.notes-section,
+.subtasks-section,
+.meta-section {
+  transition: margin 0.2s;
+}
+
+.notes-section.collapsed,
+.subtasks-section.collapsed,
+.meta-section.collapsed {
+  margin-bottom: 4px;
+}
+
+.notes-section.collapsed .section-header,
+.subtasks-section.collapsed .section-header,
+.meta-section.collapsed .section-header {
+  margin-bottom: 0;
+}
+
+/* Bottom sections container */
+.bottom-sections {
+  flex-shrink: 0;
+}
+
+.bottom-sections.both-collapsed {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.bottom-sections.both-collapsed .subtasks-section,
+.bottom-sections.both-collapsed .meta-section {
+  margin-bottom: 0;
+  padding: 4px 8px;
+}
+
+.bottom-sections.both-collapsed .section-header {
+  padding: 0;
+  margin-bottom: 0;
+}
+
+.section-content {
+  width: 100%;
+}
+
+.notes-section .section-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
 .notes-section {
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.notes-section.collapsed {
+  flex: 0 0 auto;
+  margin-bottom: 4px;
+  min-height: 0;
+}
+
+/* When notes collapsed, let tasks expand */
+.notes-section.collapsed ~ .bottom-sections .subtasks-section {
+  flex: 1;
+}
+
+.notes-section.collapsed ~ .bottom-sections .subtasks-section .section-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.notes-section.collapsed ~ .bottom-sections {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .tabs {
@@ -559,6 +775,7 @@ export default {
 /* Base styles for all editors and previews */
 .notes-editor,
 .notes-preview {
+  width: 100%;
   padding: 12px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 6px;
@@ -566,7 +783,8 @@ export default {
   box-sizing: border-box;
   overflow-y: auto;
   flex: 1;
-  min-height: 150px;
+  min-height: 100px;
+  height: 100%;
 }
 
 .notes-editor {
@@ -583,13 +801,19 @@ export default {
   flex-direction: row;
   gap: 8px;
   flex: 1;
-  min-height: 150px;
+  min-height: 0;
 }
 
-.split-editor,
-.split-preview {
-  flex: 1;
+.notes-split .split-editor,
+.notes-split .split-preview {
+  flex: 1 1 0;
   min-width: 0;
+  width: auto;
+  height: auto;
+}
+
+.notes-split .split-editor {
+  resize: none;
 }
 
 .sensitive-notes-overlay {
@@ -631,28 +855,14 @@ export default {
 }
 
 .subtasks-section {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: var(--bg-primary, #1a1f2e);
-  border-radius: 8px;
-}
-
-.subtasks-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg-primary, #1a1f2e);
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
-.subtasks-header label {
-  font-weight: 500;
-  color: var(--text-primary, #e0e0e0);
-}
-
-.subtask-count {
-  font-size: 12px;
-  color: var(--text-secondary, #a0a0a0);
-}
+/* subtasks-header replaced by section-header */
 
 .subtask-item {
   display: flex;
@@ -732,9 +942,10 @@ export default {
 }
 
 .meta-section {
-  padding: 6px 8px;
+  padding: 4px 8px;
   background: var(--bg-primary, #1a1f2e);
   border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .meta-grid {
@@ -881,12 +1092,19 @@ export default {
   font-size: 12px;
 }
 
-.link-search-popup,
+.link-search-popup {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-secondary, #0d0d0d);
+  border-radius: 8px;
+}
+
 .person-picker-popup {
   margin-top: 12px;
   padding: 12px;
   background: var(--bg-secondary, #0d0d0d);
   border-radius: 8px;
+  min-width: 320px;
 }
 
 .link-search-popup input {
@@ -915,6 +1133,43 @@ export default {
   background: var(--bg-hover, #2a2f3d);
 }
 
+.new-person-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #3a3f4b);
+}
+
+.new-person-row input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 4px;
+  background: var(--bg-primary, #1a1f2e);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 13px;
+}
+
+.new-person-row button {
+  padding: 8px 12px;
+  background: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.new-person-row button:disabled {
+  background: #444;
+  cursor: not-allowed;
+}
+
+.new-person-row button:not(:disabled):hover {
+  background: #27ae60;
+}
+
 .person-picker-list {
   max-height: 200px;
   overflow-y: auto;
@@ -927,6 +1182,7 @@ export default {
   padding: 8px;
   cursor: pointer;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .person-option:hover {
@@ -938,8 +1194,8 @@ export default {
 }
 
 .person-color-dot {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -947,11 +1203,25 @@ export default {
 .person-name {
   flex: 1;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .person-email {
   font-size: 11px;
   color: var(--text-secondary, #a0a0a0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.person-picker-more {
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  border-top: 1px solid var(--border-color, #3a3f4b);
+  margin-top: 4px;
 }
 
 .person-picker-empty {
@@ -1061,5 +1331,43 @@ export default {
 .child-todos-empty small {
   font-size: 11px;
   opacity: 0.7;
+}
+
+/* Tags */
+.tags-item {
+  flex-basis: 100%;
+}
+
+.inline-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: var(--bg-secondary, #0d0d0d);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.tag-input {
+  padding: 2px 6px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 10px;
+  background: var(--bg-secondary, #0d0d0d);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 11px;
+  width: 80px;
+}
+
+.tag-input::placeholder {
+  color: var(--text-secondary, #a0a0a0);
 }
 </style>

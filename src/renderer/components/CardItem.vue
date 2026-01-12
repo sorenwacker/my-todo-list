@@ -3,9 +3,11 @@
     class="todo-card resizable"
     :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused, 'grid-locked': gridLock }"
     :style="cardStyle"
+    :draggable="isDraggable ? 'true' : 'false'"
     @click="$emit('click', $event)"
     @mousedown="$emit('mousedown', $event)"
     @mouseup="$emit('mouseup', $event)"
+    @dragstart="onDragStart"
   >
     <div class="card-header">
       <input
@@ -110,9 +112,13 @@ export default {
     gridLock: {
       type: Boolean,
       default: false
+    },
+    isDraggable: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'toggle-subtask', 'delete', 'restore', 'permanent-delete'],
+  emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'toggle-subtask', 'delete', 'restore', 'permanent-delete', 'dragstart'],
   computed: {
     subtaskProgress() {
       if (!this.todo.subtask_count) return 0
@@ -130,6 +136,12 @@ export default {
     }
   },
   methods: {
+    onDragStart(event) {
+      console.log('CardItem dragstart:', this.todo.id, this.todo.title)
+      event.dataTransfer.setData('text/plain', this.todo.id.toString())
+      event.dataTransfer.effectAllowed = 'move'
+      this.$emit('dragstart', event)
+    },
     getIconComponent(name) {
       return iconMap[name] || null
     },

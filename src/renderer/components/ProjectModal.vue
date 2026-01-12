@@ -44,6 +44,26 @@
         </div>
       </div>
 
+      <div v-if="project && project.id" class="tags-section">
+        <label>Tags</label>
+        <div class="inline-tags">
+          <span v-for="tag in projectTags" :key="tag.id" class="tag-chip">
+            {{ tag.name }}<button class="chip-x" @click.stop="$emit('remove-tag', tag.id)">x</button>
+          </span>
+          <input
+            v-model="newTagInput"
+            type="text"
+            class="tag-input"
+            placeholder="Add tag..."
+            list="project-tag-suggestions"
+            @keyup.enter="addTag"
+          />
+          <datalist id="project-tag-suggestions">
+            <option v-for="tag in allTags" :key="tag.id" :value="tag.name" />
+          </datalist>
+        </div>
+      </div>
+
       <div v-if="project && project.id" class="stakeholder-register-link">
         <button class="register-btn" @click.stop="$emit('open-register')">
           View Stakeholder Register
@@ -78,12 +98,28 @@ export default {
     assignedPersons: {
       type: Array,
       default: () => []
+    },
+    projectTags: {
+      type: Array,
+      default: () => []
+    },
+    allTags: {
+      type: Array,
+      default: () => []
     }
   },
-  emits: ['save', 'cancel', 'delete', 'assign-person', 'unassign-person', 'open-register'],
+  emits: ['save', 'cancel', 'delete', 'assign-person', 'unassign-person', 'open-register', 'add-tag', 'remove-tag'],
   data() {
     return {
-      showPersonPicker: false
+      showPersonPicker: false,
+      newTagInput: ''
+    }
+  },
+  methods: {
+    addTag() {
+      if (!this.newTagInput.trim()) return
+      this.$emit('add-tag', this.newTagInput.trim())
+      this.newTagInput = ''
     }
   }
 }
@@ -191,5 +227,67 @@ export default {
 
 .register-btn:hover {
   background: var(--bg-hover, #2a2f3d);
+}
+
+/* Tags section */
+.tags-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-primary, #1a1f2e);
+  border-radius: 8px;
+}
+
+.tags-section label {
+  display: block;
+  font-weight: 500;
+  color: var(--text-primary, #e0e0e0);
+  margin-bottom: 8px;
+}
+
+.inline-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-secondary, #0d0d0d);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.chip-x {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.chip-x:hover {
+  color: #e74c3c;
+}
+
+.tag-input {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 12px;
+  background: var(--bg-secondary, #0d0d0d);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 12px;
+  width: 100px;
+}
+
+.tag-input::placeholder {
+  color: var(--text-secondary, #a0a0a0);
 }
 </style>

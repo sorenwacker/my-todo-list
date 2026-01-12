@@ -16,20 +16,32 @@
     <!-- Add Stakeholder Picker -->
     <div v-if="showAddStakeholder" class="stakeholder-picker">
       <div class="picker-header">
-        <h3>Select Person to Add as Stakeholder</h3>
-        <button class="create-person-btn" @click="showCreatePerson = true">+ Create New Person</button>
+        <h3>Add Stakeholder</h3>
+      </div>
+      <div class="new-person-row">
+        <input
+          v-model="quickPersonName"
+          type="text"
+          placeholder="New person name..."
+          @keyup.enter="quickCreatePerson"
+        />
+        <button :disabled="!quickPersonName.trim()" @click="quickCreatePerson">Add</button>
       </div>
       <div class="person-list">
         <div
-v-for="person in availablePersons" :key="person.id"
-             class="person-option"
-             @click="addStakeholder(person)">
+          v-for="person in availablePersons.slice(0, 10)"
+          :key="person.id"
+          class="person-option"
+          @click="addStakeholder(person)">
           <span class="color-dot" :style="{ background: person.color }"></span>
           <span class="person-name">{{ person.name }}</span>
           <span class="person-info">{{ person.role || person.company }}</span>
         </div>
+        <div v-if="availablePersons.length > 10" class="person-list-more">
+          +{{ availablePersons.length - 10 }} more
+        </div>
         <p v-if="!availablePersons.length" class="no-persons">
-          All persons are already stakeholders. Create a new person to add more.
+          All persons are already stakeholders.
         </p>
       </div>
     </div>
@@ -367,6 +379,7 @@ export default {
       editingStakeholder: null,
       showAddStakeholder: false,
       showCreatePerson: false,
+      quickPersonName: '',
       newPerson: {
         name: '',
         email: '',
@@ -444,6 +457,21 @@ export default {
       await window.api.linkProjectPerson(this.projectId, person.id)
       await this.loadStakeholders()
       this.showAddStakeholder = false
+    },
+    async quickCreatePerson() {
+      if (!this.quickPersonName.trim()) return
+      try {
+        const color = this.personColors[Math.floor(Math.random() * this.personColors.length)]
+        const person = await window.api.createPerson({
+          name: this.quickPersonName.trim(),
+          color: color
+        })
+        await this.loadAllPersons()
+        await this.addStakeholder(person)
+        this.quickPersonName = ''
+      } catch (error) {
+        console.error('Failed to create person:', error)
+      }
     },
     editStakeholder(stakeholder) {
       console.log('Editing stakeholder:', stakeholder)
@@ -687,10 +715,66 @@ export default {
   font-size: 16px;
 }
 
+.stakeholder-picker .new-person-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #444;
+}
+
+.stakeholder-picker .new-person-row input {
+  flex: 1;
+  max-width: 300px;
+  padding: 10px 14px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.stakeholder-picker .new-person-row button {
+  padding: 10px 18px;
+  background: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.stakeholder-picker .new-person-row button:disabled {
+  background: #444;
+  cursor: not-allowed;
+}
+
+.stakeholder-picker .new-person-row button:not(:disabled):hover {
+  background: #27ae60;
+}
+
+.light-theme .stakeholder-picker .new-person-row {
+  border-bottom-color: #e0e0e0;
+}
+
+.light-theme .stakeholder-picker .new-person-row input {
+  background: #f9f9f9;
+  border-color: #ddd;
+  color: #333;
+}
+
 .person-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 10px;
+}
+
+.person-list-more {
+  grid-column: 1 / -1;
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
 }
 
 .person-option {

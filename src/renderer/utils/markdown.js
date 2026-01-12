@@ -1,6 +1,41 @@
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
+// Configure marked for better list handling
+marked.setOptions({
+  gfm: true,
+  breaks: true
+})
+
+/**
+ * Preprocess markdown to fix 2-space indented lists
+ * Converts 2-space indentation to 4-space for nested lists
+ */
+function preprocessMarkdown(markdown) {
+  if (!markdown) return ''
+
+  // Convert 2-space indented list items to 4-space
+  const lines = markdown.split('\n')
+  const result = []
+
+  for (const line of lines) {
+    // Match lines starting with spaces followed by - or * or number.
+    const match = line.match(/^( +)([-*]|\d+\.) (.*)$/)
+    if (match) {
+      const spaces = match[1]
+      const bullet = match[2]
+      const content = match[3]
+      // Double the indentation for proper nesting
+      const newSpaces = '    '.repeat(Math.ceil(spaces.length / 2))
+      result.push(newSpaces + bullet + ' ' + content)
+    } else {
+      result.push(line)
+    }
+  }
+
+  return result.join('\n')
+}
+
 /**
  * Configure DOMPurify to allow safe HTML elements for markdown rendering
  */
@@ -52,7 +87,8 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
  */
 export function renderMarkdown(markdown) {
   if (!markdown) return ''
-  const html = marked(markdown)
+  const processed = preprocessMarkdown(markdown)
+  const html = marked(processed)
   return DOMPurify.sanitize(html, purifyConfig)
 }
 
@@ -64,7 +100,8 @@ export function renderMarkdown(markdown) {
  */
 export function renderCardMarkdown(markdown) {
   if (!markdown) return ''
-  const html = marked(markdown)
+  const processed = preprocessMarkdown(markdown)
+  const html = marked(processed)
   return DOMPurify.sanitize(html, purifyConfig)
 }
 

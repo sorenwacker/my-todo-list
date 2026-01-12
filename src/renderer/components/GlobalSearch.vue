@@ -99,6 +99,26 @@
             <span class="result-title">{{ item.name }}</span>
           </div>
         </div>
+
+        <!-- Tags -->
+        <div v-if="results.tags.length" class="result-group">
+          <div class="group-header">
+            <Tag :size="16" />
+            <span>Tags</span>
+            <span class="count">{{ results.tags.length }}</span>
+          </div>
+          <div
+            v-for="item in results.tags"
+            :key="'tag-' + item.id"
+            class="result-item tag-item"
+            :class="{ selected: isSelected('tags', item.id) }"
+            @click="selectResult('tag', item)"
+            @mouseenter="hoverIndex = getGlobalIndex('tags', item.id)"
+          >
+            <span class="tag-icon">#</span>
+            <span class="result-title">{{ item.name }}</span>
+          </div>
+        </div>
       </div>
 
       <div v-else-if="query && !isSearching" class="no-results">
@@ -113,7 +133,7 @@
 </template>
 
 <script>
-import { Search, CheckSquare, FileText, User, Folder } from 'lucide-vue-next'
+import { Search, CheckSquare, FileText, User, Folder, Tag } from 'lucide-vue-next'
 import { debounce } from '../utils/helpers.js'
 
 export default {
@@ -123,7 +143,8 @@ export default {
     CheckSquare,
     FileText,
     User,
-    Folder
+    Folder,
+    Tag
   },
   props: {
     visible: {
@@ -131,14 +152,15 @@ export default {
       default: false
     }
   },
-  emits: ['close', 'select-todo', 'select-person', 'select-project'],
+  emits: ['close', 'select-todo', 'select-person', 'select-project', 'select-tag'],
   data() {
     return {
       query: '',
       results: {
         todos: [],
         persons: [],
-        projects: []
+        projects: [],
+        tags: []
       },
       isSearching: false,
       hoverIndex: -1
@@ -155,7 +177,8 @@ export default {
     hasResults() {
       return this.results.todos.length > 0 ||
              this.results.persons.length > 0 ||
-             this.results.projects.length > 0
+             this.results.projects.length > 0 ||
+             this.results.tags.length > 0
     },
     flatResults() {
       const flat = []
@@ -175,6 +198,10 @@ export default {
       this.results.projects.forEach(item => {
         flat.push({ type: 'projects', item })
       })
+      // Tags
+      this.results.tags.forEach(item => {
+        flat.push({ type: 'tags', item })
+      })
       return flat
     }
   },
@@ -185,7 +212,7 @@ export default {
           this.$refs.searchInput?.focus()
         })
         this.query = ''
-        this.results = { todos: [], persons: [], projects: [] }
+        this.results = { todos: [], persons: [], projects: [], tags: [] }
         this.hoverIndex = -1
       }
     }
@@ -196,7 +223,7 @@ export default {
   methods: {
     async performSearch() {
       if (!this.query.trim()) {
-        this.results = { todos: [], persons: [], projects: [] }
+        this.results = { todos: [], persons: [], projects: [], tags: [] }
         return
       }
 
@@ -206,7 +233,7 @@ export default {
         this.hoverIndex = this.flatResults.length > 0 ? 0 : -1
       } catch (error) {
         console.error('Search failed:', error)
-        this.results = { todos: [], persons: [], projects: [] }
+        this.results = { todos: [], persons: [], projects: [], tags: [] }
       } finally {
         this.isSearching = false
       }
@@ -246,6 +273,8 @@ export default {
           this.selectResult('person', item)
         } else if (type === 'projects') {
           this.selectResult('project', item)
+        } else if (type === 'tags') {
+          this.selectResult('tag', item)
         }
       }
     },
@@ -265,6 +294,8 @@ export default {
         this.$emit('select-person', item)
       } else if (type === 'project') {
         this.$emit('select-project', item)
+      } else if (type === 'tag') {
+        this.$emit('select-tag', item)
       }
     },
     close() {
@@ -401,6 +432,12 @@ export default {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-icon {
+  color: var(--text-secondary, #a0a0a0);
+  font-weight: 600;
   flex-shrink: 0;
 }
 

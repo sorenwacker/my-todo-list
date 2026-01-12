@@ -2,31 +2,38 @@
   <div class="persons-view" :class="{ 'light-theme': theme === 'light' }">
     <div class="persons-header">
       <h2>{{ isProjectMode ? 'Stakeholders' : 'People' }}</h2>
-      <div v-if="isProjectMode" class="stakeholder-actions">
-        <button class="add-btn" @click="togglePersonPicker">+ Add Stakeholder</button>
-        <div v-if="showPersonPicker" class="person-picker">
-          <input
-            ref="personSearchInput"
-            v-model="personSearchQuery"
-            type="text"
-            class="person-search"
-            placeholder="Search people..."
-            @keydown.esc="showPersonPicker = false"
-          />
-          <div v-if="filteredAvailablePersons.length === 0" class="picker-empty">
-            {{ personSearchQuery ? 'No matches found' : 'No more persons to add' }}
-          </div>
-          <div
-            v-for="person in filteredAvailablePersons"
-            :key="person.id"
-            class="picker-item"
-            @click="assignPerson(person)"
-          >
-            <div class="person-avatar-small" :style="{ background: person.color }">
-              {{ getInitials(person.name) }}
+      <div v-if="isProjectMode" class="stakeholder-add-inline">
+        <input
+          ref="personSearchInput"
+          v-model="personSearchQuery"
+          type="text"
+          class="inline-person-input"
+          placeholder="Add stakeholder..."
+          @focus="showPersonPicker = true"
+          @blur="onInputBlur"
+          @keydown.esc="closePicker"
+          @keyup.enter="handleEnterKey"
+        />
+        <div v-if="showPersonPicker && personSearchQuery.trim()" class="person-picker-dropdown">
+          <div v-if="filteredAvailablePersons.length > 0" class="picker-results">
+            <div
+              v-for="person in filteredAvailablePersons.slice(0, 10)"
+              :key="person.id"
+              class="picker-item"
+              @mousedown.prevent="assignPerson(person)"
+            >
+              <div class="person-avatar-small" :style="{ background: person.color }">
+                {{ getInitials(person.name) }}
+              </div>
+              <span class="picker-item-name">{{ person.name }}</span>
+              <span v-if="person.role" class="picker-item-role">{{ person.role }}</span>
             </div>
-            <span>{{ person.name }}</span>
-            <span v-if="person.role" class="picker-item-role">{{ person.role }}</span>
+            <div v-if="filteredAvailablePersons.length > 10" class="picker-more">
+              +{{ filteredAvailablePersons.length - 10 }} more
+            </div>
+          </div>
+          <div v-if="!hasExactMatch && personSearchQuery.trim()" class="picker-create-hint" @mousedown.prevent="quickCreatePerson">
+            Press Enter to create "{{ personSearchQuery.trim() }}"
           </div>
         </div>
       </div>
@@ -256,6 +263,26 @@
             </div>
           </div>
 
+          <div v-if="editingPerson.id" class="tags-section">
+            <label>Tags</label>
+            <div class="inline-tags">
+              <span v-for="tag in personTags" :key="tag.id" class="tag-chip">
+                {{ tag.name }}<button class="chip-x" @click.stop="removeTag(tag.id)">x</button>
+              </span>
+              <input
+                v-model="newTagInput"
+                type="text"
+                class="tag-input"
+                placeholder="Add tag..."
+                list="person-tag-suggestions"
+                @keyup.enter="addTag"
+              />
+              <datalist id="person-tag-suggestions">
+                <option v-for="tag in allTags" :key="tag.id" :value="tag.name" />
+              </datalist>
+            </div>
+          </div>
+
           <div class="modal-actions">
             <button v-if="editingPerson.id" class="delete-btn" @click="deletePerson">Delete</button>
             <button @click="cancelEdit">Cancel</button>
@@ -297,12 +324,18 @@ export default {
     currentView: {
       type: String,
       default: 'cards'
+    },
+    allTags: {
+      type: Array,
+      default: () => []
     }
   },
-  emits: ['refresh', 'edit-opened', 'assign-person', 'unassign-person', 'update-stakeholder'],
+  emits: ['refresh', 'edit-opened', 'assign-person', 'unassign-person', 'update-stakeholder', 'add-tag', 'remove-tag'],
   data() {
     return {
       editingPerson: null,
+      personTags: [],
+      newTagInput: '',
       notesTab: 'edit',
       sortBy: 'name',
       sortDir: 'asc',
@@ -310,6 +343,7 @@ export default {
       pageSize: 25,
       showPersonPicker: false,
       personSearchQuery: '',
+      pickerStyle: {},
       personColors: [
         // Reds
         '#d93025', '#ea4335', '#ef5350', '#ff5252', '#ff1744',
@@ -352,6 +386,11 @@ export default {
         (p.company && p.company.toLowerCase().includes(query)) ||
         (p.email && p.email.toLowerCase().includes(query))
       )
+    },
+    hasExactMatch() {
+      if (!this.personSearchQuery.trim()) return false
+      const query = this.personSearchQuery.trim().toLowerCase()
+      return this.allPersons.some(p => p.name.toLowerCase() === query)
     },
     sortedPersons() {
       const sorted = [...this.persons]
@@ -419,6 +458,15 @@ export default {
       this.personSearchQuery = ''
       if (this.showPersonPicker) {
         this.$nextTick(() => {
+          // Calculate position based on button location
+          const btn = this.$refs.addStakeholderBtn
+          if (btn) {
+            const rect = btn.getBoundingClientRect()
+            this.pickerStyle = {
+              top: `${rect.bottom + 4}px`,
+              left: `${Math.max(8, rect.right - 450)}px`
+            }
+          }
           this.$refs.personSearchInput?.focus()
         })
       }
@@ -441,9 +489,15 @@ export default {
       }
     },
 
-    editPerson(person) {
+    async editPerson(person) {
       this.notesTab = person.notes ? 'preview' : 'edit'
       this.editingPerson = { ...person }
+      this.newTagInput = ''
+      if (person.id) {
+        this.personTags = await window.api.getPersonTags(person.id)
+      } else {
+        this.personTags = []
+      }
     },
 
     handleMarkdownClick(event) {
@@ -471,11 +525,15 @@ export default {
           color: this.editingPerson.color || '#0f4c75'
         }
 
+        console.log('Saving person data:', personData)
+
         if (this.editingPerson.id) {
           personData.id = this.editingPerson.id
-          await window.api.updatePerson(personData)
+          const result = await window.api.updatePerson(personData)
+          console.log('Update result:', result)
         } else {
-          await window.api.createPerson(personData)
+          const result = await window.api.createPerson(personData)
+          console.log('Create result:', result)
         }
 
         this.$emit('refresh')
@@ -505,6 +563,42 @@ export default {
       this.$emit('assign-person', person)
       this.showPersonPicker = false
     },
+    async quickCreatePerson() {
+      if (!this.personSearchQuery.trim() || this.hasExactMatch) return
+      try {
+        const color = this.personColors[Math.floor(Math.random() * this.personColors.length)]
+        const person = await window.api.createPerson({
+          name: this.personSearchQuery.trim(),
+          color: color
+        })
+        this.personSearchQuery = ''
+        this.$emit('refresh')
+        // Also assign to project
+        this.$emit('assign-person', person)
+        this.showPersonPicker = false
+      } catch (error) {
+        console.error('Failed to create person:', error)
+      }
+    },
+    handleEnterKey() {
+      // If there's exactly one match, assign it
+      if (this.filteredAvailablePersons.length === 1) {
+        this.assignPerson(this.filteredAvailablePersons[0])
+      } else if (this.personSearchQuery.trim() && !this.hasExactMatch) {
+        // No exact match, create new
+        this.quickCreatePerson()
+      }
+    },
+    closePicker() {
+      this.showPersonPicker = false
+      this.personSearchQuery = ''
+    },
+    onInputBlur() {
+      // Delay to allow click on dropdown items
+      setTimeout(() => {
+        this.showPersonPicker = false
+      }, 150)
+    },
     unassignPerson(person) {
       if (confirm(`Remove ${person.name} from this project?`)) {
         this.$emit('unassign-person', person)
@@ -512,6 +606,19 @@ export default {
     },
     updateStakeholderField(person, field, value) {
       this.$emit('update-stakeholder', person.id, { [field]: value })
+    },
+    async addTag() {
+      if (!this.newTagInput.trim() || !this.editingPerson?.id) return
+      await window.api.addPersonTag(this.editingPerson.id, this.newTagInput.trim())
+      this.personTags = await window.api.getPersonTags(this.editingPerson.id)
+      this.newTagInput = ''
+      this.$emit('refresh')
+    },
+    async removeTag(tagId) {
+      if (!this.editingPerson?.id) return
+      await window.api.removePersonTag(this.editingPerson.id, tagId)
+      this.personTags = await window.api.getPersonTags(this.editingPerson.id)
+      this.$emit('refresh')
     },
     navigatePerson(direction, event) {
       // Don't navigate if focus is in an input field
@@ -540,6 +647,10 @@ export default {
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+  padding: 8px 0;
 }
 
 .back-btn {
@@ -588,46 +699,72 @@ export default {
 }
 
 /* Stakeholder Actions */
-.stakeholder-actions {
+.stakeholder-add-inline {
   position: relative;
+  margin-left: auto;
 }
 
-.person-picker {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 8px;
-  min-width: 280px;
-  max-height: 350px;
-  overflow-y: auto;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.person-search {
-  width: 100%;
-  padding: 8px 10px;
+.inline-person-input {
+  padding: 8px 12px;
   border: 1px solid #333;
   border-radius: 6px;
-  background: #0d0d0d;
+  background: #1a1a1a;
   color: #e0e0e0;
   font-size: 13px;
-  margin-bottom: 8px;
-  box-sizing: border-box;
+  width: 220px;
 }
 
-.person-search:focus {
+.inline-person-input:focus {
   outline: none;
   border-color: #0f4c75;
 }
+
+.person-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  min-width: 300px;
+}
+
+.picker-create-hint {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #888;
+  border-top: 1px solid #333;
+  cursor: pointer;
+}
+
+.picker-create-hint:hover {
+  background: #2a2a2a;
+  color: #2ecc71;
+}
+
+.picker-results {
+  padding: 8px 0;
+}
+
+.picker-more {
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  border-top: 1px solid #333;
+  margin-top: 4px;
+}
+
 
 .picker-item-role {
   margin-left: auto;
   font-size: 11px;
   color: #666;
+  flex-shrink: 0;
 }
 
 .picker-empty {
@@ -645,10 +782,19 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s;
+  white-space: nowrap;
 }
 
 .picker-item:hover {
   background: #2a2a2a;
+}
+
+.picker-item-name {
+  flex: 1;
+  font-size: 13px;
+  color: #f0f0f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .picker-item span {
@@ -1588,6 +1734,86 @@ export default {
 }
 
 .person-modal.light-theme .notes-preview .placeholder {
+  color: #999;
+}
+
+/* Tags section */
+.person-modal .tags-section {
+  margin: 16px 0;
+}
+
+.person-modal .tags-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
+}
+
+.person-modal.light-theme .tags-section label {
+  color: #666;
+}
+
+.person-modal .inline-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.person-modal .tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #e0e0e0;
+}
+
+.person-modal.light-theme .tag-chip {
+  background: #f0f0f0;
+  border-color: #ddd;
+  color: #333;
+}
+
+.person-modal .chip-x {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.person-modal .chip-x:hover {
+  color: #e74c3c;
+}
+
+.person-modal .tag-input {
+  padding: 4px 8px;
+  border: 1px solid #333;
+  border-radius: 12px;
+  background: #000;
+  color: #e0e0e0;
+  font-size: 12px;
+  width: 100px;
+}
+
+.person-modal.light-theme .tag-input {
+  background: #fff;
+  border-color: #ddd;
+  color: #333;
+}
+
+.person-modal .tag-input::placeholder {
+  color: #666;
+}
+
+.person-modal.light-theme .tag-input::placeholder {
   color: #999;
 }
 </style>

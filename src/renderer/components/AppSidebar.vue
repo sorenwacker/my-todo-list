@@ -232,6 +232,10 @@ export default {
     projectCounts: { type: Object, default: () => ({}) },
     statusCounts: { type: Object, default: () => ({}) },
     categoryCounts: { type: Object, default: () => ({}) },
+    topics: { type: Array, default: () => [] },
+    selectedTopicId: { type: Number, default: null },
+    topicCounts: { type: Object, default: () => ({}) },
+    isProjectSelected: { type: Boolean, default: false },
     openTodosInWindow: { type: Boolean, default: false },
     gridLock: { type: Boolean, default: false },
     databasePath: { type: String, default: '' }
@@ -241,6 +245,7 @@ export default {
     'update:projects', 'projects-reorder', 'add-project', 'edit-project',
     'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
     'update:categories', 'categories-reorder', 'add-category', 'edit-category',
+    'select-topic', 'add-topic', 'edit-topic', 'delete-topic', 'topics-reorder',
     'update:open-todos-in-window', 'update:grid-lock',
     'export', 'show-import',
     'toggle-pin', 'mouseleave', 'mouseenter'
@@ -250,11 +255,14 @@ export default {
       showProjectInput: false,
       showStatusInput: false,
       showCategoryInput: false,
+      showTopicInput: false,
       newProjectName: '',
       newStatusName: '',
       newCategoryName: '',
+      newTopicName: '',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') !== 'false',
+      topicsCollapsed: localStorage.getItem('topics-collapsed') !== 'false',
       settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false'
     }
   },
@@ -264,6 +272,9 @@ export default {
     },
     categoriesCollapsed(val) {
       localStorage.setItem('categories-collapsed', val)
+    },
+    topicsCollapsed(val) {
+      localStorage.setItem('topics-collapsed', val)
     },
     settingsCollapsed(val) {
       localStorage.setItem('settings-collapsed', val)
@@ -323,6 +334,23 @@ export default {
     cancelAddCategory() {
       this.newCategoryName = ''
       this.showCategoryInput = false
+    },
+    getTopicCount(topicId) {
+      return this.topicCounts[topicId] || 0
+    },
+    showAddTopic() {
+      this.showTopicInput = true
+      this.$nextTick(() => this.$refs.topicInput?.focus())
+    },
+    addTopic() {
+      if (this.newTopicName.trim()) {
+        this.$emit('add-topic', this.newTopicName.trim())
+      }
+      this.cancelAddTopic()
+    },
+    cancelAddTopic() {
+      this.newTopicName = ''
+      this.showTopicInput = false
     }
   }
 }
@@ -399,11 +427,11 @@ export default {
   margin: 8px 16px;
 }
 
-.add-project, .add-status, .add-category {
+.add-project, .add-status, .add-category, .add-topic {
   padding: 8px 16px;
 }
 
-.add-project input, .add-status input, .add-category input {
+.add-project input, .add-status input, .add-category input, .add-topic input {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-color, #3a3f4b);
@@ -414,7 +442,7 @@ export default {
   box-sizing: border-box;
 }
 
-.add-project button, .add-status button, .add-category button {
+.add-project button, .add-status button, .add-category button, .add-topic button {
   width: 100%;
   padding: 6px 8px;
   background: transparent;
@@ -425,19 +453,19 @@ export default {
   font-size: 13px;
 }
 
-.add-project button:hover, .add-status button:hover, .add-category button:hover {
+.add-project button:hover, .add-status button:hover, .add-category button:hover, .add-topic button:hover {
   border-color: var(--accent-color, #0f4c75);
   color: var(--accent-color, #0f4c75);
 }
 
-.project-dot, .status-dot {
+.project-dot, .status-dot, .topic-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.project-name, .status-name, .category-name {
+.project-name, .status-name, .category-name, .topic-name {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;

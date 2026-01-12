@@ -275,6 +275,35 @@ app.whenReady().then(() => {
     return database.deleteCategory(validateId(id))
   }))
 
+  // Project Topic operations (project-specific buckets)
+  ipcMain.handle('get-project-topics', handleWithValidation((_, projectId) => {
+    return database.getProjectTopics(validateId(projectId))
+  }))
+  ipcMain.handle('get-project-topic', handleWithValidation((_, id) => {
+    return database.getProjectTopic(validateId(id))
+  }))
+  ipcMain.handle('create-project-topic', handleWithValidation((_, projectId, name, color) => {
+    return database.createProjectTopic(
+      validateId(projectId),
+      validateString(name, 'name', 100),
+      validateOptionalColor(color)
+    )
+  }))
+  ipcMain.handle('update-project-topic', handleWithValidation((_, topic) => {
+    if (!topic || typeof topic !== 'object') throw new Error('Invalid topic')
+    return database.updateProjectTopic({
+      id: validateId(topic.id),
+      name: validateString(topic.name, 'name', 100),
+      color: validateOptionalColor(topic.color)
+    })
+  }))
+  ipcMain.handle('delete-project-topic', handleWithValidation((_, id) => {
+    return database.deleteProjectTopic(validateId(id))
+  }))
+  ipcMain.handle('reorder-project-topics', handleWithValidation((_, ids) => {
+    return database.reorderProjectTopics(validateIds(ids))
+  }))
+
   // Status operations
   ipcMain.handle('get-statuses', () => database.getAllStatuses())
   ipcMain.handle('get-status', handleWithValidation((_, id) => {
@@ -371,6 +400,41 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('get-all-milestones', handleWithValidation((_, projectId) => {
     return database.getAllMilestones(validateOptionalId(projectId))
+  }))
+
+  // Tag operations
+  ipcMain.handle('get-all-tags', handleWithValidation(() => {
+    return database.getAllTags()
+  }))
+  ipcMain.handle('get-todo-tags', handleWithValidation((_, todoId) => {
+    return database.getTodoTags(validateId(todoId))
+  }))
+  ipcMain.handle('add-todo-tag', handleWithValidation((_, todoId, tagName) => {
+    return database.addTodoTag(validateId(todoId), validateString(tagName, 'tagName', 100))
+  }))
+  ipcMain.handle('remove-todo-tag', handleWithValidation((_, todoId, tagId) => {
+    return database.removeTodoTag(validateId(todoId), validateId(tagId))
+  }))
+  ipcMain.handle('get-person-tags', handleWithValidation((_, personId) => {
+    return database.getPersonTags(validateId(personId))
+  }))
+  ipcMain.handle('add-person-tag', handleWithValidation((_, personId, tagName) => {
+    return database.addPersonTag(validateId(personId), validateString(tagName, 'tagName', 100))
+  }))
+  ipcMain.handle('remove-person-tag', handleWithValidation((_, personId, tagId) => {
+    return database.removePersonTag(validateId(personId), validateId(tagId))
+  }))
+  ipcMain.handle('get-project-tags', handleWithValidation((_, projectId) => {
+    return database.getProjectTags(validateId(projectId))
+  }))
+  ipcMain.handle('add-project-tag', handleWithValidation((_, projectId, tagName) => {
+    return database.addProjectTag(validateId(projectId), validateString(tagName, 'tagName', 100))
+  }))
+  ipcMain.handle('remove-project-tag', handleWithValidation((_, projectId, tagId) => {
+    return database.removeProjectTag(validateId(projectId), validateId(tagId))
+  }))
+  ipcMain.handle('search-by-tag', handleWithValidation((_, tagName) => {
+    return database.searchByTag(validateString(tagName, 'tagName', 100))
   }))
 
   // Todo operations

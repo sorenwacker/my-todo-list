@@ -595,6 +595,22 @@ body {
   margin: 0;
 }
 
+.main-header h1 .breadcrumb-link {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.main-header h1 .breadcrumb-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.main-header h1 .breadcrumb-separator {
+  opacity: 0.5;
+  margin: 0 2px;
+}
+
 .main-header .header-title-row .theme-toggle {
   background: transparent;
   border: none;
@@ -2106,6 +2122,10 @@ body {
   resize: none;
   max-width: 100%;
   position: relative;
+  height: var(--grid-card-height, 200px);
+  min-height: var(--grid-card-height, 200px);
+  max-height: var(--grid-card-height, 200px);
+  overflow: hidden;
 }
 
 /* Visible resize handle */
@@ -2150,10 +2170,39 @@ body {
 }
 
 .todo-card .card-header input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 3px;
+  background: var(--bg-secondary, #0d0d0d);
+  position: relative;
+  outline: none;
+}
+
+.todo-card .card-header input[type="checkbox"]:checked {
+  background: var(--accent-color, #0f4c75);
+  border-color: var(--accent-color, #0f4c75);
+}
+
+.todo-card .card-header input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.todo-card .card-header input[type="checkbox"]:hover {
+  border-color: var(--text-secondary, #a0a0a0);
 }
 
 .todo-card .card-header .card-title {
@@ -3613,7 +3662,7 @@ body {
 
 .todo-card.resizable .card-notes-preview {
   flex: 1 1 auto;
-  max-height: 150px;
+  max-height: none;
   overflow-y: auto;
   min-height: 0;
 }
@@ -3679,7 +3728,7 @@ body {
   }
 
   .main-content {
-    padding: 0;
+    padding: 0 8px;
   }
 
   .detail-panel {
@@ -3732,7 +3781,7 @@ body {
   }
 
   .main-content {
-    padding: 0;
+    padding: 0 8px;
   }
 
   .main-header {
@@ -3914,7 +3963,7 @@ body {
   }
 
   .main-content {
-    padding: 0;
+    padding: 0 6px;
     flex: 1;
     min-height: 0;
   }
@@ -7905,4 +7954,121 @@ select {
   cursor: pointer;
   margin: 0;
   pointer-events: auto;
+}
+
+/* Topic Boxes Container */
+.topic-boxes-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 16px;
+  padding: 16px;
+  overflow-x: auto;
+  min-height: calc(100vh - 200px);
+  align-items: flex-start;
+  width: 100%;
+}
+
+.topic-box {
+  flex: 0 0 300px;
+  min-width: 280px;
+  max-width: 350px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 240px);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.topic-box.drag-over {
+  border-color: var(--topic-color, #3498db);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.topic-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  background: #222;
+  border-radius: 8px 8px 0 0;
+}
+
+.topic-box-header .topic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.topic-box-header .topic-name {
+  flex: 1;
+  font-weight: 500;
+  color: #eee;
+  font-size: 14px;
+}
+
+.topic-box-header .topic-count {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #888;
+}
+
+.topic-box-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.topic-box-cards .todo-card {
+  margin: 0;
+  width: 100%;
+}
+
+/* Add Topic Box */
+.topic-box.add-topic-box {
+  background: transparent;
+  border: 2px dashed #444;
+  min-height: 100px;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.topic-box.add-topic-box:hover {
+  border-color: #666;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.add-topic-label {
+  color: #666;
+  font-size: 14px;
+}
+
+.topic-box.add-topic-box:hover .add-topic-label {
+  color: #888;
+}
+
+.topic-box .topic-input {
+  width: calc(100% - 32px);
+  padding: 10px 14px;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #fff;
+  outline: none;
+}
+
+.topic-box .topic-input:focus {
+  border-color: #3498db;
 }

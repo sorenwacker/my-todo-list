@@ -21,10 +21,18 @@
       :project-counts="projectCounts"
       :status-counts="statusCounts"
       :category-counts="categoryCounts"
+      :topics="projectTopics"
+      :selected-topic-id="selectedTopicId"
+      :topic-counts="topicCounts"
+      :is-project-selected="isProjectSelected"
       :open-todos-in-window="openTodosInWindow"
       :grid-lock="gridLock"
       :database-path="databasePath"
       @set-filter="setFilter"
+      @select-topic="selectTopic"
+      @add-topic="addTopicFromSidebar"
+      @edit-topic="editTopic"
+      @delete-topic="deleteTopic"
       @update:projects="projects = $event"
       @projects-reorder="onProjectDragEnd"
       @add-project="addProjectFromSidebar"
@@ -110,19 +118,30 @@
       :colors="projectColors"
       :available-persons="persons"
       :assigned-persons="currentProjectPersons"
+      :project-tags="editingProjectTags"
+      :all-tags="allTags"
       @save="saveProjectFromModal"
       @cancel="cancelEditProject"
       @delete="deleteProjectConfirm"
       @assign-person="assignProjectPerson"
       @unassign-person="unassignProjectPerson"
       @open-register="openStakeholderRegister"
+      @add-tag="addProjectTag"
+      @remove-tag="removeProjectTag"
     />
 
     <div class="main-wrapper" :class="{ 'detail-fullscreen': detailFullscreen && selectedTodo }">
     <main class="main-content" :class="{ 'with-detail': selectedTodo }">
       <header class="main-header">
         <div class="header-title-row">
-          <h1 class="header-title">{{ currentTitle }}</h1>
+          <h1 class="header-title">
+            <template v-if="selectedTopicId !== null && isProjectSelected">
+              <span class="breadcrumb-link" @click="selectedTopicId = null">{{ currentProjectName }}</span>
+              <span class="breadcrumb-separator"> / </span>
+              <span>{{ currentTopicName }}</span>
+            </template>
+            <template v-else>{{ currentTitle }}</template>
+          </h1>
           <MainTabs
             v-if="currentFilter !== 'trash'"
             :active-tab="activeTab"
@@ -244,11 +263,12 @@
         v-if="activeTab === 'stakeholders'"
         :persons="isProjectSelected ? selectedProjectStakeholders : persons"
         :all-persons="persons"
+        :all-tags="allTags"
         :theme="theme"
         :project-id="isProjectSelected ? currentFilter : null"
         :pending-edit="pendingPersonEdit"
         :current-view="currentView"
-        @refresh="loadProjectStakeholders"
+        @refresh="loadProjectStakeholders; loadAllTags()"
         @edit-opened="pendingPersonEdit = null"
         @assign-person="assignStakeholder"
         @unassign-person="unassignStakeholder"
@@ -261,6 +281,9 @@
         :sorted-todos="sortedTodos"
         :grouped-todos="groupedTodos"
         :group-by-project="groupByProject"
+        :topics="isProjectSelected ? projectTopics : []"
+        :selected-topic-id="selectedTopicId"
+        :is-project-view="isProjectSelected"
         :selected-todo-id="selectedTodo?.id"
         :focused-todo-id="focusedTodo?.id"
         :is-trash-view="isTrashView"
@@ -282,6 +305,12 @@
         @update-group-todos="updateGroupTodos"
         @group-drag-end="onGroupDragEnd"
         @add-todo-to-project="addTodoToProject"
+        @drop-on-topic="handleDropOnTopic"
+        @add-topic="addTopicFromCards"
+        @select-topic="selectTopic"
+        @edit-topic="editTopic"
+        @delete-topic="deleteTopic"
+        @add-todo-to-topic="addTodoToTopic"
       />
 
       <!-- Table View -->
@@ -765,11 +794,14 @@
       :projects="projects"
       :categories="categories"
       :statuses="statuses"
+      :topics="selectedTodoTopics"
       :persons="persons"
       :subtasks="subtasks"
       :linked-todos="linkedTodos"
       :child-todos="childTodos"
       :assigned-persons="assignedPersons"
+      :tags="todoTags"
+      :all-tags="allTags"
       :active-tab="detailTab"
       :new-subtask-title="newSubtaskTitle"
       :link-query="linkQuery"
@@ -797,6 +829,7 @@
       @project-change="handleProjectChange"
       @category-change="handleCategoryChange"
       @status-change="handleStatusChange"
+      @topic-change="handleTopicChange"
       @set-importance="setImportance"
       @update-start-date="updateStartDateFromPanel"
       @clear-start-date="clearStartDate"
@@ -818,6 +851,7 @@
       @link-to="linkTo"
       @assign-person="assignPerson"
       @unassign-person="unassignPerson"
+      @create-person="createAndAssignPerson"
       @toggle-person-picker="showPersonPicker = !showPersonPicker"
       @open-settings="openSettings"
       @open-person="openPersonDetails"
@@ -826,6 +860,8 @@
       @update-milestone-date="updateMilestoneDate"
       @clear-milestone-date="clearMilestoneDate"
       @select-child="selectTodo"
+      @add-tag="addTodoTag"
+      @remove-tag="removeTodoTag"
     />
     </div>
 
@@ -1031,6 +1067,7 @@ export default {
       showCategoryInput: false,
       showStatusInput: false,
       editingProject: null,
+      editingProjectTags: [],
       editingCategory: null,
       editingStatus: null,
       selectedTodo: null,
@@ -1046,6 +1083,8 @@ export default {
       linkQuery: '',
       linkResults: [],
       assignedPersons: [],
+      todoTags: [],
+      allTags: [],
       showPersonPicker: false,
       saveTimeout: null,
       sortBy: localStorage.getItem('sort-by') || 'manual',
@@ -1176,6 +1215,14 @@ export default {
       projectPersons: {},
       showProjectPersonPicker: false,
       pendingPersonEdit: null,
+      // Project Topics (buckets)
+      projectTopics: [],
+      selectedTopicId: null,
+      showTopicInput: false,
+      newTopicName: '',
+      editingTopic: null,
+      topicsExpanded: true,
+      dragOverTopicId: null,
       // History state
       historyState: {
         canUndo: false,
@@ -1227,10 +1274,28 @@ export default {
       if (this.currentFilter === 'trash') return 'Trash'
       if (this.currentFilter === 'persons') return 'Persons'
       const project = this.projects.find(p => p.id === this.currentFilter)
-      return project ? project.name : 'Todos'
+      const projectName = project ? project.name : 'Todos'
+      // Add topic name to breadcrumb when filtered
+      if (this.selectedTopicId !== null) {
+        const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
+        if (topic) {
+          return `${projectName} / ${topic.name}`
+        }
+      }
+      return projectName
     },
     isTrashView() {
       return this.currentFilter === 'trash'
+    },
+    currentProjectName() {
+      if (!this.isProjectSelected) return ''
+      const project = this.projects.find(p => p.id === this.currentFilter)
+      return project ? project.name : ''
+    },
+    currentTopicName() {
+      if (this.selectedTopicId === null) return ''
+      const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
+      return topic ? topic.name : ''
     },
     completedSubtasksCount() {
       return this.subtasks.filter(s => s.completed).length
@@ -1254,6 +1319,16 @@ export default {
     selectedProjectStakeholders() {
       if (!this.isProjectSelected) return []
       return this.projectPersons[this.currentFilter] || []
+    },
+    selectedTodoTopics() {
+      // Return topics for the selected todo's project
+      if (!this.selectedTodo?.project_id) return []
+      // If viewing the same project, use cached topics
+      if (this.selectedTodo.project_id === this.currentFilter) {
+        return this.projectTopics
+      }
+      // Otherwise return empty - we'd need async load for different project
+      return this.projectTopics
     },
     allCount() {
       return this.allTodos.length
@@ -1279,6 +1354,13 @@ export default {
       const counts = {}
       for (const category of this.categories) {
         counts[category.id] = this.allTodos.filter(t => t.category_id === category.id).length
+      }
+      return counts
+    },
+    topicCounts() {
+      const counts = {}
+      for (const topic of this.projectTopics) {
+        counts[topic.id] = this.todos.filter(t => t.topic_id === topic.id).length
       }
       return counts
     },
@@ -1415,6 +1497,10 @@ export default {
       }
       if (this.filterCategoryId !== null) {
         todos = todos.filter(t => t.category_id === this.filterCategoryId)
+      }
+      // Filter by selected topic
+      if (this.selectedTopicId !== null) {
+        todos = todos.filter(t => t.topic_id === this.selectedTopicId)
       }
       // Filter by active tab
       if (this.activeTab === 'notes') {
@@ -1794,12 +1880,22 @@ export default {
       }
     },
     activeTab(val) {
+      // Clear topic filter when switching tabs
+      this.selectedTopicId = null
       // Load project stakeholders when switching to stakeholders tab
       if (val === 'stakeholders' && this.isProjectSelected) {
         this.loadProjectPersons(this.currentFilter)
       }
     },
     currentFilter(val) {
+      // Clear topic selection when project changes
+      this.selectedTopicId = null
+      // Load project topics when a project is selected
+      if (typeof val === 'number') {
+        this.loadProjectTopics(val)
+      } else {
+        this.projectTopics = []
+      }
       // Load project stakeholders when project filter changes while in stakeholders tab
       if (this.activeTab === 'stakeholders' && typeof val === 'number') {
         this.loadProjectPersons(val)
@@ -1861,6 +1957,7 @@ export default {
     await this.loadCategories()
     await this.loadStatuses()
     await this.loadPersons()
+    await this.loadAllTags()
     await this.loadAllTodos()
 
     // Restore last used filter from localStorage
@@ -2030,6 +2127,108 @@ export default {
     async loadStatuses() {
       this.statuses = await window.api.getStatuses()
     },
+    // Project Topic methods
+    async loadProjectTopics(projectId) {
+      if (!projectId) {
+        this.projectTopics = []
+        return
+      }
+      this.projectTopics = await window.api.getProjectTopics(projectId)
+    },
+    selectTopic(topicId) {
+      this.selectedTopicId = this.selectedTopicId === topicId ? null : topicId
+    },
+    getTopicCount(topicId) {
+      return this.todos.filter(t => t.topic_id === topicId).length
+    },
+    async addTopic() {
+      if (!this.newTopicName.trim() || !this.isProjectSelected) return
+      const color = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
+      await window.api.createProjectTopic(this.currentFilter, this.newTopicName.trim(), color)
+      await this.loadProjectTopics(this.currentFilter)
+      this.newTopicName = ''
+      this.showTopicInput = false
+    },
+    async updateTopic(topic) {
+      await window.api.updateProjectTopic(topic)
+      await this.loadProjectTopics(this.currentFilter)
+      this.editingTopic = null
+    },
+    async deleteTopic(topicId) {
+      if (!confirm('Delete this topic? Items will be unassigned from it.')) return
+      await window.api.deleteProjectTopic(topicId)
+      if (this.selectedTopicId === topicId) {
+        this.selectedTopicId = null
+      }
+      await this.loadProjectTopics(this.currentFilter)
+      await this.loadTodos()
+    },
+    async addTopicFromSidebar(name) {
+      if (!name.trim() || !this.isProjectSelected) return
+      const color = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
+      await window.api.createProjectTopic(this.currentFilter, name.trim(), color)
+      await this.loadProjectTopics(this.currentFilter)
+    },
+    editTopic(topic) {
+      // Simple rename dialog for now
+      const newName = prompt('Rename topic:', topic.name)
+      if (newName && newName.trim() !== topic.name) {
+        this.updateTopic({ ...topic, name: newName.trim() })
+      }
+    },
+    async dropOnTopic(event, topicId) {
+      this.dragOverTopicId = null
+      const todoId = parseInt(event.dataTransfer.getData('text/plain'))
+      if (!todoId) return
+      const todo = this.allTodos.find(t => t.id === todoId)
+      if (!todo) return
+      // Update the todo's topic_id
+      await window.api.updateTodo({ ...todo, topic_id: topicId })
+      await this.loadAllTodos()
+    },
+    async handleDropOnTopic(todoId, topicId) {
+      console.log('handleDropOnTopic called:', todoId, topicId)
+      const todo = this.allTodos.find(t => t.id === todoId)
+      if (!todo) {
+        console.log('Todo not found:', todoId)
+        return
+      }
+      console.log('Updating todo:', todo.id, 'from topic', todo.topic_id, 'to', topicId)
+      const updated = await window.api.updateTodo({ ...todo, topic_id: topicId })
+      console.log('Updated todo result:', updated)
+
+      // Directly update local state for immediate reactivity
+      const allTodoIndex = this.allTodos.findIndex(t => t.id === todoId)
+      if (allTodoIndex !== -1) {
+        this.allTodos[allTodoIndex] = { ...this.allTodos[allTodoIndex], topic_id: topicId }
+        // Trigger reactivity by reassigning array
+        this.allTodos = [...this.allTodos]
+      }
+      const todoIndex = this.todos.findIndex(t => t.id === todoId)
+      if (todoIndex !== -1) {
+        this.todos[todoIndex] = { ...this.todos[todoIndex], topic_id: topicId }
+        // Trigger reactivity by reassigning array
+        this.todos = [...this.todos]
+      }
+      console.log('Local state updated - todo topic_id now:', this.allTodos.find(t => t.id === todoId)?.topic_id)
+    },
+    async addTopicFromCards(name) {
+      if (!name.trim() || !this.isProjectSelected) return
+      const color = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
+      await window.api.createProjectTopic(this.currentFilter, name.trim(), color)
+      await this.loadProjectTopics(this.currentFilter)
+    },
+    async addTodoToTopic(topicId) {
+      const projectId = this.isProjectSelected ? this.currentFilter : null
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const todo = await window.api.createTodo('Untitled', projectId, type)
+      if (todo && topicId !== null && topicId !== undefined) {
+        await window.api.updateTodo({ ...todo, topic_id: topicId })
+      }
+      await this.loadAllTodos()
+      await this.loadTodos()
+      this.selectTodo(todo.id)
+    },
     async loadAllTodos() {
       this.allTodos = await window.api.getTodos(null)
       // Debug: check if notes_sensitive is being loaded
@@ -2180,7 +2379,11 @@ export default {
         : null
       // Type is determined by the active tab: notes = note, todos = todo
       const type = this.activeTab === 'notes' ? 'note' : 'todo'
-      await window.api.createTodo(this.newTodoTitle.trim(), projectId, type)
+      const todo = await window.api.createTodo(this.newTodoTitle.trim(), projectId, type)
+      // If a topic is selected, assign the new todo to that topic
+      if (todo && this.selectedTopicId !== null) {
+        await window.api.updateTodo({ ...todo, topic_id: this.selectedTopicId })
+      }
       this.newTodoTitle = ''
       await this.loadAllTodos()
       await this.loadTodos()
@@ -2494,6 +2697,7 @@ export default {
       this.linkedTodos = await window.api.getLinkedTodos(id)
       this.subtasks = await window.api.getSubtasks(id)
       this.assignedPersons = await window.api.getTodoPersons(id)
+      this.todoTags = await window.api.getTodoTags(id)
       // Load child todos if this is a milestone
       if (this.selectedTodo.type === 'milestone') {
         this.childTodos = await window.api.getChildTodos(id)
@@ -2575,7 +2779,8 @@ export default {
         sort_order: todo.sort_order,
         type: todo.type,
         parent_id: todo.parent_id,
-        milestone_date: todo.milestone_date
+        milestone_date: todo.milestone_date,
+        topic_id: todo.topic_id
       }
     },
     async saveProjectChange() {
@@ -2670,6 +2875,44 @@ export default {
       // Update graph data if persons are shown in graph
       if (this.showPersonsInGraph) {
         await this.updateGraphData()
+      }
+    },
+    async loadAllTags() {
+      this.allTags = await window.api.getAllTags()
+    },
+    async loadTodoTags() {
+      if (this.selectedTodo) {
+        this.todoTags = await window.api.getTodoTags(this.selectedTodo.id)
+      } else {
+        this.todoTags = []
+      }
+    },
+    async addTodoTag(tagName) {
+      if (!this.selectedTodo || !tagName.trim()) return
+      await window.api.addTodoTag(this.selectedTodo.id, tagName.trim())
+      await this.loadTodoTags()
+      await this.loadAllTags()
+    },
+    async removeTodoTag(tagId) {
+      if (!this.selectedTodo) return
+      await window.api.removeTodoTag(this.selectedTodo.id, tagId)
+      await this.loadTodoTags()
+    },
+    async createAndAssignPerson(name) {
+      if (!this.selectedTodo || !name.trim()) return
+      try {
+        // Create the new person
+        const person = await window.api.createPerson({
+          name: name.trim(),
+          color: this.getRandomPersonColor()
+        })
+        await this.loadPersons()
+        // Assign to current todo
+        await window.api.linkTodoPerson(this.selectedTodo.id, person.id)
+        this.assignedPersons = await window.api.getTodoPersons(this.selectedTodo.id)
+        this.showPersonPicker = false
+      } catch (error) {
+        console.error('Failed to create and assign person:', error)
       }
     },
     async loadSubtasks() {
@@ -2788,11 +3031,26 @@ export default {
       this.showProjectPersonPicker = false
       if (project.id) {
         await this.loadProjectPersons(project.id)
+        this.editingProjectTags = await window.api.getProjectTags(project.id)
+      } else {
+        this.editingProjectTags = []
       }
     },
     cancelEditProject() {
       this.editingProject = null
+      this.editingProjectTags = []
       this.showProjectPersonPicker = false
+    },
+    async addProjectTag(tagName) {
+      if (!this.editingProject?.id || !tagName.trim()) return
+      await window.api.addProjectTag(this.editingProject.id, tagName.trim())
+      this.editingProjectTags = await window.api.getProjectTags(this.editingProject.id)
+      await this.loadAllTags()
+    },
+    async removeProjectTag(tagId) {
+      if (!this.editingProject?.id) return
+      await window.api.removeProjectTag(this.editingProject.id, tagId)
+      this.editingProjectTags = await window.api.getProjectTags(this.editingProject.id)
     },
     async saveProject() {
       try {
@@ -2976,6 +3234,14 @@ export default {
     async handleStatusChange(statusId) {
       this.selectedTodo.status_id = statusId
       await this.saveStatusChange()
+    },
+    async handleTopicChange(topicId) {
+      this.selectedTodo.topic_id = topicId
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
     },
     async updateStartDateFromPanel(value) {
       this.selectedTodo.start_date = value || null
@@ -4817,9 +5083,10 @@ export default {
       }
     },
     async loadProjectStakeholders() {
-      if (!this.isProjectSelected) return
-      await this.loadProjectPersons(this.currentFilter)
       await this.loadPersons()
+      if (this.isProjectSelected) {
+        await this.loadProjectPersons(this.currentFilter)
+      }
     },
     async assignStakeholder(person) {
       if (!this.isProjectSelected) return

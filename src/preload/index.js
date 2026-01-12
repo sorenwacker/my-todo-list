@@ -21,6 +21,14 @@ contextBridge.exposeInMainWorld('api', {
   updateCategory: (category) => ipcRenderer.invoke('update-category', category),
   deleteCategory: (id) => ipcRenderer.invoke('delete-category', id),
 
+  // Project Topic operations (project-specific buckets)
+  getProjectTopics: (projectId) => ipcRenderer.invoke('get-project-topics', projectId),
+  getProjectTopic: (id) => ipcRenderer.invoke('get-project-topic', id),
+  createProjectTopic: (projectId, name, color) => ipcRenderer.invoke('create-project-topic', projectId, name, color),
+  updateProjectTopic: (topic) => ipcRenderer.invoke('update-project-topic', topic),
+  deleteProjectTopic: (id) => ipcRenderer.invoke('delete-project-topic', id),
+  reorderProjectTopics: (ids) => ipcRenderer.invoke('reorder-project-topics', ids),
+
   // Status operations
   getStatuses: () => ipcRenderer.invoke('get-statuses'),
   getStatus: (id) => ipcRenderer.invoke('get-status', id),
@@ -75,6 +83,19 @@ contextBridge.exposeInMainWorld('api', {
   linkMilestonePerson: (milestoneId, personId, role) => ipcRenderer.invoke('link-milestone-person', milestoneId, personId, role),
   unlinkMilestonePerson: (milestoneId, personId) => ipcRenderer.invoke('unlink-milestone-person', milestoneId, personId),
   getAllMilestones: (projectId) => ipcRenderer.invoke('get-all-milestones', projectId),
+
+  // Tag operations
+  getAllTags: () => ipcRenderer.invoke('get-all-tags'),
+  getTodoTags: (todoId) => ipcRenderer.invoke('get-todo-tags', todoId),
+  addTodoTag: (todoId, tagName) => ipcRenderer.invoke('add-todo-tag', todoId, tagName),
+  removeTodoTag: (todoId, tagId) => ipcRenderer.invoke('remove-todo-tag', todoId, tagId),
+  getPersonTags: (personId) => ipcRenderer.invoke('get-person-tags', personId),
+  addPersonTag: (personId, tagName) => ipcRenderer.invoke('add-person-tag', personId, tagName),
+  removePersonTag: (personId, tagId) => ipcRenderer.invoke('remove-person-tag', personId, tagId),
+  getProjectTags: (projectId) => ipcRenderer.invoke('get-project-tags', projectId),
+  addProjectTag: (projectId, tagName) => ipcRenderer.invoke('add-project-tag', projectId, tagName),
+  removeProjectTag: (projectId, tagId) => ipcRenderer.invoke('remove-project-tag', projectId, tagId),
+  searchByTag: (tagName) => ipcRenderer.invoke('search-by-tag', tagName),
 
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),
   reorderProjects: (ids) => ipcRenderer.invoke('reorder-projects', ids),
