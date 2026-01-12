@@ -1998,18 +1998,15 @@ body {
 }
 
 .cards-groups-container {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(var(--card-columns, 3), 1fr);
   gap: 16px;
-  overflow-x: auto;
   padding-bottom: 8px;
   align-items: flex-start;
 }
 
 .cards-group {
-  flex: 0 0 var(--card-width, 280px);
-  min-width: var(--card-width, 280px);
-  max-width: var(--card-width, 280px);
+  min-width: 0;
   overflow: visible;
 }
 
@@ -2056,7 +2053,7 @@ body {
 
 .cards-grid.masonry {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--card-width, 280px), 1fr));
+  grid-template-columns: repeat(var(--card-columns, 3), 1fr);
   grid-auto-rows: 1px;
   grid-auto-flow: dense;
   gap: 16px;
@@ -2162,9 +2159,16 @@ body {
 .todo-card .card-header .card-title {
   flex: 1;
   font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
-  word-break: break-word;
+}
+
+.todo-card .card-category-symbol {
+  color: #888;
+  opacity: 0.7;
+  font-size: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .todo-card .card-header .delete-btn {
@@ -2407,11 +2411,22 @@ body {
 .table-view .expand-btn {
   background: none;
   border: none;
-  color: #666;
+  color: #444;
   cursor: pointer;
   font-size: 14px;
   padding: 0;
   line-height: 1;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.table-view .expand-btn.has-subtasks {
+  color: #666;
+  opacity: 1;
+}
+
+.table-view tr:hover .expand-btn {
+  opacity: 1;
 }
 
 .table-view .expand-btn:hover {
@@ -2431,6 +2446,72 @@ body {
 .table-view .subtask-row.completed .subtask-title {
   text-decoration: line-through;
   opacity: 0.6;
+}
+
+.table-view .subtask-row .subtask-delete-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.table-view .subtask-row:hover .subtask-delete-btn {
+  opacity: 0.6;
+}
+
+.table-view .subtask-row .subtask-delete-btn:hover {
+  opacity: 1;
+  color: #e74c3c;
+}
+
+.table-view .subtask-inline-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-bottom: 1px solid #4fc3f7;
+  border-radius: 0;
+  color: inherit;
+  font-size: 13px;
+  padding: 4px 0;
+  width: 100%;
+  outline: none;
+}
+
+.table-view .subtask-inline-input::placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+.table-view .add-subtask-row {
+  background: transparent;
+}
+
+.table-view .add-subtask-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table-view .add-subtask-cell {
+  padding: 2px 8px;
+}
+
+.table-view .add-subtask-btn {
+  background: none;
+  border: 1px dashed #444;
+  border-radius: 3px;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 10px;
+  transition: all 0.15s;
+}
+
+.table-view .add-subtask-btn:hover {
+  border-color: #4fc3f7;
+  color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.1);
 }
 
 .table-view .col-title {
@@ -3994,9 +4075,21 @@ body {
   border-bottom: 1px solid #0d0d0d;
   border-left: 3px solid transparent;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
   box-sizing: border-box;
+}
+
+.gantt-row-label.drop-target {
+  background: rgba(255, 193, 7, 0.15);
+  border-left-color: #ffc107 !important;
+}
+
+.gantt-row-label .row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .gantt-row-label .row-name {
@@ -4013,6 +4106,29 @@ body {
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 11px;
+}
+
+.gantt-row-label .row-persons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.gantt-row-label .person-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.gantt-row-label.is-milestone-row {
+  background: rgba(255, 193, 7, 0.05);
 }
 
 .gantt-chart-area {
@@ -4102,6 +4218,12 @@ body {
   border-bottom: 1px solid #0d0d0d;
 }
 
+.gantt-row.drop-target {
+  background: rgba(255, 193, 7, 0.15);
+  outline: 2px dashed #ffc107;
+  outline-offset: -2px;
+}
+
 .gantt-row-bg {
   position: absolute;
   top: 0;
@@ -4159,36 +4281,58 @@ body {
 
 /* Milestone diamond marker */
 .gantt-bar.milestone {
-  background: #ffc107 !important;
-  min-width: 20px;
-  width: 20px !important;
-  height: 20px !important;
+  background: transparent !important;
+  min-width: 24px;
+  width: 24px !important;
+  height: 24px !important;
   padding: 0;
-  transform: rotate(45deg);
-  border-radius: 3px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
+  z-index: 10;
+}
+
+.gantt-bar.milestone::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #ffc107;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.gantt-bar.milestone:hover::before {
+  transform: rotate(45deg) scale(1.2);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.gantt-bar.milestone.selected::before {
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.4);
 }
 
 .gantt-bar.milestone .gantt-bar-title {
-  display: none;
+  position: absolute;
+  display: block;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 26px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: #ffc107;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gantt-bar.milestone .gantt-bar-handle {
   display: none;
-}
-
-.gantt-bar.milestone::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%) rotate(-45deg);
-  white-space: nowrap;
-  top: 24px;
-  font-size: 10px;
-  color: #ffc107;
-  font-weight: 600;
 }
 
 .gantt-bar-title {
@@ -4231,6 +4375,299 @@ body {
 
 .gantt-bar-handle:hover {
   background: rgba(255,255,255,0.5);
+}
+
+/* Timeline Mode Switcher */
+.timeline-mode-switcher {
+  display: flex;
+  gap: 4px;
+  background: #111;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.timeline-mode-switcher button {
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.timeline-mode-switcher button:hover {
+  color: #fff;
+}
+
+.timeline-mode-switcher button.active {
+  background: #3498db;
+  color: #fff;
+}
+
+.calendar-period {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  margin-left: 8px;
+}
+
+.today-btn {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #ccc;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.today-btn:hover {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+/* Calendar Month View */
+.calendar-month {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.weekday-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #111;
+  border-bottom: 1px solid #333;
+}
+
+.weekday-header {
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.month-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 1px;
+  background: #333;
+}
+
+.month-cell {
+  background: #000;
+  padding: 4px;
+  min-height: 80px;
+  overflow: hidden;
+}
+
+.month-cell.other-month {
+  background: #000;
+}
+
+.month-cell.other-month .cell-date {
+  color: #444;
+}
+
+.month-cell.is-today {
+  background: #1a2a3a;
+}
+
+.month-cell.is-today .cell-date {
+  background: #3498db;
+  color: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.month-cell.is-weekend {
+  background: #050505;
+}
+
+.cell-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+
+.cell-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.cal-event, .week-event, .day-event {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #111;
+  border-radius: 3px;
+  border-left: 3px solid #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cal-event:hover, .week-event:hover, .day-event:hover {
+  background: #222;
+}
+
+.cal-event.completed, .week-event.completed, .day-event.completed {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.cal-event.milestone, .week-event.milestone, .day-event.milestone {
+  background: #2a2a00;
+  border-left-color: #ffc107;
+}
+
+/* Calendar Week View */
+.calendar-week {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.week-header {
+  display: flex;
+  border-bottom: 1px solid #333;
+  background: #000;
+}
+
+.time-gutter-header {
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.week-day-header {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  border-left: 1px solid #333;
+}
+
+.week-day-header .day-name {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.week-day-header .day-number {
+  display: inline-block;
+  font-size: 20px;
+  font-weight: 500;
+  color: #ccc;
+  margin-top: 4px;
+}
+
+.week-day-header.is-today .day-number.today-circle {
+  background: #3498db;
+  color: #fff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+}
+
+.week-body, .day-body {
+  flex: 1;
+  display: flex;
+  overflow-y: auto;
+}
+
+.time-gutter {
+  width: 60px;
+  flex-shrink: 0;
+  border-right: 1px solid #333;
+}
+
+.hour-label {
+  height: 48px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #666;
+  text-align: right;
+}
+
+.week-columns {
+  flex: 1;
+  display: flex;
+}
+
+.week-column, .day-column {
+  flex: 1;
+  border-left: 1px solid #333;
+  position: relative;
+}
+
+.week-column.is-today, .day-column.is-today {
+  background: rgba(52, 152, 219, 0.05);
+}
+
+.week-column.is-weekend {
+  background: #050505;
+}
+
+.hour-slots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.hour-slot {
+  height: 48px;
+  border-bottom: 1px solid #222;
+}
+
+.day-events, .day-events-list {
+  position: relative;
+  padding: 4px;
+}
+
+.week-event {
+  margin-bottom: 4px;
+}
+
+/* Calendar Day View */
+.calendar-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.day-event {
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.day-event .event-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.day-event .event-project {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
 }
 
 /* Graph View Styles */
@@ -4288,14 +4725,14 @@ body {
   height: 100%;
 }
 
+/* No transition by default for responsive zooming/panning */
 .graph-svg > g {
-  transition: transform 0.15s ease-out;
+  transition: none;
 }
 
-/* Disable transition during drag/pan for responsiveness */
-.graph-view.dragging .graph-svg > g,
-.graph-view.panning .graph-svg > g {
-  transition: none;
+/* Only apply transition for explicit layout/center animations */
+.graph-view.animating .graph-svg > g {
+  transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .graph-links line {
@@ -4304,8 +4741,21 @@ body {
   stroke-opacity: 0.6;
 }
 
+/* Thinner, lighter edges to person nodes */
+.graph-link.person-link {
+  stroke: #8e44ad;
+  stroke-width: 1;
+  stroke-opacity: 0.4;
+  stroke-dasharray: 4 2;
+}
+
 .graph-node {
   cursor: pointer;
+}
+
+/* Only apply transition for layout animations */
+.graph-view.animating .graph-node {
+  transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .graph-node circle {
@@ -4451,12 +4901,39 @@ body {
   overflow-wrap: break-word;
   max-height: 52px;
   overflow: hidden;
+  padding-right: 20px;
 }
+
+.graph-node .node-title-text a {
+  color: #3498db;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.graph-node .node-title-text a:hover {
+  color: #5dade2;
+}
+
+.graph-node .node-title-text:empty {
+  display: none;
+}
+
+.graph-node .node-category-symbol {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0.7;
+  color: #888;
+  font-size: 12px;
+  z-index: 1;
+}
+
 
 .graph-node .node-notes {
   font-size: 12px;
   line-height: 1.4;
   opacity: 0.9;
+  padding-right: 20px;
   max-height: 150px;
   overflow: hidden;
   word-wrap: break-word;
@@ -4519,6 +4996,60 @@ body {
   margin: 6px 0;
   padding-left: 10px;
   opacity: 0.8;
+}
+
+/* Node title editor (inline editing) */
+.graph-node .node-title-editor {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(79, 195, 247, 0.5);
+  border-radius: 4px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.graph-node .node-title-editor:focus {
+  outline: none;
+  border-color: #4fc3f7;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Node notes editor (inline editing) */
+.graph-node .node-notes-editor {
+  width: 100%;
+  min-height: 60px;
+  max-height: 300px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(79, 195, 247, 0.5);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px;
+  resize: none;
+  overflow-y: auto;
+  field-sizing: content;
+}
+
+.graph-node .node-notes-editor:focus {
+  outline: none;
+  border-color: #4fc3f7;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.graph-node .node-notes-placeholder {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  padding: 4px 20px 4px 0;
 }
 
 /* Person node styles */
@@ -4811,13 +5342,72 @@ body {
 }
 
 .graph-link {
-  cursor: pointer;
   stroke-width: 3;
+  pointer-events: none;
 }
 
-.graph-link:hover {
-  stroke: #e74c3c;
+.graph-link:hover,
+.graph-link.hovered {
+  stroke: #4fc3f7;
   stroke-width: 4;
+}
+
+/* Invisible wider area for hover detection */
+.graph-link-hover {
+  stroke: transparent;
+  stroke-width: 20;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+/* Plus button on edge hover */
+.link-add-btn {
+  cursor: pointer;
+}
+
+.link-add-circle {
+  fill: #1a1a2e;
+  stroke: #4fc3f7;
+  stroke-width: 2;
+  transition: fill 0.15s ease;
+}
+
+.link-add-btn:hover .link-add-circle {
+  fill: #0f4c75;
+}
+
+.link-add-icon {
+  fill: #4fc3f7;
+  font-size: 16px;
+  font-weight: bold;
+  user-select: none;
+}
+
+/* Remove button on edge hover */
+.link-remove-btn {
+  cursor: pointer;
+}
+
+.link-remove-circle {
+  fill: #1a1a2e;
+  stroke: #e74c3c;
+  stroke-width: 2;
+  transition: fill 0.15s ease;
+}
+
+.link-remove-btn:hover .link-remove-circle {
+  fill: #c0392b;
+}
+
+.link-remove-icon {
+  fill: #e74c3c;
+  font-size: 16px;
+  font-weight: bold;
+  user-select: none;
+}
+
+.link-remove-btn:hover .link-remove-icon {
+  fill: #fff;
 }
 
 /* Graph Tooltip */
@@ -5895,6 +6485,10 @@ body {
   color: var(--text-muted);
 }
 
+.light-theme .gantt-row-label.is-milestone-row {
+  background: rgba(255, 193, 7, 0.1);
+}
+
 .light-theme .gantt-header {
   background: var(--bg-tertiary);
   border-bottom-color: var(--border-color);
@@ -5973,6 +6567,18 @@ body {
   color: #222;
 }
 
+.light-theme .graph-node .node-title-text a {
+  color: #2980b9;
+}
+
+.light-theme .graph-node .node-title-text a:hover {
+  color: #3498db;
+}
+
+.light-theme .graph-node .node-category-symbol {
+  color: #333;
+}
+
 .light-theme .graph-node .node-content-wrapper .node-notes {
   color: #555;
 }
@@ -5993,6 +6599,32 @@ body {
 .light-theme .graph-node .node-delete-btn:hover {
   color: #d93025;
   background: rgba(217, 48, 37, 0.1);
+}
+
+.light-theme .graph-node .node-title-editor {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  color: #222;
+}
+
+.light-theme .graph-node .node-title-editor:focus {
+  border-color: #0f4c75;
+  background: #fff;
+}
+
+.light-theme .graph-node .node-notes-editor {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  color: #333;
+}
+
+.light-theme .graph-node .node-notes-editor:focus {
+  border-color: #0f4c75;
+  background: #fff;
+}
+
+.light-theme .graph-node .node-notes-placeholder {
+  color: rgba(0, 0, 0, 0.4);
 }
 
 .light-theme .empty-state {
@@ -6467,6 +7099,31 @@ body {
 .light-theme .table-view tbody tr.keyboard-focused {
   outline-color: #0f4c75;
   background: #eef2f7;
+}
+
+.light-theme .table-view .subtask-row {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.light-theme .table-view .subtask-row .subtask-title {
+  color: #555;
+}
+
+.light-theme .table-view .subtask-inline-input {
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom-color: #1a73e8;
+  color: #333;
+}
+
+.light-theme .table-view .add-subtask-btn {
+  border-color: #ccc;
+  color: #888;
+}
+
+.light-theme .table-view .add-subtask-btn:hover {
+  border-color: #1a73e8;
+  color: #1a73e8;
+  background: rgba(26, 115, 232, 0.1);
 }
 
 /* Persons Section */

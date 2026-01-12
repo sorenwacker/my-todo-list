@@ -56,7 +56,41 @@
                   @click.stop="$emit('toggle-subtask', subtask)"
                 />
               </td>
-              <td class="subtask-title" colspan="10">{{ subtask.title }}</td>
+              <td class="subtask-title" colspan="9" @dblclick="startEditSubtask(subtask)">
+                <template v-if="editingSubtaskId === subtask.id">
+                  <input
+                    v-model="editingSubtaskTitle"
+                    class="subtask-inline-input"
+                    @blur="saveSubtaskEdit(subtask)"
+                    @keydown.enter="saveSubtaskEdit(subtask)"
+                    @keydown.escape="cancelSubtaskEdit"
+                    ref="subtaskInput"
+                  />
+                </template>
+                <template v-else>{{ subtask.title }}</template>
+              </td>
+              <td class="col-actions">
+                <button class="subtask-delete-btn" @click.stop="$emit('delete-subtask', subtask.id)" title="Delete">×</button>
+              </td>
+            </tr>
+            <!-- Add subtask row -->
+            <tr v-if="isExpanded(todo.id)" class="add-subtask-row">
+              <td class="col-check"></td>
+              <td class="col-expand"></td>
+              <td colspan="10" class="add-subtask-cell">
+                <template v-if="addingSubtaskForTodo === todo.id">
+                  <input
+                    v-model="newSubtaskTitle"
+                    class="subtask-inline-input"
+                    placeholder="New task..."
+                    @blur="saveNewSubtask(todo.id)"
+                    @keydown.enter="saveNewSubtask(todo.id)"
+                    @keydown.escape="cancelAddSubtask"
+                    ref="newSubtaskInput"
+                  />
+                </template>
+                <button v-else class="add-subtask-btn" @click="startAddSubtask(todo.id)">+ Add task</button>
+              </td>
             </tr>
           </template>
         </tbody>
@@ -92,7 +126,41 @@
                 @click.stop="$emit('toggle-subtask', subtask)"
               />
             </td>
-            <td class="subtask-title" colspan="10">{{ subtask.title }}</td>
+            <td class="subtask-title" colspan="9" @dblclick="startEditSubtask(subtask)">
+              <template v-if="editingSubtaskId === subtask.id">
+                <input
+                  v-model="editingSubtaskTitle"
+                  class="subtask-inline-input"
+                  @blur="saveSubtaskEdit(subtask)"
+                  @keydown.enter="saveSubtaskEdit(subtask)"
+                  @keydown.escape="cancelSubtaskEdit"
+                  ref="subtaskInput"
+                />
+              </template>
+              <template v-else>{{ subtask.title }}</template>
+            </td>
+            <td class="col-actions">
+              <button class="subtask-delete-btn" @click.stop="$emit('delete-subtask', subtask.id)" title="Delete">×</button>
+            </td>
+          </tr>
+          <!-- Add subtask row -->
+          <tr v-if="isExpanded(todo.id)" class="add-subtask-row">
+            <td class="col-check"></td>
+            <td class="col-expand"></td>
+            <td colspan="10" class="add-subtask-cell">
+              <template v-if="addingSubtaskForTodo === todo.id">
+                <input
+                  v-model="newSubtaskTitle"
+                  class="subtask-inline-input"
+                  placeholder="New task..."
+                  @blur="saveNewSubtask(todo.id)"
+                  @keydown.enter="saveNewSubtask(todo.id)"
+                  @keydown.escape="cancelAddSubtask"
+                  ref="newSubtaskInput"
+                />
+              </template>
+              <button v-else class="add-subtask-btn" @click="startAddSubtask(todo.id)">+ Add task</button>
+            </td>
           </tr>
         </template>
       </tbody>
@@ -143,13 +211,20 @@ export default {
     'toggle-complete',
     'toggle-subtask',
     'delete-todo',
+    'delete-subtask',
     'restore-todo',
     'permanent-delete-todo',
-    'add-todo-to-project'
+    'add-todo-to-project',
+    'add-subtask',
+    'update-subtask'
   ],
   data() {
     return {
-      expandedRows: new Set()
+      expandedRows: new Set(),
+      editingSubtaskId: null,
+      editingSubtaskTitle: '',
+      addingSubtaskForTodo: null,
+      newSubtaskTitle: ''
     }
   },
   methods: {
@@ -166,8 +241,50 @@ export default {
       return this.expandedRows.has(todoId)
     },
     getSubtasks(todoId) {
-      console.log('getSubtasks called for todoId:', todoId, 'subtasksMap:', this.subtasksMap, 'result:', this.subtasksMap[todoId])
       return this.subtasksMap[todoId] || []
+    },
+    startEditSubtask(subtask) {
+      this.editingSubtaskId = subtask.id
+      this.editingSubtaskTitle = subtask.title
+      this.$nextTick(() => {
+        const input = this.$refs.subtaskInput
+        if (input) {
+          const el = Array.isArray(input) ? input[0] : input
+          el?.focus()
+          el?.select()
+        }
+      })
+    },
+    saveSubtaskEdit(subtask) {
+      if (this.editingSubtaskTitle.trim() && this.editingSubtaskTitle !== subtask.title) {
+        this.$emit('update-subtask', { id: subtask.id, title: this.editingSubtaskTitle.trim() })
+      }
+      this.cancelSubtaskEdit()
+    },
+    cancelSubtaskEdit() {
+      this.editingSubtaskId = null
+      this.editingSubtaskTitle = ''
+    },
+    startAddSubtask(todoId) {
+      this.addingSubtaskForTodo = todoId
+      this.newSubtaskTitle = ''
+      this.$nextTick(() => {
+        const input = this.$refs.newSubtaskInput
+        if (input) {
+          const el = Array.isArray(input) ? input[0] : input
+          el?.focus()
+        }
+      })
+    },
+    saveNewSubtask(todoId) {
+      if (this.newSubtaskTitle.trim()) {
+        this.$emit('add-subtask', { todoId, title: this.newSubtaskTitle.trim() })
+      }
+      this.cancelAddSubtask()
+    },
+    cancelAddSubtask() {
+      this.addingSubtaskForTodo = null
+      this.newSubtaskTitle = ''
     }
   }
 }

@@ -20,7 +20,7 @@
       <input
         v-model="todo.title"
         class="title-input"
-        placeholder="Todo title"
+        placeholder="Title"
         @input="save"
       />
     </div>
@@ -95,7 +95,7 @@
 
     <div class="subtasks-section">
       <div class="subtasks-header">
-        <label>Subtasks</label>
+        <label>Tasks</label>
         <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
       </div>
       <draggable
@@ -473,8 +473,12 @@ export default {
         this.theme = currentTheme
       }
     })
+
+    // Close window on Escape key
+    window.addEventListener('keydown', this.handleKeyDown)
   },
   beforeUnmount() {
+    window.removeEventListener('keydown', this.handleKeyDown)
     console.log('beforeUnmount called, saving todo')
     // Flush any pending saves before component is destroyed
     if (this.saveTimeout) {
@@ -489,6 +493,12 @@ export default {
     }
   },
   methods: {
+    handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        this.closeWindow()
+      }
+    },
     embedTodo() {
       // Tell main window to open this todo in embedded view, then close this window
       window.api.embedTodo(this.todo.id)

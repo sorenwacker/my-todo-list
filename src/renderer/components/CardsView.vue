@@ -1,7 +1,7 @@
 <template>
   <div class="cards-view">
     <template v-if="groupByProject">
-      <div class="cards-groups-container" :style="{ '--card-width': cardSize + 'px' }">
+      <div class="cards-groups-container" :style="{ '--card-columns': cardColumns }">
         <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
           <div class="group-header" :style="{ borderLeftColor: group.color || '#666' }">
             <span class="group-dot" :style="{ background: group.color || '#666' }"></span>
@@ -12,7 +12,7 @@
             :model-value="group.todos"
             item-key="id"
             class="cards-grid masonry"
-            :style="{ '--card-width': cardSize + 'px' }"
+            :style="{ '--card-columns': cardColumns }"
             ghost-class="ghost"
             :disabled="sortBy !== 'manual'"
             @update:model-value="$emit('update-group-todos', group.id, $event)"
@@ -50,7 +50,7 @@
         :model-value="sortedTodos"
         item-key="id"
         class="cards-grid masonry"
-        :style="{ '--card-width': cardSize + 'px' }"
+        :style="{ '--card-columns': cardColumns }"
         ghost-class="ghost"
         :disabled="sortBy !== 'manual'"
         @update:model-value="$emit('update-sorted-todos', $event)"
@@ -116,9 +116,9 @@ export default {
       type: Boolean,
       default: false
     },
-    cardSize: {
+    cardColumns: {
       type: Number,
-      default: 250
+      default: 3
     },
     sortBy: {
       type: String,

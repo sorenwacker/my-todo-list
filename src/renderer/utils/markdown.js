@@ -68,4 +68,15 @@ export function renderCardMarkdown(markdown) {
   return DOMPurify.sanitize(html, purifyConfig)
 }
 
+/**
+ * Render inline markdown (no paragraph wrapper) for titles
+ * @param {string} markdown - The markdown string to render
+ * @returns {string} - Sanitized HTML string
+ */
+export function renderInlineMarkdown(markdown) {
+  if (!markdown) return ''
+  const html = marked.parseInline(markdown)
+  return DOMPurify.sanitize(html, purifyConfig)
+}
+
 export { marked, DOMPurify }

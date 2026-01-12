@@ -35,12 +35,13 @@
           @change="$emit('toggle-complete')"
         />
         <input
-          :value="todo.title"
+          :value="displayTitle"
           class="title-input"
-          placeholder="Todo title"
+          placeholder="Title"
           :style="{ borderBottomColor: todo.project_color || '#333' }"
           @input="$emit('update:title', $event.target.value)"
           @change="$emit('save')"
+          @keydown.escape="$emit('close')"
         />
       </div>
 
@@ -96,6 +97,7 @@
           class="notes-editor"
           :style="{ borderColor: todo.project_color || '#333' }"
           @input="$emit('update:notes', $event.target.value)"
+          @keydown.escape="$emit('close')"
         ></textarea>
 
         <div
@@ -118,6 +120,7 @@
             class="notes-editor split-editor"
             :style="{ borderColor: todo.project_color || '#333' }"
             @input="$emit('update:notes', $event.target.value)"
+            @keydown.escape="$emit('close')"
           ></textarea>
           <div
             class="notes-preview markdown-body split-preview"
@@ -143,7 +146,7 @@
 
       <div class="subtasks-section">
         <div class="subtasks-header">
-          <label>Subtasks</label>
+          <label>Tasks</label>
           <span v-if="subtasks.length" class="subtask-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
         </div>
         <draggable
@@ -343,6 +346,11 @@ export default {
     'update-milestone-date', 'clear-milestone-date', 'select-child'
   ],
   computed: {
+    displayTitle() {
+      const title = this.todo?.title
+      if (!title || title === 'Untitled' || title === 'New Node') return ''
+      return title
+    },
     panelStyle() {
       const style = {
         borderLeftColor: this.todo?.project_color || '#333'

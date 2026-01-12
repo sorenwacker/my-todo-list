@@ -123,6 +123,27 @@ export class Database {
         value TEXT,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS milestone_todos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        milestone_id INTEGER NOT NULL,
+        todo_id INTEGER NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (milestone_id) REFERENCES todos(id) ON DELETE CASCADE,
+        FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
+        UNIQUE(milestone_id, todo_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS milestone_persons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        milestone_id INTEGER NOT NULL,
+        person_id INTEGER NOT NULL,
+        role TEXT DEFAULT '',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (milestone_id) REFERENCES todos(id) ON DELETE CASCADE,
+        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
+        UNIQUE(milestone_id, person_id)
+      );
     `)
 
     // Migration: add importance and category_id if missing
@@ -1019,6 +1040,95 @@ export class Database {
       WHERE pp.person_id = ?
       ORDER BY p.sort_order ASC
     `).all(personId)
+  }
+
+  // Milestone operations
+  getMilestoneTodos(milestoneId) {
+    return this.db.prepare(`
+      SELECT t.*,
+             p.name as project_name,
+             p.color as project_color,
+             c.name as category_name,
+             c.symbol as category_symbol,
+             s.name as status_name,
+             s.color as status_color
+      FROM todos t
+      INNER JOIN milestone_todos mt ON t.id = mt.todo_id
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
+      WHERE mt.milestone_id = ? AND t.deleted_at IS NULL
+      ORDER BY t.sort_order ASC
+    `).all(milestoneId)
+  }
+
+  getMilestonePersons(milestoneId) {
+    return this.db.prepare(`
+      SELECT p.*, mp.role as milestone_role
+      FROM persons p
+      INNER JOIN milestone_persons mp ON p.id = mp.person_id
+      WHERE mp.milestone_id = ?
+      ORDER BY p.name ASC
+    `).all(milestoneId)
+  }
+
+  linkMilestoneTodo(milestoneId, todoId) {
+    this.db.prepare(`
+      INSERT OR IGNORE INTO milestone_todos (milestone_id, todo_id)
+      VALUES (?, ?)
+    `).run(milestoneId, todoId)
+    return true
+  }
+
+  unlinkMilestoneTodo(milestoneId, todoId) {
+    this.db.prepare(`
+      DELETE FROM milestone_todos
+      WHERE milestone_id = ? AND todo_id = ?
+    `).run(milestoneId, todoId)
+    return true
+  }
+
+  linkMilestonePerson(milestoneId, personId, role = '') {
+    this.db.prepare(`
+      INSERT OR IGNORE INTO milestone_persons (milestone_id, person_id, role)
+      VALUES (?, ?, ?)
+    `).run(milestoneId, personId, role)
+    return true
+  }
+
+  unlinkMilestonePerson(milestoneId, personId) {
+    this.db.prepare(`
+      DELETE FROM milestone_persons
+      WHERE milestone_id = ? AND person_id = ?
+    `).run(milestoneId, personId)
+    return true
+  }
+
+  getAllMilestones(projectId = null) {
+    if (projectId) {
+      return this.db.prepare(`
+        SELECT t.*,
+               p.name as project_name,
+               p.color as project_color,
+               (SELECT COUNT(*) FROM milestone_todos WHERE milestone_id = t.id) as todo_count,
+               (SELECT COUNT(*) FROM milestone_persons WHERE milestone_id = t.id) as person_count
+        FROM todos t
+        LEFT JOIN projects p ON t.project_id = p.id
+        WHERE t.type = 'milestone' AND t.project_id = ? AND t.deleted_at IS NULL
+        ORDER BY t.end_date ASC, t.sort_order ASC
+      `).all(projectId)
+    }
+    return this.db.prepare(`
+      SELECT t.*,
+             p.name as project_name,
+             p.color as project_color,
+             (SELECT COUNT(*) FROM milestone_todos WHERE milestone_id = t.id) as todo_count,
+             (SELECT COUNT(*) FROM milestone_persons WHERE milestone_id = t.id) as person_count
+      FROM todos t
+      LEFT JOIN projects p ON t.project_id = p.id
+      WHERE t.type = 'milestone' AND t.deleted_at IS NULL
+      ORDER BY t.end_date ASC, t.sort_order ASC
+    `).all()
   }
 
   // Export/Import operations

@@ -61,11 +61,20 @@ contextBridge.exposeInMainWorld('api', {
   emptyTrash: () => ipcRenderer.invoke('empty-trash'),
   getTrashCount: () => ipcRenderer.invoke('get-trash-count'),
 
-  // Milestone operations
+  // Milestone operations (parent_id based - legacy)
   getChildTodos: (parentId) => ipcRenderer.invoke('get-child-todos', parentId),
   getMilestones: (projectId) => ipcRenderer.invoke('get-milestones', projectId),
   assignToMilestone: (todoId, milestoneId) => ipcRenderer.invoke('assign-to-milestone', todoId, milestoneId),
   unassignFromMilestone: (todoId) => ipcRenderer.invoke('unassign-from-milestone', todoId),
+
+  // Milestone operations (many-to-many)
+  getMilestoneTodos: (milestoneId) => ipcRenderer.invoke('get-milestone-todos', milestoneId),
+  getMilestonePersons: (milestoneId) => ipcRenderer.invoke('get-milestone-persons', milestoneId),
+  linkMilestoneTodo: (milestoneId, todoId) => ipcRenderer.invoke('link-milestone-todo', milestoneId, todoId),
+  unlinkMilestoneTodo: (milestoneId, todoId) => ipcRenderer.invoke('unlink-milestone-todo', milestoneId, todoId),
+  linkMilestonePerson: (milestoneId, personId, role) => ipcRenderer.invoke('link-milestone-person', milestoneId, personId, role),
+  unlinkMilestonePerson: (milestoneId, personId) => ipcRenderer.invoke('unlink-milestone-person', milestoneId, personId),
+  getAllMilestones: (projectId) => ipcRenderer.invoke('get-all-milestones', projectId),
 
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),
   reorderProjects: (ids) => ipcRenderer.invoke('reorder-projects', ids),
@@ -105,6 +114,7 @@ contextBridge.exposeInMainWorld('api', {
   // Window operations
   openDetail: (todoId) => ipcRenderer.invoke('open-detail', todoId),
   closeDetailWindow: (todoId) => ipcRenderer.invoke('close-detail-window', todoId),
+  closeAllDetailWindows: () => ipcRenderer.invoke('close-all-detail-windows'),
   openStakeholderRegister: (projectId) => ipcRenderer.invoke('open-stakeholder-register', projectId),
 
   // Events

@@ -61,7 +61,7 @@
 
     <!-- Table View -->
     <div v-if="currentView === 'table'" class="table-container">
-      <table class="persons-table">
+      <table class="persons-table" :class="{ 'project-mode': isProjectMode }">
         <thead>
           <tr>
             <th class="col-color"></th>
@@ -69,18 +69,26 @@
               Name
               <span v-if="sortBy === 'name'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="col-email sortable" @click="toggleSort('email')">
-              Email
-              <span v-if="sortBy === 'email'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
-            </th>
-            <th class="col-company sortable" @click="toggleSort('company')">
-              Company
-              <span v-if="sortBy === 'company'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
-            </th>
             <th class="col-role sortable" @click="toggleSort('role')">
               Role
               <span v-if="sortBy === 'role'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
+            <template v-if="isProjectMode">
+              <th class="col-influence">Influence</th>
+              <th class="col-interest">Interest</th>
+              <th class="col-type">Type</th>
+              <th class="col-strategy">Strategy</th>
+            </template>
+            <template v-else>
+              <th class="col-email sortable" @click="toggleSort('email')">
+                Email
+                <span v-if="sortBy === 'email'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              </th>
+              <th class="col-company sortable" @click="toggleSort('company')">
+                Company
+                <span v-if="sortBy === 'company'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              </th>
+            </template>
             <th class="col-actions"></th>
           </tr>
         </thead>
@@ -90,15 +98,62 @@
               <div class="color-dot" :style="{ background: person.color }"></div>
             </td>
             <td class="col-name">{{ person.name }}</td>
-            <td class="col-email">{{ person.email || '-' }}</td>
-            <td class="col-company">{{ person.company || '-' }}</td>
             <td class="col-role">{{ person.role || '-' }}</td>
+            <template v-if="isProjectMode">
+              <td class="col-influence" @click.stop>
+                <select
+                  :value="person.influence_level"
+                  class="inline-select"
+                  @change="updateStakeholderField(person, 'influence_level', +$event.target.value)"
+                >
+                  <option v-for="n in 5" :key="n" :value="n">{{ n }}</option>
+                </select>
+              </td>
+              <td class="col-interest" @click.stop>
+                <select
+                  :value="person.interest_level"
+                  class="inline-select"
+                  @change="updateStakeholderField(person, 'interest_level', +$event.target.value)"
+                >
+                  <option v-for="n in 5" :key="n" :value="n">{{ n }}</option>
+                </select>
+              </td>
+              <td class="col-type" @click.stop>
+                <select
+                  :value="person.stakeholder_type"
+                  class="inline-select"
+                  @change="updateStakeholderField(person, 'stakeholder_type', $event.target.value)"
+                >
+                  <option value="Internal">Internal</option>
+                  <option value="External">External</option>
+                  <option value="Partner">Partner</option>
+                  <option value="Customer">Customer</option>
+                  <option value="Vendor">Vendor</option>
+                </select>
+              </td>
+              <td class="col-strategy" @click.stop>
+                <select
+                  :value="person.engagement_strategy"
+                  class="inline-select"
+                  @change="updateStakeholderField(person, 'engagement_strategy', $event.target.value)"
+                >
+                  <option value="Manage Closely">Manage Closely</option>
+                  <option value="Keep Satisfied">Keep Satisfied</option>
+                  <option value="Keep Informed">Keep Informed</option>
+                  <option value="Monitor">Monitor</option>
+                </select>
+              </td>
+            </template>
+            <template v-else>
+              <td class="col-email">{{ person.email || '-' }}</td>
+              <td class="col-company">{{ person.company || '-' }}</td>
+            </template>
             <td class="col-actions">
               <button class="edit-btn" @click.stop="editPerson(person)">Edit</button>
             </td>
           </tr>
           <tr v-if="sortedPersons.length === 0">
-            <td colspan="6" class="empty-row">No persons added yet</td>
+            <td :colspan="isProjectMode ? 8 : 6" class="empty-row">{{ isProjectMode ? 'No stakeholders assigned' : 'No persons added yet' }}</td>
           </tr>
         </tbody>
       </table>
@@ -120,7 +175,7 @@
 
     <!-- Edit Person Modal -->
     <Teleport to="body">
-      <div v-if="editingPerson" class="person-modal" :class="{ 'light-theme': theme === 'light' }" @click.self="cancelEdit">
+      <div v-if="editingPerson" class="person-modal" :class="{ 'light-theme': theme === 'light' }" @click.self="cancelEdit" @keydown.esc="cancelEdit" @keydown.left="navigatePerson(-1)" @keydown.right="navigatePerson(1)" tabindex="-1" ref="personModal">
         <div class="modal-content" @click.stop>
           <h3>{{ editingPerson.id ? 'Edit Person' : 'Add Person' }}</h3>
 
@@ -244,7 +299,7 @@ export default {
       default: 'cards'
     }
   },
-  emits: ['refresh', 'edit-opened', 'assign-person', 'unassign-person'],
+  emits: ['refresh', 'edit-opened', 'assign-person', 'unassign-person', 'update-stakeholder'],
   data() {
     return {
       editingPerson: null,
@@ -322,6 +377,13 @@ export default {
     }
   },
   watch: {
+    editingPerson(val) {
+      if (val) {
+        this.$nextTick(() => {
+          this.$refs.personModal?.focus()
+        })
+      }
+    },
     pendingEdit: {
       immediate: true,
       handler(person) {
@@ -362,6 +424,9 @@ export default {
       }
     },
 
+    getRandomColor() {
+      return this.personColors[Math.floor(Math.random() * this.personColors.length)]
+    },
     showAddPerson() {
       this.notesTab = 'edit'
       this.editingPerson = {
@@ -372,7 +437,7 @@ export default {
         role: '',
         github_name: '',
         notes: '',
-        color: this.personColors[0]
+        color: this.getRandomColor()
       }
     },
 
@@ -443,6 +508,21 @@ export default {
     unassignPerson(person) {
       if (confirm(`Remove ${person.name} from this project?`)) {
         this.$emit('unassign-person', person)
+      }
+    },
+    updateStakeholderField(person, field, value) {
+      this.$emit('update-stakeholder', person.id, { [field]: value })
+    },
+    navigatePerson(direction, event) {
+      // Don't navigate if focus is in an input field
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea') return
+      if (!this.editingPerson || !this.editingPerson.id) return
+      const currentIndex = this.sortedPersons.findIndex(p => p.id === this.editingPerson.id)
+      if (currentIndex === -1) return
+      const newIndex = currentIndex + direction
+      if (newIndex >= 0 && newIndex < this.sortedPersons.length) {
+        this.editPerson(this.sortedPersons[newIndex])
       }
     }
   }
@@ -1047,6 +1127,47 @@ export default {
 .col-actions {
   width: 60px;
   text-align: right;
+}
+
+/* Inline select for stakeholder fields */
+.inline-select {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #ccc;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.inline-select:hover {
+  border-color: #555;
+}
+
+.inline-select:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.light-theme .inline-select {
+  background: #fff;
+  border-color: #ddd;
+  color: #333;
+}
+
+.light-theme .inline-select:hover {
+  border-color: #bbb;
+}
+
+.col-influence,
+.col-interest {
+  width: 80px;
+}
+
+.col-type,
+.col-strategy {
+  width: 120px;
 }
 
 .edit-btn {

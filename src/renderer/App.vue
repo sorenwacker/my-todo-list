@@ -226,6 +226,7 @@
             @keyup.enter="addTodo"
           />
           <button @click="addTodo">Add</button>
+          <button v-if="activeTab === 'todos'" class="add-milestone-btn" @click="addMilestone" title="Add Milestone">+ Milestone</button>
         </div>
         <div v-if="activeTab === 'stakeholders'" class="add-todo">
           <input
@@ -251,6 +252,7 @@
         @edit-opened="pendingPersonEdit = null"
         @assign-person="assignStakeholder"
         @unassign-person="unassignStakeholder"
+        @update-stakeholder="updateStakeholder"
       />
 
       <!-- Cards View -->
@@ -262,7 +264,7 @@
         :selected-todo-id="selectedTodo?.id"
         :focused-todo-id="focusedTodo?.id"
         :is-trash-view="isTrashView"
-        :card-size="cardSize"
+        :card-columns="cardColumns"
         :sort-by="sortBy"
         :current-filter="currentFilter"
         :card-widths="cardWidths"
@@ -296,9 +298,12 @@
         @toggle-complete="toggleComplete"
         @toggle-subtask="toggleSubtask"
         @delete-todo="deleteTodo"
+        @delete-subtask="deleteSubtaskFromTable"
         @restore-todo="restoreTodo"
         @permanent-delete-todo="permanentlyDeleteTodo"
         @add-todo-to-project="addTodoToProject"
+        @add-subtask="addSubtaskFromTable"
+        @update-subtask="updateSubtaskFromTable"
       />
 
       <!-- Kanban View -->
@@ -336,30 +341,58 @@
       <!-- Gantt/Timeline View -->
       <div v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'timeline'" class="gantt-view">
         <div class="gantt-controls">
-          <select v-model="ganttGroupBy" class="gantt-groupby">
-            <option value="project">By Project</option>
-            <option value="category">By Category</option>
-            <option value="importance">By Importance</option>
-            <option value="milestone">By Milestone</option>
-          </select>
-          <button @click="timelineOffset -= 200">&#8592;</button>
-          <button @click="timelineScale = Math.max(20, timelineScale - 20)">-</button>
-          <span class="timeline-scale-label">{{ timelineScale }}px/day</span>
-          <button @click="timelineScale = Math.min(500, timelineScale + 20)">+</button>
-          <button @click="timelineOffset += 200">&#8594;</button>
-          <button class="reset-btn" @click="timelineOffset = 0; timelineScale = 100">Reset</button>
+          <div class="timeline-mode-switcher">
+            <button :class="{ active: timelineMode === 'gantt' }" @click="timelineMode = 'gantt'">Gantt</button>
+            <button :class="{ active: timelineMode === 'month' }" @click="timelineMode = 'month'">Month</button>
+            <button :class="{ active: timelineMode === 'week' }" @click="timelineMode = 'week'">Week</button>
+            <button :class="{ active: timelineMode === 'day' }" @click="timelineMode = 'day'">Day</button>
+          </div>
+          <template v-if="timelineMode === 'gantt'">
+            <select v-model="ganttGroupBy" class="gantt-groupby">
+              <option value="project">By Project</option>
+              <option value="category">By Category</option>
+              <option value="importance">By Importance</option>
+              <option value="milestone">By Milestone</option>
+            </select>
+            <button @click="timelineOffset -= 200">&#8592;</button>
+            <button @click="timelineScale = Math.max(20, timelineScale - 20)">-</button>
+            <span class="timeline-scale-label">{{ timelineScale }}px/day</span>
+            <button @click="timelineScale = Math.min(500, timelineScale + 20)">+</button>
+            <button @click="timelineOffset += 200">&#8594;</button>
+            <button class="reset-btn" @click="timelineOffset = 0; timelineScale = 100">Reset</button>
+          </template>
+          <template v-else>
+            <button @click="navigateCalendar(-1)">&lt;</button>
+            <button class="today-btn" @click="goToToday">Today</button>
+            <button @click="navigateCalendar(1)">&gt;</button>
+            <span class="calendar-period">{{ calendarPeriodLabel }}</span>
+          </template>
         </div>
-        <div class="gantt-container">
+
+        <!-- Gantt Chart -->
+        <div v-if="timelineMode === 'gantt'" class="gantt-container">
           <div class="gantt-sidebar">
             <div class="gantt-header-cell">Task</div>
             <div
               v-for="row in ganttRows"
               :key="row.id"
               class="gantt-row-label"
+              :class="{ 'drop-target': dropTargetRowId === row.id, 'is-milestone-row': row.isMilestone }"
               :style="{ borderLeftColor: row.color, height: getRowHeight(row) + 'px' }"
             >
-              <span class="row-name">{{ row.name }}</span>
-              <span class="row-count">{{ row.todos.length }}</span>
+              <div class="row-main">
+                <span class="row-name">{{ row.name }}</span>
+                <span class="row-count">{{ row.todos.length }}</span>
+              </div>
+              <div v-if="row.persons && row.persons.length" class="row-persons">
+                <span
+                  v-for="person in row.persons"
+                  :key="person.id"
+                  class="person-badge"
+                  :style="{ background: person.color || '#666' }"
+                  :title="person.role ? `${person.name} (${person.role})` : person.name"
+                >{{ person.name.charAt(0) }}</span>
+              </div>
             </div>
           </div>
           <div ref="ganttChartArea" class="gantt-chart-area" @wheel.prevent="onTimelineWheel" @dblclick="onTimelineChartDblClick">
@@ -385,6 +418,7 @@
                   v-for="row in ganttRows"
                   :key="row.id"
                   class="gantt-row"
+                  :class="{ 'drop-target': dropTargetRowId === row.id }"
                   :style="{ height: getRowHeight(row) + 'px' }"
                 >
                   <div
@@ -418,6 +452,94 @@
             </div>
           </div>
         </div>
+
+        <!-- Month Calendar -->
+        <div v-if="timelineMode === 'month'" class="calendar-month">
+          <div class="weekday-headers">
+            <div v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day" class="weekday-header">{{ day }}</div>
+          </div>
+          <div class="month-grid">
+            <div
+              v-for="(day, index) in calendarMonthDays"
+              :key="index"
+              class="month-cell"
+              :class="{ 'other-month': !day.isCurrentMonth, 'is-today': day.isToday, 'is-weekend': day.isWeekend }"
+              @dblclick="createTodoOnDate(day.date)"
+            >
+              <div class="cell-date">{{ day.dayNumber }}</div>
+              <div class="cell-events">
+                <div
+                  v-for="todo in getTodosForCalendarDate(day.date)"
+                  :key="todo.id"
+                  class="cal-event"
+                  :class="{ completed: todo.completed, milestone: todo.type === 'milestone' }"
+                  :style="{ borderLeftColor: todo.project_color || '#666' }"
+                  @click.stop="selectTodo(todo.id)"
+                >{{ todo.title }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Week Calendar -->
+        <div v-if="timelineMode === 'week'" class="calendar-week">
+          <div class="week-header">
+            <div class="time-gutter-header"></div>
+            <div v-for="day in calendarWeekDays" :key="day.date" class="week-day-header" :class="{ 'is-today': day.isToday }">
+              <span class="day-name">{{ day.dayName }}</span>
+              <span class="day-number" :class="{ 'today-circle': day.isToday }">{{ day.dayNumber }}</span>
+            </div>
+          </div>
+          <div class="week-body">
+            <div class="time-gutter">
+              <div v-for="hour in 24" :key="hour" class="hour-label">{{ hour === 1 ? '12 AM' : hour < 13 ? (hour-1) + ' AM' : hour === 13 ? '12 PM' : (hour-13) + ' PM' }}</div>
+            </div>
+            <div class="week-columns">
+              <div v-for="day in calendarWeekDays" :key="day.date" class="week-column" :class="{ 'is-today': day.isToday, 'is-weekend': day.isWeekend }">
+                <div class="hour-slots">
+                  <div v-for="hour in 24" :key="hour" class="hour-slot" @dblclick="createTodoOnDate(day.date)"></div>
+                </div>
+                <div class="day-events">
+                  <div
+                    v-for="todo in getTodosForCalendarDate(day.date)"
+                    :key="todo.id"
+                    class="week-event"
+                    :class="{ completed: todo.completed, milestone: todo.type === 'milestone' }"
+                    :style="{ borderLeftColor: todo.project_color || '#666' }"
+                    @click.stop="selectTodo(todo.id)"
+                  >{{ todo.title }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Day Calendar -->
+        <div v-if="timelineMode === 'day'" class="calendar-day">
+          <div class="day-body">
+            <div class="time-gutter">
+              <div v-for="hour in 24" :key="hour" class="hour-label">{{ hour === 1 ? '12 AM' : hour < 13 ? (hour-1) + ' AM' : hour === 13 ? '12 PM' : (hour-13) + ' PM' }}</div>
+            </div>
+            <div class="day-column">
+              <div class="hour-slots">
+                <div v-for="hour in 24" :key="hour" class="hour-slot" @dblclick="createTodoOnDate(formatDateKey(calendarDate))"></div>
+              </div>
+              <div class="day-events-list">
+                <div
+                  v-for="todo in calendarDayTodos"
+                  :key="todo.id"
+                  class="day-event"
+                  :class="{ completed: todo.completed, milestone: todo.type === 'milestone' }"
+                  :style="{ borderLeftColor: todo.project_color || '#666' }"
+                  @click.stop="selectTodo(todo.id)"
+                >
+                  <div class="event-title">{{ todo.title }}</div>
+                  <div v-if="todo.project_name" class="event-project">{{ todo.project_name }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Graph View -->
@@ -429,20 +551,50 @@
         @mouseup="onGraphMouseUp"
         @mouseleave="onGraphMouseUp"
       >
-        <svg class="graph-svg" :viewBox="`0 0 ${graphWidth} ${graphHeight}`" preserveAspectRatio="xMidYMid meet" @dblclick="onGraphDblClick">
+        <svg ref="graphSvg" class="graph-svg" :viewBox="`0 0 ${graphWidth} ${graphHeight}`" preserveAspectRatio="xMidYMid meet" @dblclick="onGraphDblClick" @click="onGraphCanvasClick">
           <g :transform="`translate(${graphPan.x}, ${graphPan.y}) scale(${graphZoom})`">
             <!-- Connection lines -->
             <g class="graph-links">
-              <line
-                v-for="link in graphLinks"
-                :key="`${link.source}-${link.target}`"
-                :x1="getNodeX(link.source)"
-                :y1="getNodeY(link.source)"
-                :x2="getNodeX(link.target)"
-                :y2="getNodeY(link.target)"
-                class="graph-link"
-                @contextmenu.prevent="onLinkRightClick($event, link)"
-              />
+              <g v-for="link in graphLinks" :key="`${link.source}-${link.target}`">
+                <!-- Invisible wider line for hover detection -->
+                <line
+                  :x1="getNodeX(link.source)"
+                  :y1="getNodeY(link.source)"
+                  :x2="getNodeX(link.target)"
+                  :y2="getNodeY(link.target)"
+                  class="graph-link-hover"
+                  @mouseenter="hoveredLink = link"
+                  @mouseleave="hoveredLink = null"
+                  @click="onLinkClick($event, link)"
+                  @contextmenu.prevent="onLinkRightClick($event, link)"
+                />
+                <!-- Visible line -->
+                <line
+                  :x1="getNodeX(link.source)"
+                  :y1="getNodeY(link.source)"
+                  :x2="getNodeX(link.target)"
+                  :y2="getNodeY(link.target)"
+                  class="graph-link"
+                  :class="{ hovered: hoveredLink === link, 'person-link': isPersonLink(link) }"
+                  :style="{ stroke: getLinkColor(link) }"
+                />
+                <!-- Buttons in middle of selected link -->
+                <g
+                  v-if="selectedLink === link"
+                  :transform="`translate(${(getNodeX(link.source) + getNodeX(link.target)) / 2}, ${(getNodeY(link.source) + getNodeY(link.target)) / 2})`"
+                >
+                  <!-- Add node button -->
+                  <g class="link-add-btn" transform="translate(-16, 0)" @click.stop="insertNodeInLinkDirect(link); selectedLink = null">
+                    <circle r="12" class="link-add-circle" />
+                    <text class="link-add-icon" text-anchor="middle" dominant-baseline="central">+</text>
+                  </g>
+                  <!-- Remove link button -->
+                  <g class="link-remove-btn" transform="translate(16, 0)" @click.stop="removeLink(link); selectedLink = null">
+                    <circle r="12" class="link-remove-circle" />
+                    <text class="link-remove-icon" text-anchor="middle" dominant-baseline="central">×</text>
+                  </g>
+                </g>
+              </g>
             </g>
             <!-- Nodes -->
             <g class="graph-nodes">
@@ -481,10 +633,48 @@
                       xmlns="http://www.w3.org/1999/xhtml"
                       class="node-content-wrapper"
                       :style="{ borderColor: todo.project_color || '#0f4c75' }"
+                      @mousedown="onNodeContentMouseDown($event, todo)"
+                      @click.stop="startEditingNode($event, todo)"
+                      @dblclick.stop="selectTodo(todo.id)"
                     >
                       <button class="node-delete-btn" @mousedown.stop.prevent="deleteTodoFromGraph(todo.id)" title="Delete">×</button>
-                      <div class="node-title-text">{{ todo.title }}</div>
-                      <div v-if="todo.notes" class="node-notes markdown-body" v-html="renderCardMarkdown(todo.notes)" @click.stop="handleNodeLinkClick($event)"></div>
+                      <div v-if="todo.category_symbol" class="node-category-symbol" :title="todo.category_name">
+                        <component :is="getIconComponent(todo.category_symbol)" v-if="getIconComponent(todo.category_symbol)" :size="14" />
+                        <span v-else>{{ todo.category_symbol }}</span>
+                      </div>
+                      <template v-if="editingNodeId === todo.id">
+                        <input
+                          class="node-title-editor"
+                          v-model="editingNodeTitle"
+                          @keydown.enter.prevent="focusNotesEditor"
+                          @keydown.escape="closeEverything"
+                          @blur="onNodeTitleBlur($event, todo)"
+                          @input="debouncedSaveNode"
+                          @mousedown.stop
+                          @click.stop
+                          placeholder="Title..."
+                        />
+                      </template>
+                      <div v-else-if="todo.title && todo.title !== 'Untitled' && todo.title !== 'New Node'" class="node-title-text">{{ todo.title }}</div>
+                      <template v-if="editingNodeId === todo.id">
+                        <textarea
+                          ref="nodeNotesEditor"
+                          class="node-notes-editor"
+                          v-model="editingNodeNotes"
+                          @blur="onNodeNotesBlur($event, todo)"
+                          @keydown.escape="closeEverything"
+                          @keydown.ctrl.enter.stop="saveAndCloseNode(todo)"
+                          @keydown.meta.enter.stop="saveAndCloseNode(todo)"
+                          @input="autoResizeNodeEditor"
+                          @mousedown.stop
+                          @click.stop
+                          placeholder="Write notes here... (Markdown supported)"
+                        ></textarea>
+                      </template>
+                      <template v-else>
+                        <div v-if="todo.notes && !todo.notes_sensitive" class="node-notes" v-html="renderCardMarkdown(todo.notes)" @click="onNotesClick"></div>
+                        <div v-else-if="todo.notes_sensitive" class="node-notes sensitive">Sensitive content</div>
+                      </template>
                     </div>
                   </foreignObject>
                 </template>
@@ -514,9 +704,6 @@
           <select v-model="graphLayoutType" class="layout-select" @change="onLayoutTypeChange">
             <option value="force">Force</option>
             <option value="tree">Tree</option>
-            <option value="radial">Radial</option>
-            <option value="grid">Grid</option>
-            <option value="circular">Circular</option>
           </select>
           <button
             :class="{ active: isSimulating }"
@@ -558,13 +745,13 @@
       <div v-if="!selectedTodo && currentView === 'cards'" class="bottom-bar">
         <div class="card-size-control">
           <label class="card-size-label">
-            <span>Card Size</span>
+            <span>Columns: {{ cardColumns }}</span>
             <input
-              v-model.number="cardSize"
+              v-model.number="cardColumns"
               type="range"
-              min="200"
-              max="600"
-              step="50"
+              min="1"
+              max="10"
+              step="1"
               class="card-size-slider"
             />
           </label>
@@ -603,9 +790,9 @@
       @resize-start="startResize"
       @toggle-complete="toggleSelectedComplete"
       @save="saveSelectedTodo"
-      @update:title="selectedTodo.title = $event; saveSelectedTodo()"
-      @update:notes="selectedTodo.notes = $event; saveSelectedTodo()"
-      @update:notes-sensitive="selectedTodo.notes_sensitive = $event; saveSelectedTodo()"
+      @update:title="updateSelectedField('title', $event)"
+      @update:notes="updateSelectedField('notes', $event)"
+      @update:notes-sensitive="updateSelectedField('notes_sensitive', $event)"
       @update:active-tab="detailTab = $event"
       @project-change="handleProjectChange"
       @category-change="handleCategoryChange"
@@ -654,10 +841,11 @@
 </template>
 
 <script>
-import { renderMarkdown, renderCardMarkdown, marked } from './utils/markdown.js'
+import { renderMarkdown, renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
 import PersonsView from './PersonsView.vue'
+import CalendarView from './components/CalendarView.vue'
 import GlobalSearch from './components/GlobalSearch.vue'
 import MainTabs from './components/MainTabs.vue'
 import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView } from './components/index.js'
@@ -682,7 +870,7 @@ function validateLocalStorage() {
     const _storedVersion = parseInt(localStorage.getItem('settings-version') || '0')
 
     // Define valid values for enum-like settings
-    const validViews = ['cards', 'table', 'kanban', 'timeline', 'graph', 'persons']
+    const validViews = ['cards', 'table', 'kanban', 'timeline', 'calendar', 'graph', 'persons']
     const validSorts = ['manual', 'created', 'end_date', 'alpha', 'importance']
     const validThemes = ['dark', 'light']
     const validLayouts = ['auto', 'horizontal', 'vertical']
@@ -730,10 +918,10 @@ function validateLocalStorage() {
     }
 
     // Validate numeric settings
-    const cardSize = localStorage.getItem('card-size')
-    if (cardSize && (isNaN(parseInt(cardSize)) || parseInt(cardSize) < 100 || parseInt(cardSize) > 1000)) {
-      console.warn('Invalid card-size, resetting')
-      localStorage.removeItem('card-size')
+    const cardColumns = localStorage.getItem('card-columns')
+    if (cardColumns && (isNaN(parseInt(cardColumns)) || parseInt(cardColumns) < 1 || parseInt(cardColumns) > 10)) {
+      console.warn('Invalid card-columns, resetting')
+      localStorage.removeItem('card-columns')
     }
 
     // Update version
@@ -809,6 +997,7 @@ export default {
   name: 'App',
   components: {
     PersonsView,
+    CalendarView,
     MainTabs,
     AppSidebar,
     CardsView,
@@ -849,6 +1038,7 @@ export default {
       linkedTodos: [],
       childTodos: [],
       subtasks: [],
+      milestoneRelations: {}, // { milestoneId: { todos: [], persons: [] } }
       allSubtasksMap: {},
       newSubtaskTitle: '',
       detailTab: 'edit',
@@ -860,7 +1050,7 @@ export default {
       saveTimeout: null,
       sortBy: localStorage.getItem('sort-by') || 'manual',
       groupByProject: localStorage.getItem('group-by-project') === 'true',
-      cardSize: parseInt(localStorage.getItem('card-size')) || 280,
+      cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
       cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
       cardWidths: JSON.parse(localStorage.getItem('card-widths') || '{}'),
       justResizedCard: false,
@@ -872,16 +1062,23 @@ export default {
       importanceFilterOp: 'none',
       importanceFilterValue: 3,
       timelineScale: 100,
+      timelineMode: 'gantt',
+      calendarDate: new Date(),
       timelineOffset: 0,
       ganttGroupBy: 'project',
       draggingBarId: null,
       draggingBarTodo: null,
       barDragStartX: 0,
+      barDragStartY: 0,
       barDragMode: 'move',
       barDragOriginalDates: null,
       lastDeltaDays: 0,
+      dropTargetRowId: null,
       graphLinkMode: false,
       graphLinkSource: null,
+      editingNodeId: null,
+      editingNodeNotes: '',
+      editingNodeTitle: '',
       graphWidth: 1600,
       graphHeight: 1200,
       nodePositions: {},
@@ -889,12 +1086,18 @@ export default {
       graphZoom: 1,
       graphPan: { x: 0, y: 0 },
       draggingNode: null,
+      wasDragging: false,
+      creatingNodeFromId: null,
+      linkingNodeId: null,
+      altClickSourceId: null,
       dragOffset: { x: 0, y: 0 },
       selectedNodeIds: [],
       isPanning: false,
       lastMousePos: { x: 0, y: 0 },
       hoveredNode: null,
       linkContextMenu: null,
+      hoveredLink: null,
+      selectedLink: null,
       mousePos: { x: 0, y: 0 },
       isSimulating: false,
       projectColors: [
@@ -1295,6 +1498,57 @@ export default {
       }
       return diffDays * this.timelineScale
     },
+    calendarPeriodLabel() {
+      const opts = { month: 'long', year: 'numeric' }
+      if (this.timelineMode === 'day') {
+        return this.calendarDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      } else if (this.timelineMode === 'week') {
+        const start = this.getWeekStart(this.calendarDate)
+        const end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      }
+      return this.calendarDate.toLocaleDateString('en-US', opts)
+    },
+    calendarMonthDays() {
+      const year = this.calendarDate.getFullYear()
+      const month = this.calendarDate.getMonth()
+      const firstDay = new Date(year, month, 1)
+      const lastDay = new Date(year, month + 1, 0)
+      const startPadding = firstDay.getDay()
+      const days = []
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      for (let i = startPadding - 1; i >= 0; i--) {
+        const date = new Date(year, month, -i)
+        days.push({ date: this.formatDateKey(date), dayNumber: date.getDate(), isCurrentMonth: false, isToday: date.getTime() === today.getTime(), isWeekend: date.getDay() === 0 || date.getDay() === 6 })
+      }
+      for (let d = 1; d <= lastDay.getDate(); d++) {
+        const date = new Date(year, month, d)
+        days.push({ date: this.formatDateKey(date), dayNumber: d, isCurrentMonth: true, isToday: date.getTime() === today.getTime(), isWeekend: date.getDay() === 0 || date.getDay() === 6 })
+      }
+      const remaining = 42 - days.length
+      for (let i = 1; i <= remaining; i++) {
+        const date = new Date(year, month + 1, i)
+        days.push({ date: this.formatDateKey(date), dayNumber: i, isCurrentMonth: false, isToday: date.getTime() === today.getTime(), isWeekend: date.getDay() === 0 || date.getDay() === 6 })
+      }
+      return days
+    },
+    calendarWeekDays() {
+      const start = this.getWeekStart(this.calendarDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const days = []
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(start)
+        date.setDate(date.getDate() + i)
+        days.push({ date: this.formatDateKey(date), dayName: date.toLocaleDateString('en-US', { weekday: 'short' }), dayNumber: date.getDate(), isToday: date.getTime() === today.getTime(), isWeekend: date.getDay() === 0 || date.getDay() === 6 })
+      }
+      return days
+    },
+    calendarDayTodos() {
+      return this.getTodosForCalendarDate(this.formatDateKey(this.calendarDate))
+    },
     dateLabelInterval() {
       // Determine how many days to skip between labels based on zoom level
       if (this.timelineScale >= 80) return 1      // Show every day
@@ -1467,7 +1721,18 @@ export default {
       } else if (this.ganttGroupBy === 'milestone') {
         // Milestones are todos with type='milestone'
         const milestones = todos.filter(t => t.type === 'milestone')
-        const unassignedTodos = todos.filter(t => t.type !== 'milestone' && !t.parent_id)
+
+        // Collect all todo IDs that are assigned to any milestone
+        const assignedTodoIds = new Set()
+        for (const milestone of milestones) {
+          const rel = this.milestoneRelations[milestone.id]
+          if (rel?.todos) {
+            rel.todos.forEach(t => assignedTodoIds.add(t.id))
+          }
+        }
+
+        // Unassigned todos (not milestones themselves, not linked to any milestone)
+        const unassignedTodos = todos.filter(t => t.type !== 'milestone' && !assignedTodoIds.has(t.id))
 
         // Unassigned todos row
         if (unassignedTodos.length > 0) {
@@ -1475,10 +1740,12 @@ export default {
           rows.push({ id: 'unassigned', name: 'Unassigned', color: '#666', todos: unassignedTodos, todoLanes, laneCount })
         }
 
-        // Milestone rows with their child todos
+        // Milestone rows with their linked todos and persons
         for (const milestone of milestones) {
-          const childTodos = todos.filter(t => t.parent_id === milestone.id)
-          const milestoneTodos = [milestone, ...childTodos]
+          const rel = this.milestoneRelations[milestone.id] || { todos: [], persons: [] }
+          const linkedTodos = rel.todos || []
+          const linkedPersons = rel.persons || []
+          const milestoneTodos = [milestone, ...linkedTodos]
           if (milestoneTodos.length > 0) {
             const { todoLanes, laneCount } = assignLanes(milestoneTodos)
             rows.push({
@@ -1489,7 +1756,8 @@ export default {
               todoLanes,
               laneCount,
               isMilestone: true,
-              milestone: milestone
+              milestone: milestone,
+              persons: linkedPersons
             })
           }
         }
@@ -1507,22 +1775,40 @@ export default {
       }
     },
     currentView(val, oldVal) {
+      // Handle leaving graph view
+      if (oldVal === 'graph') {
+        this.stopForceLayout()
+      }
+      // Handle entering new view
       if (val === 'graph') {
         this.$nextTick(() => {
           this.updateGraphSize()
           this.initializeNodePositions()
         })
-      } else if (oldVal === 'graph') {
-        this.stopForceLayout()
       } else if (val === 'cards') {
         this.$nextTick(() => {
           this.applyMasonryLayout()
         })
-      } else if (val === 'stakeholders') {
-        // Load project stakeholders when switching to stakeholders view
-        if (this.isProjectSelected) {
-          this.loadProjectPersons(this.currentFilter)
-        }
+      } else if (val === 'timeline' && this.ganttGroupBy === 'milestone') {
+        this.loadMilestoneRelations()
+      }
+    },
+    activeTab(val) {
+      // Load project stakeholders when switching to stakeholders tab
+      if (val === 'stakeholders' && this.isProjectSelected) {
+        this.loadProjectPersons(this.currentFilter)
+      }
+    },
+    currentFilter(val) {
+      // Load project stakeholders when project filter changes while in stakeholders tab
+      if (this.activeTab === 'stakeholders' && typeof val === 'number') {
+        this.loadProjectPersons(val)
+      }
+    },
+    ganttGroupBy(val) {
+      // Load milestone relations when grouping by milestone
+      if (val === 'milestone' && this.currentView === 'timeline') {
+        this.loadMilestoneRelations()
       }
     },
     sortedTodos() {
@@ -1538,8 +1824,8 @@ export default {
     sidebarVisible(val) {
       localStorage.setItem('sidebar-visible', val)
     },
-    cardSize(val) {
-      localStorage.setItem('card-size', val)
+    cardColumns(val) {
+      localStorage.setItem('card-columns', val)
     },
     isProjectSelected(val) {
       if (val && this.groupByProject) {
@@ -1576,6 +1862,26 @@ export default {
     await this.loadStatuses()
     await this.loadPersons()
     await this.loadAllTodos()
+
+    // Restore last used filter from localStorage
+    const savedFilter = localStorage.getItem('current-filter')
+    if (savedFilter) {
+      try {
+        const filter = JSON.parse(savedFilter)
+        // Verify the filter is valid (project still exists if it's a number)
+        if (filter === 'inbox' || filter === 'trash' || filter === 'persons') {
+          this.currentFilter = filter
+        } else if (typeof filter === 'number') {
+          const projectExists = this.projects.some(p => p.id === filter)
+          if (projectExists) {
+            this.currentFilter = filter
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore filter:', e)
+      }
+    }
+
     await this.loadTodos()
     await this.loadAllLinks()
     this.databasePath = await window.api.getDatabasePath()
@@ -1671,6 +1977,9 @@ export default {
     renderCardMarkdown(text) {
       return renderCardMarkdown(text)
     },
+    renderInlineMarkdown(text) {
+      return renderInlineMarkdown(text)
+    },
     onGroupByProjectChange() {
       if (this.currentView === 'cards') {
         this.$nextTick(() => {
@@ -1746,6 +2055,19 @@ export default {
     },
     async loadTodos() {
       this.todos = await window.api.getTodos(this.currentFilter)
+    },
+    async loadMilestoneRelations() {
+      // Load todos and persons for all milestones
+      const milestones = this.allTodos.filter(t => t.type === 'milestone')
+      const relations = {}
+      for (const milestone of milestones) {
+        const [todos, persons] = await Promise.all([
+          window.api.getMilestoneTodos(milestone.id),
+          window.api.getMilestonePersons(milestone.id)
+        ])
+        relations[milestone.id] = { todos, persons }
+      }
+      this.milestoneRelations = relations
     },
     renderCardNotes(notes) {
       if (!notes) return ''
@@ -1835,6 +2157,12 @@ export default {
     },
     async setFilter(filter) {
       this.currentFilter = filter
+      // Save current filter to localStorage
+      if (filter === null) {
+        localStorage.removeItem('current-filter')
+      } else {
+        localStorage.setItem('current-filter', JSON.stringify(filter))
+      }
       await this.loadTodos()
       // Update graph person data when filter changes
       if (this.showPersonsInGraph) {
@@ -1856,6 +2184,36 @@ export default {
       this.newTodoTitle = ''
       await this.loadAllTodos()
       await this.loadTodos()
+    },
+    async addMilestone() {
+      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
+        ? this.currentFilter
+        : null
+      try {
+        const milestone = await window.api.createTodo('New Milestone', projectId, 'milestone')
+        await this.loadAllTodos()
+        await this.loadTodos()
+        if (milestone && milestone.id) this.selectTodo(milestone.id)
+      } catch (e) {
+        console.error('Failed to create milestone:', e)
+      }
+    },
+    async createTodoOnDate(dateKey) {
+      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
+        ? this.currentFilter
+        : null
+      try {
+        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const todo = await window.api.createTodo('New Task', projectId, type)
+        if (todo && todo.id) {
+          await window.api.updateTodo({ id: todo.id, start_date: dateKey, end_date: dateKey })
+          await this.loadAllTodos()
+          await this.loadTodos()
+          this.selectTodo(todo.id)
+        }
+      } catch (e) {
+        console.error('Failed to create todo on date:', e)
+      }
     },
     async addTodoToProject(projectId) {
       try {
@@ -1980,6 +2338,18 @@ export default {
         event.stopPropagation()
         // Open link in default browser
         window.api.openExternal(link.href)
+      }
+    },
+    handleNodeNotesClick(event, todo) {
+      // Check if clicked element is a link
+      const link = event.target.closest('a')
+      if (link && link.href) {
+        event.preventDefault()
+        // Open link in default browser
+        window.api.openExternal(link.href)
+      } else {
+        // Not a link - start editing
+        this.startEditingNode(null, todo)
       }
     },
     async restoreTodo(id) {
@@ -2164,6 +2534,18 @@ export default {
       this.detailFullscreen = !this.detailFullscreen
       localStorage.setItem('detail-fullscreen', this.detailFullscreen)
     },
+    updateSelectedField(field, value) {
+      if (!this.selectedTodo) return
+      // Update selectedTodo
+      this.selectedTodo[field] = value
+      // Also update the item in todos/allTodos arrays for immediate UI sync
+      const todoInList = this.todos.find(t => t.id === this.selectedTodo.id)
+      if (todoInList) todoInList[field] = value
+      const todoInAll = this.allTodos.find(t => t.id === this.selectedTodo.id)
+      if (todoInAll) todoInAll[field] = value
+      // Trigger save
+      this.saveSelectedTodo()
+    },
     async saveSelectedTodo() {
       if (this.saveTimeout) {
         clearTimeout(this.saveTimeout)
@@ -2318,6 +2700,24 @@ export default {
     async deleteSubtask(id) {
       await window.api.deleteSubtask(id)
       await this.loadSubtasks()
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async deleteSubtaskFromTable(id) {
+      await window.api.deleteSubtask(id)
+      await this.loadAllSubtasks()
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async addSubtaskFromTable({ todoId, title }) {
+      await window.api.createSubtask(todoId, title)
+      await this.loadAllSubtasks()
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async updateSubtaskFromTable({ id, title }) {
+      await window.api.updateSubtask({ id, title })
+      await this.loadAllSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
@@ -2650,6 +3050,39 @@ export default {
     getWeekdayName(date) {
       return date.toLocaleDateString('en-US', { weekday: 'short' })
     },
+    // Calendar methods
+    formatDateKey(date) {
+      return date.toISOString().split('T')[0]
+    },
+    getWeekStart(date) {
+      const d = new Date(date)
+      const day = d.getDay()
+      d.setDate(d.getDate() - day)
+      d.setHours(0, 0, 0, 0)
+      return d
+    },
+    navigateCalendar(direction) {
+      const d = new Date(this.calendarDate)
+      if (this.timelineMode === 'month') {
+        d.setMonth(d.getMonth() + direction)
+      } else if (this.timelineMode === 'week') {
+        d.setDate(d.getDate() + direction * 7)
+      } else {
+        d.setDate(d.getDate() + direction)
+      }
+      this.calendarDate = d
+    },
+    goToToday() {
+      this.calendarDate = new Date()
+    },
+    getTodosForCalendarDate(dateKey) {
+      return this.sortedTodos.filter(t => {
+        if (!t.start_date && !t.end_date) return false
+        const start = t.start_date || t.end_date
+        const end = t.end_date || t.start_date
+        return dateKey >= start && dateKey <= end
+      })
+    },
     isToday(date) {
       const today = new Date()
       return date.getDate() === today.getDate() &&
@@ -2827,15 +3260,20 @@ export default {
     },
     // Bar drag methods for timeline
     startBarDrag(e, todo, mode = 'move') {
+      // Don't allow dragging milestones to other rows
+      if (todo.type === 'milestone') mode = 'move'
       this.draggingBarId = todo.id
       this.draggingBarTodo = todo
       this.barDragStartX = e.clientX
+      this.barDragStartY = e.clientY
       this.barDragMode = mode // 'move', 'resize-start', or 'resize-end'
       this.barDragOriginalDates = {
         start_date: todo.start_date,
-        end_date: todo.end_date
+        end_date: todo.end_date,
+        parent_id: todo.parent_id
       }
       this.lastDeltaDays = 0
+      this.dropTargetRowId = null
       document.addEventListener('mousemove', this.onBarDrag)
       document.addEventListener('mouseup', this.stopBarDrag)
       e.preventDefault()
@@ -2845,12 +3283,32 @@ export default {
       const deltaX = e.clientX - this.barDragStartX
       const deltaDays = Math.round(deltaX / this.timelineScale)
 
-      // Skip if same as last update
-      if (deltaDays === this.lastDeltaDays) return
-      this.lastDeltaDays = deltaDays
-
       const todo = this.draggingBarTodo
       const mode = this.barDragMode
+
+      // Detect drop target row when grouped by milestone
+      if (this.ganttGroupBy === 'milestone' && todo.type !== 'milestone') {
+        const ganttRows = this.$refs.ganttChartArea?.querySelectorAll('.gantt-row')
+        if (ganttRows) {
+          let foundRow = null
+          ganttRows.forEach((rowEl, index) => {
+            const rect = rowEl.getBoundingClientRect()
+            if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+              const row = this.ganttRows[index]
+              if (row && row.isMilestone && row.milestone?.id !== todo.id) {
+                foundRow = row.id
+              } else if (row && row.id === 'unassigned') {
+                foundRow = 'unassigned'
+              }
+            }
+          })
+          this.dropTargetRowId = foundRow
+        }
+      }
+
+      // Skip date updates if same as last update
+      if (deltaDays === this.lastDeltaDays) return
+      this.lastDeltaDays = deltaDays
 
       if (mode === 'move') {
         // Move both dates together (original behavior)
@@ -2895,11 +3353,36 @@ export default {
       document.removeEventListener('mouseup', this.stopBarDrag)
 
       if (this.draggingBarTodo) {
-        // Save the updated dates
         const todoData = this.toPlainTodo(this.draggingBarTodo)
+        const todoId = this.draggingBarTodo.id
+
+        // Handle milestone assignment when dropping on a milestone row
+        if (this.dropTargetRowId && this.ganttGroupBy === 'milestone') {
+          // First unlink from all current milestones
+          const milestones = this.allTodos.filter(t => t.type === 'milestone')
+          for (const m of milestones) {
+            const rel = this.milestoneRelations[m.id]
+            if (rel?.todos?.some(t => t.id === todoId)) {
+              await window.api.unlinkMilestoneTodo(m.id, todoId)
+            }
+          }
+
+          if (this.dropTargetRowId !== 'unassigned') {
+            // Extract milestone id from row id (format: 'milestone-{id}')
+            const match = this.dropTargetRowId.match(/^milestone-(\d+)$/)
+            if (match) {
+              const milestoneId = parseInt(match[1], 10)
+              await window.api.linkMilestoneTodo(milestoneId, todoId)
+            }
+          }
+        }
+
         await window.api.updateTodo(todoData)
         await this.loadAllTodos()
         await this.loadTodos()
+        if (this.ganttGroupBy === 'milestone') {
+          await this.loadMilestoneRelations()
+        }
       }
 
       this.draggingBarId = null
@@ -2907,6 +3390,7 @@ export default {
       this.barDragMode = 'move'
       this.barDragOriginalDates = null
       this.lastDeltaDays = 0
+      this.dropTargetRowId = null
     },
     // Filter methods
     toggleProjectFilter(projectId) {
@@ -2953,6 +3437,25 @@ export default {
       // Calculate position without modifying state
       return this.calculateNodePosition(todoId).y
     },
+    isPersonLink(link) {
+      const sourceNode = this.graphNodes.find(n => n.id === link.source)
+      const targetNode = this.graphNodes.find(n => n.id === link.target)
+      return sourceNode?.type === 'person' || targetNode?.type === 'person'
+    },
+    getLinkColor(link) {
+      // Use the source node's project color for the link
+      const sourceNode = this.graphNodes.find(n => n.id === link.source)
+      if (sourceNode?.project_color) {
+        return sourceNode.project_color
+      }
+      // Fallback to target node's color
+      const targetNode = this.graphNodes.find(n => n.id === link.target)
+      if (targetNode?.project_color) {
+        return targetNode.project_color
+      }
+      // Default color
+      return '#0f4c75'
+    },
     calculateNodePosition(todoId) {
       const nodes = this.graphNodes
       const index = nodes.findIndex(t => t.id === todoId)
@@ -2971,6 +3474,7 @@ export default {
       }
     },
     async onGraphNodeClick(todo) {
+      this.selectedLink = null
       if (this.graphLinkMode) {
         if (this.graphLinkSource) {
           if (this.graphLinkSource.id !== todo.id) {
@@ -3014,6 +3518,36 @@ export default {
       const y = (viewBoxY - this.graphPan.y) / this.graphZoom
       return { x, y }
     },
+    onNodeContentMouseDown(event, todo) {
+      // Handle modifier key actions for foreignObject content
+      if (event.altKey) {
+        event.preventDefault()
+        event.stopPropagation()
+        this.linkingNodeId = todo.id
+        setTimeout(() => { this.linkingNodeId = null }, 500)
+        // Option-click linking: first click sets source, second click creates link
+        if (this.altClickSourceId && this.altClickSourceId !== todo.id) {
+          window.api.linkTodos(this.altClickSourceId, todo.id)
+            .then(() => {
+              this.loadAllLinks()
+              this.altClickSourceId = null
+            })
+            .catch(e => console.error('Failed to link:', e))
+        } else {
+          // Set this node as the source for linking
+          this.altClickSourceId = todo.id
+        }
+        return
+      }
+      if (event.metaKey || event.ctrlKey) {
+        event.preventDefault()
+        event.stopPropagation()
+        this.creatingNodeFromId = todo.id
+        setTimeout(() => { this.creatingNodeFromId = null }, 500)
+        this.createConnectedNode(event, todo)
+        return
+      }
+    },
     onNodeMouseDown(event, todo) {
       if (this.graphLinkMode) {
         // In link mode, handle as click
@@ -3023,22 +3557,27 @@ export default {
 
       // Cmd/Ctrl+click creates a new connected node
       if (event.metaKey || event.ctrlKey) {
+        this.creatingNodeFromId = todo.id
+        setTimeout(() => { this.creatingNodeFromId = null }, 500)
         this.createConnectedNode(event, todo)
         return
       }
 
-      // Option/Alt+click to link to selected node
+      // Option/Alt+click to link nodes
       if (event.altKey) {
         event.preventDefault()
         event.stopPropagation()
-        if (this.selectedTodo && this.selectedTodo.id !== todo.id) {
-          // Link the selected node to the clicked node
-          window.api.linkTodos(this.selectedTodo.id, todo.id)
-            .then(() => this.loadAllLinks())
+        // Option-click linking: first click sets source, second click creates link
+        if (this.altClickSourceId && this.altClickSourceId !== todo.id) {
+          window.api.linkTodos(this.altClickSourceId, todo.id)
+            .then(() => {
+              this.loadAllLinks()
+              this.altClickSourceId = null
+            })
             .catch(e => console.error('Failed to link:', e))
-        } else if (!this.selectedTodo) {
-          // No selection yet - select this node first
-          this.selectTodo(todo.id)
+        } else {
+          // Set this node as the source for linking
+          this.altClickSourceId = todo.id
         }
         return
       }
@@ -3058,6 +3597,15 @@ export default {
       const nodePos = this.nodePositions[todo.id]
       this.dragOffset = { x: nodePos.x - coords.x, y: nodePos.y - coords.y }
       this.lastMousePos = { x: event.clientX, y: event.clientY }
+      // If simulation is running, fix this node's position
+      if (this.d3Simulation) {
+        const simNode = this.d3Simulation.nodes().find(n => n.id === todo.id)
+        if (simNode) {
+          simNode.fx = nodePos.x
+          simNode.fy = nodePos.y
+        }
+        this.d3Simulation.alphaTarget(0.3).restart()
+      }
     },
     onGraphMouseDown(event) {
       // Close context menu if open
@@ -3082,6 +3630,14 @@ export default {
         this.nodePositions[this.draggingNode.id] = { x, y }
         // Force reactivity
         this.nodePositions = { ...this.nodePositions }
+        // Update simulation node if running
+        if (this.d3Simulation) {
+          const simNode = this.d3Simulation.nodes().find(n => n.id === this.draggingNode.id)
+          if (simNode) {
+            simNode.fx = x
+            simNode.fy = y
+          }
+        }
       } else if (this.isPanning) {
         const svg = this.$refs.graphContainer.querySelector('svg')
         const svgRect = svg.getBoundingClientRect()
@@ -3100,14 +3656,221 @@ export default {
         // Check if it was just a click (minimal movement)
         const dx = Math.abs(event.clientX - this.lastMousePos.x)
         const dy = Math.abs(event.clientY - this.lastMousePos.y)
-        if (dx < 5 && dy < 5) {
-          // Treat as click
-          this.selectTodo(this.draggingNode.id)
+        if (dx >= 5 || dy >= 5) {
+          // Was actually dragging - set flag to prevent click handler from opening edit
+          this.wasDragging = true
+          setTimeout(() => { this.wasDragging = false }, 100)
+        }
+        // Release fixed position in simulation
+        if (this.d3Simulation) {
+          const simNode = this.d3Simulation.nodes().find(n => n.id === this.draggingNode.id)
+          if (simNode) {
+            simNode.fx = null
+            simNode.fy = null
+          }
+          this.d3Simulation.alphaTarget(0)
         }
       }
       this.draggingNode = null
       this.isPanning = false
       this.saveNodePositions()
+    },
+    startEditingNode(event, todo) {
+      // Don't open edit if we just finished dragging or if this is the parent node of a new node being created
+      if (this.wasDragging) return
+      if (this.creatingNodeFromId === todo.id) return
+      if (this.linkingNodeId === todo.id) return
+      // Don't edit if link mode is active
+      if (this.graphLinkMode) return
+      // Don't edit if modifier keys are held (used for linking/creating)
+      if (event && (event.altKey || event.metaKey || event.ctrlKey)) return
+      // Don't edit person nodes
+      if (todo.type === 'person') return
+      this.editingNodeId = todo.id
+      this.editingNodeNotes = todo.notes || ''
+      // Don't show 'Untitled' or 'New Node' in the input - show blank instead
+      this.editingNodeTitle = (todo.title === 'Untitled' || todo.title === 'New Node') ? '' : (todo.title || '')
+      // Focus textarea after DOM update
+      this.$nextTick(() => {
+        const editor = this.$refs.nodeNotesEditor
+        if (editor) {
+          // Handle both single element and array (from v-for)
+          const el = Array.isArray(editor) ? editor[0] : editor
+          if (el && el.focus) {
+            el.focus()
+            this.autoResizeNodeEditor()
+          }
+        }
+      })
+    },
+    onNodeTitleClick(event, todo) {
+      // If clicking on a link, open in system browser
+      if (event.target.tagName === 'A' && event.target.href) {
+        event.preventDefault()
+        window.api.openExternal(event.target.href)
+        return
+      }
+      // Otherwise start editing
+      this.startEditingNode(event, todo)
+    },
+    onNotesClick(event) {
+      // If clicking on a link in notes, open in system browser
+      if (event.target.tagName === 'A' && event.target.href) {
+        event.preventDefault()
+        event.stopPropagation()
+        window.api.openExternal(event.target.href)
+      }
+    },
+    autoResizeNodeEditor() {
+      const editor = this.$refs.nodeNotesEditor
+      if (editor) {
+        const el = Array.isArray(editor) ? editor[0] : editor
+        if (el && el.style) {
+          el.style.height = 'auto'
+          el.style.height = Math.min(el.scrollHeight, 300) + 'px'
+        }
+      }
+      // Auto-save with debounce
+      this.debouncedSaveNode()
+    },
+    focusNotesEditor() {
+      const editor = this.$refs.nodeNotesEditor
+      if (editor) {
+        const el = Array.isArray(editor) ? editor[0] : editor
+        if (el && el.focus) el.focus()
+      }
+    },
+    debouncedSaveNode() {
+      clearTimeout(this.nodeSaveTimeout)
+      this.nodeSaveTimeout = setTimeout(() => {
+        if (this.editingNodeId) {
+          const todo = this.todos.find(t => t.id === this.editingNodeId)
+          if (todo) {
+            this.saveNodeNotesQuiet(todo)
+          }
+        }
+      }, 500)
+    },
+    async saveNodeNotesQuiet(todo) {
+      // Save without closing edit mode
+      const notesChanged = this.editingNodeNotes !== (todo.notes || '')
+      const titleChanged = this.editingNodeTitle !== (todo.title || '')
+      if (notesChanged || titleChanged) {
+        const updatedTodo = {
+          ...todo,
+          notes: this.editingNodeNotes,
+          title: this.editingNodeTitle || 'Untitled'
+        }
+        await window.api.updateTodo(updatedTodo)
+        await this.loadAllTodos()
+        await this.loadTodos()
+      }
+    },
+    async saveNodeContent(todo) {
+      if (this.editingNodeId !== todo.id) return
+      // Clear pending debounced save
+      clearTimeout(this.nodeSaveTimeout)
+      const notesChanged = this.editingNodeNotes !== (todo.notes || '')
+      const titleChanged = this.editingNodeTitle !== (todo.title || '')
+      // Save if anything changed
+      if (notesChanged || titleChanged) {
+        const updatedTodo = {
+          ...todo,
+          notes: this.editingNodeNotes,
+          title: this.editingNodeTitle || 'Untitled'
+        }
+        await window.api.updateTodo(updatedTodo)
+        await this.loadAllTodos()
+        await this.loadTodos()
+      }
+    },
+    async saveAndCloseNode(todo) {
+      await this.saveNodeContent(todo)
+      this.editingNodeId = null
+      this.editingNodeNotes = ''
+      this.editingNodeTitle = ''
+    },
+    onNodeBlur(event, todo) {
+      // Check if focus is moving to another element within the same node
+      const relatedTarget = event.relatedTarget
+      const wrapper = event.target.closest('.node-content-wrapper')
+      if (wrapper && relatedTarget && wrapper.contains(relatedTarget)) {
+        // Focus is staying within the node, just save without closing
+        this.saveNodeContent(todo)
+        return
+      }
+      // Focus left the node, save and close
+      this.saveAndCloseNode(todo)
+    },
+    onNodeNotesBlur(event, todo) {
+      this.onNodeBlur(event, todo)
+    },
+    onNodeTitleBlur(event, todo) {
+      this.onNodeBlur(event, todo)
+    },
+    async saveNodeNotes(todo) {
+      // Legacy method - now calls saveAndCloseNode
+      await this.saveAndCloseNode(todo)
+    },
+    cancelEditingNode() {
+      this.editingNodeId = null
+      this.editingNodeNotes = ''
+      this.editingNodeTitle = ''
+      // Also close detail view if open
+      if (this.selectedTodo) {
+        this.closeDetail()
+      }
+    },
+    async closeEverything() {
+      // Save any pending edits before closing
+      if (this.editingNodeId) {
+        clearTimeout(this.nodeSaveTimeout)
+        const todo = this.todos.find(t => t.id === this.editingNodeId)
+        if (todo) {
+          const notesChanged = this.editingNodeNotes !== (todo.notes || '')
+          const titleChanged = this.editingNodeTitle !== (todo.title || '') &&
+            !(this.editingNodeTitle === '' && (todo.title === 'Untitled' || todo.title === 'New Node'))
+          if (notesChanged || titleChanged) {
+            const updatedTodo = {
+              ...todo,
+              notes: this.editingNodeNotes,
+              title: this.editingNodeTitle || 'Untitled'
+            }
+            await window.api.updateTodo(updatedTodo)
+            await this.loadAllTodos()
+            await this.loadTodos()
+          }
+        }
+      }
+      // Close all open views: editing, detail panel, fullscreen, detached windows
+      this.editingNodeId = null
+      this.editingNodeNotes = ''
+      this.editingNodeTitle = ''
+      if (this.detailFullscreen) {
+        this.detailFullscreen = false
+        localStorage.setItem('detail-fullscreen', 'false')
+      }
+      if (this.selectedTodo) {
+        this.closeDetail()
+      }
+      this.focusedTodoIndex = -1
+      window.api.closeAllDetailWindows()
+    },
+    onGraphCanvasClick(event) {
+      // Clear selected link when clicking on canvas
+      this.selectedLink = null
+      // Close editing if clicking outside nodes (on the canvas background)
+      if (event.target.classList.contains('graph-svg') || event.target.tagName === 'svg') {
+        if (this.editingNodeId) {
+          // Find the todo being edited and save
+          const todo = this.todos.find(t => t.id === this.editingNodeId)
+          if (todo) {
+            this.saveNodeNotes(todo)
+          } else {
+            this.cancelEditingNode()
+          }
+        }
+      }
     },
     async createConnectedNode(event, parentTodo) {
       // Get position offset from parent node
@@ -3123,10 +3886,10 @@ export default {
         await this.loadTodos()
 
         if (todo) {
-          // Initial position to the right of parent
+          // Initial position close to parent (will be optimized by layout)
           this.nodePositions[todo.id] = {
-            x: parentPos.x + 200,
-            y: parentPos.y
+            x: parentPos.x + 120,
+            y: parentPos.y + 80
           }
           this.nodePositions = { ...this.nodePositions }
 
@@ -3134,12 +3897,14 @@ export default {
           await window.api.linkTodos(parentTodo.id, todo.id)
           await this.loadAllLinks()
 
-          // Run quick layout optimization for new node
+          // Run quick layout optimization for new node, then start editing
           this.$nextTick(() => {
             this.optimizeNewNodePosition(todo.id)
+            this.$nextTick(() => {
+              const newTodo = this.todos.find(t => t.id === todo.id)
+              if (newTodo) this.startEditingNode(null, newTodo)
+            })
           })
-
-          this.selectTodo(todo.id)
         }
       } catch (e) {
         console.error('Failed to create connected node:', e)
@@ -3242,15 +4007,19 @@ export default {
             await this.loadAllLinks()
           }
 
-          this.selectTodo(todo.id)
+          // Start editing the new node
+          const newTodo = this.todos.find(t => t.id === todo.id)
+          if (newTodo) this.startEditingNode(null, newTodo)
         }
       } catch (e) {
         console.error('Failed to create todo:', e)
       }
     },
     onGraphWheel(event) {
-      const delta = event.deltaY > 0 ? -0.1 : 0.1
-      const newZoom = Math.max(0.3, Math.min(3, this.graphZoom + delta))
+      // Smoother zoom using exponential scaling
+      const zoomSpeed = 0.002
+      const zoomFactor = Math.exp(-event.deltaY * zoomSpeed)
+      const newZoom = Math.max(0.2, Math.min(4, this.graphZoom * zoomFactor))
 
       // Zoom towards mouse position in viewBox coordinates
       const svg = this.$refs.graphContainer.querySelector('svg')
@@ -3287,26 +4056,56 @@ export default {
           this.nodePositions[node.id] = this.calculateNodePosition(node.id)
         }
       })
-      // Center the view on all nodes
-      const positions = Object.values(this.nodePositions)
+
+      // Only consider positions for nodes currently in the graph
+      const nodeIds = new Set(this.graphNodes.map(n => n.id))
+      const positions = Object.entries(this.nodePositions)
+        .filter(([id]) => nodeIds.has(Number(id)))
+        .map(([, pos]) => pos)
+
       if (positions.length === 0) {
         this.graphZoom = 1
         this.graphPan = { x: 0, y: 0 }
         return
       }
-      // Calculate bounding box of all nodes
+
+      // Calculate bounding box of all nodes (with padding for node size)
+      const nodeWidth = 300
+      const nodeHeight = 200
+      const padding = 50
+
       const xs = positions.map(p => p.x)
       const ys = positions.map(p => p.y)
-      const centerX = (Math.min(...xs) + Math.max(...xs)) / 2
-      const centerY = (Math.min(...ys) + Math.max(...ys)) / 2
+      const minX = Math.min(...xs) - nodeWidth / 2 - padding
+      const maxX = Math.max(...xs) + nodeWidth / 2 + padding
+      const minY = Math.min(...ys) - nodeHeight / 2 - padding
+      const maxY = Math.max(...ys) + nodeHeight / 2 + padding
+
+      const boundingWidth = maxX - minX
+      const boundingHeight = maxY - minY
+      const centerX = (minX + maxX) / 2
+      const centerY = (minY + maxY) / 2
+
       // Get SVG container size
       const svg = this.$refs.graphSvg
       if (svg) {
         const rect = svg.getBoundingClientRect()
-        this.graphZoom = 1
+        // Scale viewBox dimensions to screen
+        const scaleX = this.graphWidth / rect.width
+        const scaleY = this.graphHeight / rect.height
+        const viewWidth = rect.width * scaleX
+        const viewHeight = rect.height * scaleY
+
+        // Calculate zoom to fit all nodes
+        const zoomX = viewWidth / boundingWidth
+        const zoomY = viewHeight / boundingHeight
+        const fitZoom = Math.min(zoomX, zoomY, 2) // Cap at 2x zoom
+        this.graphZoom = Math.max(0.3, fitZoom * 0.9) // 90% to add margin, min 0.3
+
+        // Center the view
         this.graphPan = {
-          x: rect.width / 2 - centerX,
-          y: rect.height / 2 - centerY
+          x: viewWidth / 2 - centerX * this.graphZoom,
+          y: viewHeight / 2 - centerY * this.graphZoom
         }
       }
     },
@@ -3317,6 +4116,22 @@ export default {
         y: event.clientY,
         link: link
       }
+    },
+    onLinkClick(event, link) {
+      event.stopPropagation()
+      // Option/Alt-click to remove link directly
+      if (event.altKey) {
+        event.preventDefault()
+        this.removeLink(link)
+        return
+      }
+      // Toggle selection - click to show buttons, click again to hide
+      this.selectedLink = (this.selectedLink === link) ? null : link
+    },
+    removeLink(link) {
+      window.api.unlinkTodos(link.source, link.target)
+        .then(() => this.loadAllLinks())
+        .catch(e => console.error('Failed to unlink:', e))
     },
     async removeLinkFromMenu() {
       if (this.linkContextMenu?.link) {
@@ -3330,7 +4145,6 @@ export default {
       if (!this.linkContextMenu?.link) return
       const { source, target } = this.linkContextMenu.link
       const sourceNode = this.graphNodes.find(n => n.id === source)
-      const targetNode = this.graphNodes.find(n => n.id === target)
 
       // Calculate midpoint position
       const sourcePos = this.nodePositions[source] || { x: 400, y: 300 }
@@ -3344,7 +4158,7 @@ export default {
 
       try {
         // Create new node
-        const todo = await window.api.createTodo('New Node', projectId, type)
+        const todo = await window.api.createTodo('Untitled', projectId, type)
 
         // Position at midpoint
         this.nodePositions[todo.id] = { x: midX, y: midY }
@@ -3369,6 +4183,47 @@ export default {
 
       this.linkContextMenu = null
     },
+    async insertNodeInLinkDirect(link) {
+      const { source, target } = link
+      const sourceNode = this.graphNodes.find(n => n.id === source)
+
+      // Calculate midpoint position
+      const sourcePos = this.nodePositions[source] || { x: 400, y: 300 }
+      const targetPos = this.nodePositions[target] || { x: 500, y: 300 }
+      const midX = (sourcePos.x + targetPos.x) / 2
+      const midY = (sourcePos.y + targetPos.y) / 2
+
+      // Use project from source node
+      const projectId = sourceNode?.project_id || null
+      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+
+      try {
+        // Create new node
+        const todo = await window.api.createTodo('Untitled', projectId, type)
+
+        // Position at midpoint
+        this.nodePositions[todo.id] = { x: midX, y: midY }
+        this.saveNodePositions()
+
+        // Remove old link
+        await window.api.unlinkTodos(source, target)
+
+        // Create new links: source -> new -> target
+        await window.api.linkTodos(source, todo.id)
+        await window.api.linkTodos(todo.id, target)
+
+        // Reload data
+        await this.loadTodos()
+        await this.loadAllLinks()
+
+        // Start editing the new node
+        const newTodo = this.todos.find(t => t.id === todo.id)
+        if (newTodo) this.startEditingNode(null, newTodo)
+      } catch (e) {
+        console.error('Failed to insert node:', e)
+      }
+      this.hoveredLink = null
+    },
     initializeNodePositions() {
       // Initialize positions for all nodes
       const newPositions = { ...this.nodePositions }
@@ -3389,15 +4244,6 @@ export default {
           break
         case 'tree':
           this.runTreeLayout()
-          break
-        case 'radial':
-          this.runRadialLayout()
-          break
-        case 'grid':
-          this.runGridLayout()
-          break
-        case 'circular':
-          this.runCircularLayout()
           break
         default:
           this.runForceLayout()
@@ -3430,7 +4276,7 @@ export default {
 
       // BFS to assign positions
       let currentY = startY
-      roots.forEach((root, rootIndex) => {
+      roots.forEach((root) => {
         const queue = [{ id: root.id, depth: 0 }]
         const visited = new Set()
         const levelNodes = {}
@@ -3479,144 +4325,6 @@ export default {
       this.nodePositions = newPositions
       this.saveNodePositions()
     },
-    runRadialLayout() {
-      const nodes = this.graphNodes.filter(n => n.type !== 'person')
-      const links = this.graphLinks.filter(l => l.type !== 'person-todo')
-
-      // Build adjacency and find center node
-      const connections = {}
-      nodes.forEach(n => { connections[n.id] = 0 })
-      links.forEach(link => {
-        connections[link.source] = (connections[link.source] || 0) + 1
-        connections[link.target] = (connections[link.target] || 0) + 1
-      })
-
-      // Most connected node is center
-      let centerNode = nodes[0]
-      let maxConnections = 0
-      nodes.forEach(node => {
-        if (connections[node.id] > maxConnections) {
-          maxConnections = connections[node.id]
-          centerNode = node
-        }
-      })
-
-      const centerX = this.graphWidth / 2
-      const centerY = this.graphHeight / 2
-      const newPositions = {}
-
-      // BFS from center
-      const visited = new Set([centerNode.id])
-      const queue = [{ id: centerNode.id, level: 0 }]
-      const levels = { 0: [centerNode.id] }
-
-      // Build adjacency list (undirected)
-      const adj = {}
-      links.forEach(link => {
-        if (!adj[link.source]) adj[link.source] = []
-        if (!adj[link.target]) adj[link.target] = []
-        adj[link.source].push(link.target)
-        adj[link.target].push(link.source)
-      })
-
-      while (queue.length > 0) {
-        const { id, level } = queue.shift()
-        const neighbors = adj[id] || []
-        neighbors.forEach(neighborId => {
-          if (!visited.has(neighborId)) {
-            visited.add(neighborId)
-            const nextLevel = level + 1
-            if (!levels[nextLevel]) levels[nextLevel] = []
-            levels[nextLevel].push(neighborId)
-            queue.push({ id: neighborId, level: nextLevel })
-          }
-        })
-      }
-
-      // Position by level
-      newPositions[centerNode.id] = { x: centerX, y: centerY }
-      const baseRadius = 200
-
-      Object.entries(levels).forEach(([level, nodeIds]) => {
-        const l = parseInt(level)
-        if (l === 0) return
-        const radius = baseRadius * l
-        const angleStep = (2 * Math.PI) / nodeIds.length
-        nodeIds.forEach((nodeId, idx) => {
-          const angle = idx * angleStep - Math.PI / 2
-          newPositions[nodeId] = {
-            x: centerX + radius * Math.cos(angle),
-            y: centerY + radius * Math.sin(angle)
-          }
-        })
-      })
-
-      // Position unvisited nodes in outer ring
-      const unvisited = nodes.filter(n => !visited.has(n.id))
-      if (unvisited.length > 0) {
-        const outerRadius = baseRadius * (Object.keys(levels).length + 1)
-        const angleStep = (2 * Math.PI) / unvisited.length
-        unvisited.forEach((node, idx) => {
-          const angle = idx * angleStep - Math.PI / 2
-          newPositions[node.id] = {
-            x: centerX + outerRadius * Math.cos(angle),
-            y: centerY + outerRadius * Math.sin(angle)
-          }
-        })
-      }
-
-      this.nodePositions = newPositions
-      this.saveNodePositions()
-    },
-    runGridLayout() {
-      const nodes = this.graphNodes.filter(n => n.type !== 'person')
-      const count = nodes.length
-      if (count === 0) return
-
-      const cols = Math.ceil(Math.sqrt(count * (this.graphWidth / this.graphHeight)))
-      const rows = Math.ceil(count / cols)
-
-      const cellWidth = (this.graphWidth - 300) / Math.max(cols, 1)
-      const cellHeight = (this.graphHeight - 300) / Math.max(rows, 1)
-      const startX = 150
-      const startY = 150
-
-      const newPositions = {}
-      nodes.forEach((node, idx) => {
-        const col = idx % cols
-        const row = Math.floor(idx / cols)
-        newPositions[node.id] = {
-          x: startX + col * cellWidth + cellWidth / 2,
-          y: startY + row * cellHeight + cellHeight / 2
-        }
-      })
-
-      this.nodePositions = newPositions
-      this.saveNodePositions()
-    },
-    runCircularLayout() {
-      const nodes = this.graphNodes.filter(n => n.type !== 'person')
-      const count = nodes.length
-      if (count === 0) return
-
-      const centerX = this.graphWidth / 2
-      const centerY = this.graphHeight / 2
-      const radius = Math.min(this.graphWidth, this.graphHeight) / 2 - 200
-
-      const newPositions = {}
-      const angleStep = (2 * Math.PI) / count
-
-      nodes.forEach((node, idx) => {
-        const angle = idx * angleStep - Math.PI / 2
-        newPositions[node.id] = {
-          x: centerX + radius * Math.cos(angle),
-          y: centerY + radius * Math.sin(angle)
-        }
-      })
-
-      this.nodePositions = newPositions
-      this.saveNodePositions()
-    },
     runForceLayout() {
       if (this.isSimulating) {
         this.stopForceLayout()
@@ -3625,6 +4333,9 @@ export default {
 
       this.isSimulating = true
       this.initializeNodePositions()
+
+      // Check if all nodes already have positions (re-running on relaxed graph)
+      const allNodesPositioned = this.graphNodes.every(n => this.nodePositions[n.id])
 
       // Create d3-force simulation with improved parameters
       const nodes = this.graphNodes.map(n => ({
@@ -3680,6 +4391,8 @@ export default {
         .force('y', d3Force.forceY(this.graphHeight / 2).strength(0.02))
         .velocityDecay(0.4)
         .alphaDecay(0.02)
+        // Start with low alpha if nodes are already positioned (prevents jumping)
+        .alpha(allNodesPositioned ? 0.1 : 1)
         .on('tick', () => {
           const newPositions = {}
           const padding = 150
@@ -3751,18 +4464,32 @@ export default {
         return
       }
 
-      // Escape closes global search, exits fullscreen, or closes detail panel
+      // Escape closes everything: search, inline editing, fullscreen, detail panel, detached windows
       if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+
         if (this.showGlobalSearch) {
           this.showGlobalSearch = false
-        } else if (this.detailFullscreen && this.selectedTodo) {
-          // First press exits fullscreen, second press closes detail
-          this.detailFullscreen = false
-          localStorage.setItem('detail-fullscreen', 'false')
-        } else if (this.selectedTodo) {
+          return
+        }
+        // Close inline node editing in graph
+        if (this.editingNodeId) {
+          this.editingNodeId = null
+          this.editingNodeNotes = ''
+          this.editingNodeTitle = ''
+        }
+        // Close detail view (also exits fullscreen)
+        if (this.selectedTodo) {
+          if (this.detailFullscreen) {
+            this.detailFullscreen = false
+            localStorage.setItem('detail-fullscreen', 'false')
+          }
           this.closeDetail()
           this.focusedTodoIndex = -1
         }
+        // Also close any detached detail windows
+        window.api.closeAllDetailWindows()
         return
       }
 
@@ -3848,9 +4575,18 @@ export default {
       // Saved automatically by the computed setter
     },
     async onGlobalSearchSelectTodo(todoId) {
-      // Find the todo to get its project
+      // Find the todo to get its project and type
       const todo = this.allTodos.find(t => t.id === todoId)
       if (todo) {
+        // Switch to correct tab based on type
+        if (todo.type === 'note') {
+          this.setTab('notes')
+        } else if (todo.type === 'person') {
+          this.setTab('stakeholders')
+        } else {
+          this.setTab('todos')
+        }
+        // Navigate to correct project
         if (todo.project_id) {
           await this.setFilter(todo.project_id)
         } else {
@@ -3869,11 +4605,14 @@ export default {
       }
     },
     async onGlobalSearchSelectPerson(person) {
-      // Switch to stakeholders tab and trigger edit of the person
+      // Switch to stakeholders tab
       this.setTab('stakeholders')
+      // Select the person in PersonsView
       this.pendingPersonEdit = person
     },
     async onGlobalSearchSelectProject(project) {
+      // Switch to todos tab and navigate to project
+      this.setTab('todos')
       await this.setFilter(project.id)
     },
     // Resize methods
@@ -4044,12 +4783,27 @@ export default {
         window.api.openStakeholderRegister(this.editingProject.id)
       }
     },
+    getRandomPersonColor() {
+      const colors = [
+        '#d93025', '#ea4335', '#ef5350', '#ff5252', '#ff1744',
+        '#c2185b', '#e91e63', '#f06292',
+        '#ef6c00', '#ff7043', '#ff9800', '#ff8f00',
+        '#f9a825', '#ffb300', '#ffc107', '#ffca28',
+        '#0f9d58', '#34a853', '#43a047', '#4caf50', '#7cb342', '#81c784',
+        '#009688', '#00897b', '#26a69a', '#4db6ac', '#00bfa5', '#1de9b6', '#64ffda',
+        '#00bcd4', '#00acc1',
+        '#0288d1', '#039be5', '#03a9f4', '#29b6f6', '#4285f4', '#1a73e8', '#0d47a1',
+        '#673ab7', '#5e35b1', '#7b1fa2', '#9c27b0', '#7e57c2', '#ab47bc', '#ba68c8', '#9575cd',
+        '#263238', '#37474f', '#455a64', '#546e7a', '#607d8b', '#78909c', '#90a4ae', '#b0bec5'
+      ]
+      return colors[Math.floor(Math.random() * colors.length)]
+    },
     async addPersonFromHeader() {
       if (!this.newPersonName.trim()) return
       try {
         const person = await window.api.createPerson({
           name: this.newPersonName.trim(),
-          color: '#1a73e8'
+          color: this.getRandomPersonColor()
         })
         this.newPersonName = ''
         await this.loadPersons()
@@ -4077,6 +4831,11 @@ export default {
     async unassignStakeholder(person) {
       if (!this.isProjectSelected) return
       await window.api.unlinkProjectPerson(this.currentFilter, person.id)
+      await this.loadProjectPersons(this.currentFilter)
+    },
+    async updateStakeholder(personId, data) {
+      if (!this.isProjectSelected) return
+      await window.api.updateProjectPersonStakeholder(this.currentFilter, personId, data)
       await this.loadProjectPersons(this.currentFilter)
     },
     async handleExport() {
@@ -4140,7 +4899,7 @@ export default {
         document.querySelectorAll('.graph-tooltip .tooltip-notes pre.mermaid, .node-notes pre.mermaid').forEach(el => {
           el.setAttribute('data-processed', 'true')
         })
-      } catch (e) {
+      } catch {
         // Silently ignore - tooltip may have disappeared
       }
     }

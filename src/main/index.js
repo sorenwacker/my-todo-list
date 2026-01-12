@@ -350,6 +350,29 @@ app.whenReady().then(() => {
     return database.getPersonProjects(validateId(personId))
   }))
 
+  // Milestone operations
+  ipcMain.handle('get-milestone-todos', handleWithValidation((_, milestoneId) => {
+    return database.getMilestoneTodos(validateId(milestoneId))
+  }))
+  ipcMain.handle('get-milestone-persons', handleWithValidation((_, milestoneId) => {
+    return database.getMilestonePersons(validateId(milestoneId))
+  }))
+  ipcMain.handle('link-milestone-todo', handleWithValidation((_, milestoneId, todoId) => {
+    return database.linkMilestoneTodo(validateId(milestoneId), validateId(todoId))
+  }))
+  ipcMain.handle('unlink-milestone-todo', handleWithValidation((_, milestoneId, todoId) => {
+    return database.unlinkMilestoneTodo(validateId(milestoneId), validateId(todoId))
+  }))
+  ipcMain.handle('link-milestone-person', handleWithValidation((_, milestoneId, personId, role) => {
+    return database.linkMilestonePerson(validateId(milestoneId), validateId(personId), role || '')
+  }))
+  ipcMain.handle('unlink-milestone-person', handleWithValidation((_, milestoneId, personId) => {
+    return database.unlinkMilestonePerson(validateId(milestoneId), validateId(personId))
+  }))
+  ipcMain.handle('get-all-milestones', handleWithValidation((_, projectId) => {
+    return database.getAllMilestones(validateOptionalId(projectId))
+  }))
+
   // Todo operations
   ipcMain.handle('get-todos', handleWithValidation((_, projectId) => {
     // projectId can be null, 'inbox', or a number
@@ -671,6 +694,13 @@ app.whenReady().then(() => {
       detailWindow.close()
     }
   }))
+
+  ipcMain.handle('close-all-detail-windows', () => {
+    // Close any open detail window
+    if (detailWindow && !detailWindow.isDestroyed()) {
+      detailWindow.close()
+    }
+  })
 
   ipcMain.handle('open-stakeholder-register', handleWithValidation((_, projectId) => {
     createStakeholderWindow(validateId(projectId))

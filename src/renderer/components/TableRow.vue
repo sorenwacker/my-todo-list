@@ -13,9 +13,10 @@
     </td>
     <td class="col-expand">
       <button
-        v-if="hasSubtasks"
         class="expand-btn"
+        :class="{ 'has-subtasks': hasSubtasks }"
         @click.stop="$emit('toggle-expand')"
+        :title="hasSubtasks ? (isExpanded ? 'Collapse tasks' : 'Expand tasks') : 'Add tasks'"
       >{{ isExpanded ? '−' : '+' }}</button>
     </td>
     <td class="col-title" :class="{ 'has-subtasks': hasSubtasks }">{{ todo.title }}</td>

@@ -20,14 +20,14 @@
 
       <div v-else-if="hasResults" class="search-results">
         <!-- Todos -->
-        <div v-if="results.todos.length" class="result-group">
+        <div v-if="todoResults.length" class="result-group">
           <div class="group-header">
             <CheckSquare :size="16" />
             <span>Todos</span>
-            <span class="count">{{ results.todos.length }}</span>
+            <span class="count">{{ todoResults.length }}</span>
           </div>
           <div
-            v-for="(item, index) in results.todos.filter(t => t.type === 'todo')"
+            v-for="item in todoResults"
             :key="'todo-' + item.id"
             class="result-item"
             :class="{ selected: isSelected('todos', item.id) }"
@@ -40,14 +40,14 @@
         </div>
 
         <!-- Notes -->
-        <div v-if="results.todos.filter(t => t.type === 'note').length" class="result-group">
+        <div v-if="noteResults.length" class="result-group">
           <div class="group-header">
             <FileText :size="16" />
             <span>Notes</span>
-            <span class="count">{{ results.todos.filter(t => t.type === 'note').length }}</span>
+            <span class="count">{{ noteResults.length }}</span>
           </div>
           <div
-            v-for="item in results.todos.filter(t => t.type === 'note')"
+            v-for="item in noteResults"
             :key="'note-' + item.id"
             class="result-item"
             :class="{ selected: isSelected('notes', item.id) }"
@@ -145,6 +145,13 @@ export default {
     }
   },
   computed: {
+    todoResults() {
+      // Todos are items with type 'todo' or null/undefined (legacy items)
+      return this.results.todos.filter(t => !t.type || t.type === 'todo')
+    },
+    noteResults() {
+      return this.results.todos.filter(t => t.type === 'note')
+    },
     hasResults() {
       return this.results.todos.length > 0 ||
              this.results.persons.length > 0 ||
@@ -153,11 +160,11 @@ export default {
     flatResults() {
       const flat = []
       // Todos
-      this.results.todos.filter(t => t.type === 'todo').forEach(item => {
+      this.todoResults.forEach(item => {
         flat.push({ type: 'todos', item })
       })
       // Notes
-      this.results.todos.filter(t => t.type === 'note').forEach(item => {
+      this.noteResults.forEach(item => {
         flat.push({ type: 'notes', item })
       })
       // Persons

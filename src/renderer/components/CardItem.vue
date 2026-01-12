@@ -20,21 +20,17 @@
         <button class="delete-btn permanent" title="Delete permanently" @click.stop="$emit('permanent-delete')">x</button>
       </template>
       <button v-else class="delete-btn" @click.stop="$emit('delete')">x</button>
+      <span v-if="todo.category_symbol" class="card-category-symbol" :title="todo.category_name">
+        <component :is="getIconComponent(todo.category_symbol)" v-if="getIconComponent(todo.category_symbol)" :size="14" />
+        <span v-else>{{ todo.category_symbol }}</span>
+      </span>
     </div>
-    <div v-if="(todo.project_name && showProject) || todo.category_name" class="card-meta">
+    <div v-if="todo.project_name && showProject" class="card-meta">
       <span
-        v-if="todo.project_name && showProject"
         class="card-project"
         :style="{ background: todo.project_color + '33', color: todo.project_color }"
       >
         {{ todo.project_name }}
-      </span>
-      <span v-if="todo.category_name" class="card-category">
-        <span class="category-symbol">
-          <component :is="getIconComponent(todo.category_symbol)" v-if="getIconComponent(todo.category_symbol)" :size="12" />
-          <span v-else>{{ todo.category_symbol || '*' }}</span>
-        </span>
-        {{ todo.category_name }}
       </span>
     </div>
     <div v-if="todo.subtask_count > 0" class="card-subtasks">
