@@ -29,12 +29,12 @@
           <template v-for="todo in group.todos" :key="todo.id">
             <TableRow
               :todo="todo"
-              :selected="selectedTodoId === todo.id"
+              :selected="selectedTodoId === todo.id || selectedTodoIds.has(todo.id)"
               :focused="focusedTodoId === todo.id"
               :is-trash-view="isTrashView"
               :has-subtasks="todo.subtask_count > 0"
               :is-expanded="isExpanded(todo.id)"
-              @select="$emit('select-todo', todo.id)"
+              @select="$emit('row-click', $event, todo.id)"
               @toggle-complete="$emit('toggle-complete', todo)"
               @toggle-expand="toggleExpand(todo.id)"
               @delete="$emit('delete-todo', todo.id)"
@@ -56,7 +56,7 @@
                   @click.stop="$emit('toggle-subtask', subtask)"
                 />
               </td>
-              <td class="subtask-title" colspan="9" @dblclick="startEditSubtask(subtask)">
+              <td class="subtask-title" colspan="7" @dblclick="startEditSubtask(subtask)">
                 <template v-if="editingSubtaskId === subtask.id">
                   <input
                     v-model="editingSubtaskTitle"
@@ -68,6 +68,17 @@
                   />
                 </template>
                 <template v-else>{{ subtask.title }}</template>
+              </td>
+              <td class="col-start"></td>
+              <td class="col-end subtask-due">
+                <input
+                  type="date"
+                  class="subtask-due-input"
+                  :value="subtask.due_date || ''"
+                  lang="sv-SE"
+                  @change="$emit('update-subtask-due-date', { id: subtask.id, due_date: $event.target.value || null })"
+                  @click.stop
+                />
               </td>
               <td class="col-actions">
                 <button class="subtask-delete-btn" @click.stop="$emit('delete-subtask', subtask.id)" title="Delete">×</button>
@@ -99,12 +110,12 @@
         <template v-for="todo in sortedTodos" :key="todo.id">
           <TableRow
             :todo="todo"
-            :selected="selectedTodoId === todo.id"
+            :selected="selectedTodoId === todo.id || selectedTodoIds.has(todo.id)"
             :focused="focusedTodoId === todo.id"
             :is-trash-view="isTrashView"
             :has-subtasks="todo.subtask_count > 0"
             :is-expanded="isExpanded(todo.id)"
-            @select="$emit('select-todo', todo.id)"
+            @select="$emit('row-click', $event, todo.id)"
             @toggle-complete="$emit('toggle-complete', todo)"
             @toggle-expand="toggleExpand(todo.id)"
             @delete="$emit('delete-todo', todo.id)"
@@ -126,7 +137,7 @@
                 @click.stop="$emit('toggle-subtask', subtask)"
               />
             </td>
-            <td class="subtask-title" colspan="9" @dblclick="startEditSubtask(subtask)">
+            <td class="subtask-title" colspan="7" @dblclick="startEditSubtask(subtask)">
               <template v-if="editingSubtaskId === subtask.id">
                 <input
                   v-model="editingSubtaskTitle"
@@ -138,6 +149,17 @@
                 />
               </template>
               <template v-else>{{ subtask.title }}</template>
+            </td>
+            <td class="col-start"></td>
+            <td class="col-end subtask-due">
+              <input
+                type="date"
+                class="subtask-due-input"
+                :value="subtask.due_date || ''"
+                lang="sv-SE"
+                @change="$emit('update-subtask-due-date', { id: subtask.id, due_date: $event.target.value || null })"
+                @click.stop
+              />
             </td>
             <td class="col-actions">
               <button class="subtask-delete-btn" @click.stop="$emit('delete-subtask', subtask.id)" title="Delete">×</button>
@@ -197,6 +219,10 @@ export default {
       type: Number,
       default: null
     },
+    selectedTodoIds: {
+      type: Set,
+      default: () => new Set()
+    },
     isTrashView: {
       type: Boolean,
       default: false
@@ -208,6 +234,7 @@ export default {
   },
   emits: [
     'select-todo',
+    'row-click',
     'toggle-complete',
     'toggle-subtask',
     'delete-todo',
@@ -216,7 +243,8 @@ export default {
     'permanent-delete-todo',
     'add-todo-to-project',
     'add-subtask',
-    'update-subtask'
+    'update-subtask',
+    'update-subtask-due-date'
   ],
   data() {
     return {

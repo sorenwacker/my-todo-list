@@ -85,8 +85,8 @@
       </draggable>
     </nav>
 
-    <div class="sidebar-header status-header" @click="statusesCollapsed = !statusesCollapsed">
-      <span class="collapse-indicator">{{ statusesCollapsed ? '+' : '-' }}</span>
+    <div class="sidebar-header status-header collapsible" @click.stop="statusesCollapsed = !statusesCollapsed">
+      <span class="collapse-indicator">{{ statusesCollapsed ? '>' : 'v' }}</span>
       <h2>Statuses</h2>
     </div>
 
@@ -124,8 +124,8 @@
       <button v-else @click="showAddStatus">+ Add Status</button>
     </div>
 
-    <div class="sidebar-header category-header" @click="categoriesCollapsed = !categoriesCollapsed">
-      <span class="collapse-indicator">{{ categoriesCollapsed ? '+' : '-' }}</span>
+    <div class="sidebar-header category-header collapsible" @click.stop="categoriesCollapsed = !categoriesCollapsed">
+      <span class="collapse-indicator">{{ categoriesCollapsed ? '>' : 'v' }}</span>
       <h2>Categories</h2>
     </div>
 
@@ -167,8 +167,8 @@
     </div>
 
     <div class="settings-section">
-      <div class="sidebar-header settings-header" @click="settingsCollapsed = !settingsCollapsed">
-        <span class="collapse-indicator">{{ settingsCollapsed ? '+' : '-' }}</span>
+      <div class="sidebar-header settings-header collapsible" @click.stop="settingsCollapsed = !settingsCollapsed">
+        <span class="collapse-indicator">{{ settingsCollapsed ? '>' : 'v' }}</span>
         <h2>Settings</h2>
       </div>
       <div v-show="!settingsCollapsed" class="settings-content">
@@ -183,6 +183,13 @@
             <input :checked="gridLock" type="checkbox" @change="$emit('update:grid-lock', $event.target.checked)" />
             <span class="preference-text">Grid lock (cards view)</span>
           </label>
+        </div>
+        <div class="preference-item timezone-item">
+          <label class="preference-label">Timezone</label>
+          <select :value="timezone" class="timezone-select" @change="$emit('update:timezone', $event.target.value)">
+            <option value="auto">Auto ({{ detectedTimezone }})</option>
+            <option v-for="tz in commonTimezones" :key="tz" :value="tz">{{ tz }}</option>
+          </select>
         </div>
         <button class="settings-btn" @click="$emit('export')">Export</button>
         <button class="settings-btn" @click="$emit('show-import')">Import</button>
@@ -238,6 +245,7 @@ export default {
     isProjectSelected: { type: Boolean, default: false },
     openTodosInWindow: { type: Boolean, default: false },
     gridLock: { type: Boolean, default: false },
+    timezone: { type: String, default: 'auto' },
     databasePath: { type: String, default: '' }
   },
   emits: [
@@ -246,7 +254,7 @@ export default {
     'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
     'update:categories', 'categories-reorder', 'add-category', 'edit-category',
     'select-topic', 'add-topic', 'edit-topic', 'delete-topic', 'topics-reorder',
-    'update:open-todos-in-window', 'update:grid-lock',
+    'update:open-todos-in-window', 'update:grid-lock', 'update:timezone',
     'export', 'show-import',
     'toggle-pin', 'mouseleave', 'mouseenter'
   ],
@@ -263,7 +271,32 @@ export default {
       statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
       categoriesCollapsed: localStorage.getItem('categories-collapsed') !== 'false',
       topicsCollapsed: localStorage.getItem('topics-collapsed') !== 'false',
-      settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false'
+      settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
+      commonTimezones: [
+        'UTC',
+        'America/New_York',
+        'America/Chicago',
+        'America/Denver',
+        'America/Los_Angeles',
+        'America/Anchorage',
+        'Pacific/Honolulu',
+        'Europe/London',
+        'Europe/Paris',
+        'Europe/Berlin',
+        'Europe/Moscow',
+        'Asia/Dubai',
+        'Asia/Kolkata',
+        'Asia/Singapore',
+        'Asia/Tokyo',
+        'Asia/Shanghai',
+        'Australia/Sydney',
+        'Pacific/Auckland'
+      ]
+    }
+  },
+  computed: {
+    detectedTimezone() {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone
     }
   },
   watch: {
@@ -359,7 +392,7 @@ export default {
 <style scoped>
 .sidebar {
   width: 240px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   border-right: 1px solid var(--border-color, #3a3f4b);
   display: flex;
   flex-direction: column;
@@ -372,8 +405,16 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
   user-select: none;
+}
+
+.sidebar-header.collapsible {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sidebar-header.collapsible:hover {
+  background: var(--bg-hover, #1a1a1a);
 }
 
 .sidebar-header h2 {
@@ -386,9 +427,11 @@ export default {
 }
 
 .collapse-indicator {
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-secondary, #a0a0a0);
-  width: 12px;
+  width: 14px;
+  text-align: center;
 }
 
 .nav-item {
@@ -496,8 +539,13 @@ export default {
 }
 
 .settings-section, .sidebar-section {
-  border-top: 1px solid var(--border-color, #3a3f4b);
+  border-top: 1px solid var(--border-color, #333);
   margin-top: auto;
+}
+
+.status-header,
+.category-header {
+  border-top: 1px solid var(--border-color, #333);
 }
 
 .settings-content {
@@ -506,6 +554,27 @@ export default {
 
 .preference-item {
   margin-bottom: 8px;
+}
+
+.timezone-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preference-label {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+}
+
+.timezone-select {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--bg-secondary, #1e2330);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 4px;
+  color: var(--text-primary, #e0e0e0);
+  font-size: 12px;
 }
 
 .checkbox-label {

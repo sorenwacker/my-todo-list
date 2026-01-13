@@ -38,9 +38,9 @@
                 <template #item="{ element }">
                   <KanbanCard
                     :todo="element"
-                    :selected="selectedTodoId === element.id"
+                    :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                     :border-color="group.color"
-                    @select="$emit('select-todo', element.id)"
+                    @select="$emit('card-click', $event, element.id)"
                     @toggle-complete="$emit('toggle-complete', element)"
                     @delete="$emit('delete-todo', element.id)"
                   />
@@ -64,9 +64,9 @@
                 <template #item="{ element }">
                   <KanbanCard
                     :todo="element"
-                    :selected="selectedTodoId === element.id"
+                    :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                     :border-color="group.color"
-                    @select="$emit('select-todo', element.id)"
+                    @select="$emit('card-click', $event, element.id)"
                     @toggle-complete="$emit('toggle-complete', element)"
                     @delete="$emit('delete-todo', element.id)"
                   />
@@ -98,9 +98,9 @@
             <template #item="{ element }">
               <KanbanCard
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :border-color="element.category_color || '#666'"
-                @select="$emit('select-todo', element.id)"
+                @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
               />
@@ -132,9 +132,9 @@
             <template #item="{ element }">
               <KanbanCard
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :border-color="project.color"
-                @select="$emit('select-todo', element.id)"
+                @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
               />
@@ -165,10 +165,10 @@
             <template #item="{ element }">
               <KanbanCard
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :border-color="element.project_color || '#333'"
                 show-project
-                @select="$emit('select-todo', element.id)"
+                @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
               />
@@ -203,10 +203,10 @@
             <template #item="{ element }">
               <KanbanCard
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :border-color="element.project_color || '#666'"
                 show-project
-                @select="$emit('select-todo', element.id)"
+                @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
               />
@@ -237,10 +237,10 @@
             <template #item="{ element }">
               <KanbanCard
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :border-color="element.project_color || '#333'"
                 show-project
-                @select="$emit('select-todo', element.id)"
+                @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
               />
@@ -273,10 +273,10 @@
             <template #item="{ element }">
               <KanbanCard
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :border-color="element.project_color || status.color"
                 show-project
-                @select="$emit('select-todo', element.id)"
+                @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
               />
@@ -361,6 +361,10 @@ export default {
       type: Number,
       default: null
     },
+    selectedTodoIds: {
+      type: Set,
+      default: () => new Set()
+    },
     allTodos: {
       type: Array,
       default: () => []
@@ -369,6 +373,7 @@ export default {
   emits: [
     'update:kanban-group-by',
     'select-todo',
+    'card-click',
     'toggle-complete',
     'delete-todo',
     'add-todo-to-project',

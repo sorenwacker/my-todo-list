@@ -3,6 +3,7 @@
     class="todo-card resizable"
     :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused, 'grid-locked': gridLock }"
     :style="cardStyle"
+    :data-todo-id="todo.id"
     :draggable="isDraggable ? 'true' : 'false'"
     @click="$emit('click', $event)"
     @mousedown="$emit('mousedown', $event)"
@@ -55,6 +56,9 @@
         Due: {{ formatDeadline(todo.end_date) }}
       </span>
       <span v-if="todo.importance" class="card-importance" :style="{ backgroundColor: getImportanceColor(todo.importance) }">{{ todo.importance }}</span>
+    </div>
+    <div v-if="parsedTags.length > 0" class="card-tags">
+      <span v-for="tag in parsedTags" :key="tag.id" class="card-tag">#{{ tag.name }}</span>
     </div>
     <div v-if="todo.notes" :key="'notes-' + todo.id + '-' + (todo.notes?.length || 0)" class="card-notes-preview markdown-body">
       <div v-if="todo.notes_sensitive" class="sensitive-notes-card">
@@ -116,6 +120,10 @@ export default {
     isDraggable: {
       type: Boolean,
       default: false
+    },
+    selectedTodoIds: {
+      type: Set,
+      default: () => new Set()
     }
   },
   emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'toggle-subtask', 'delete', 'restore', 'permanent-delete', 'dragstart'],
@@ -133,12 +141,26 @@ export default {
       } catch {
         return []
       }
+    },
+    parsedTags() {
+      if (!this.todo.tags_json) return []
+      try {
+        const parsed = JSON.parse(this.todo.tags_json)
+        return parsed.filter(t => t && t.id)
+      } catch {
+        return []
+      }
     }
   },
   methods: {
     onDragStart(event) {
-      console.log('CardItem dragstart:', this.todo.id, this.todo.title)
-      event.dataTransfer.setData('text/plain', this.todo.id.toString())
+      // If this card is part of multi-selection, drag all selected items
+      let idsToTransfer = [this.todo.id]
+      if (this.selectedTodoIds.has(this.todo.id) && this.selectedTodoIds.size > 1) {
+        idsToTransfer = [...this.selectedTodoIds]
+      }
+      console.log('CardItem dragstart:', idsToTransfer)
+      event.dataTransfer.setData('text/plain', JSON.stringify(idsToTransfer))
       event.dataTransfer.effectAllowed = 'move'
       this.$emit('dragstart', event)
     },

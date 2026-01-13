@@ -27,6 +27,7 @@
       :is-project-selected="isProjectSelected"
       :open-todos-in-window="openTodosInWindow"
       :grid-lock="gridLock"
+      :timezone="timezone"
       :database-path="databasePath"
       @set-filter="setFilter"
       @select-topic="selectTopic"
@@ -47,6 +48,7 @@
       @edit-category="editCategory"
       @update:open-todos-in-window="onOpenTodosInWindowChange"
       @update:grid-lock="onGridLockChange"
+      @update:timezone="onTimezoneChange"
       @export="handleExport"
       @show-import="showImportDialog = true"
     />
@@ -135,12 +137,12 @@
       <header class="main-header">
         <div class="header-title-row">
           <h1 class="header-title">
-            <template v-if="selectedTopicId !== null && isProjectSelected">
-              <span class="breadcrumb-link" @click="selectedTopicId = null">{{ currentProjectName }}</span>
-              <span class="breadcrumb-separator"> / </span>
-              <span>{{ currentTopicName }}</span>
-            </template>
-            <template v-else>{{ currentTitle }}</template>
+            <span>{{ currentTitle }}</span>
+            <select v-if="projectTopics.length > 0 && isProjectSelected" v-model="splitTopicFilter" class="header-topic-select">
+              <option value="all">All Topics</option>
+              <option value="none">No Topic</option>
+              <option v-for="topic in projectTopics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
+            </select>
           </h1>
           <MainTabs
             v-if="currentFilter !== 'trash'"
@@ -193,7 +195,7 @@
             </button>
           </div>
         </div>
-        <div v-if="currentFilter !== 'persons'" class="header-controls">
+        <div v-if="currentFilter !== 'persons' && activeTab !== 'split'" class="header-controls">
           <div class="sort-controls">
             <select v-model="sortBy" class="sort-select">
               <option value="manual">Manual Order</option>
@@ -236,7 +238,7 @@
           </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
-        <div v-if="!isTrashView && activeTab !== 'stakeholders'" class="add-todo">
+        <div v-if="!isTrashView && activeTab !== 'stakeholders' && activeTab !== 'split'" class="add-todo">
           <input
             ref="newTodoInput"
             v-model="newTodoTitle"
@@ -247,129 +249,328 @@
           <button @click="addTodo">Add</button>
           <button v-if="activeTab === 'todos'" class="add-milestone-btn" @click="addMilestone" title="Add Milestone">+ Milestone</button>
         </div>
-        <div v-if="activeTab === 'stakeholders'" class="add-todo">
+        <div v-if="activeTab === 'stakeholders'" class="add-todo stakeholder-add-wrapper">
           <input
+            ref="stakeholderSearchInput"
             v-model="newPersonName"
-            placeholder="Add a new person..."
+            placeholder="Add stakeholder..."
             type="text"
+            @focus="showStakeholderPicker = true"
+            @blur="onStakeholderInputBlur"
             @keyup.enter="addPersonFromHeader"
+            @keydown.esc="showStakeholderPicker = false"
           />
           <button @click="addPersonFromHeader">Add</button>
+          <div v-if="showStakeholderPicker && newPersonName.trim()" class="stakeholder-picker-dropdown">
+            <div v-if="filteredAvailableStakeholders.length > 0" class="picker-results">
+              <div
+                v-for="person in filteredAvailableStakeholders.slice(0, 10)"
+                :key="person.id"
+                class="picker-item"
+                @mousedown.prevent="assignStakeholderFromPicker(person)"
+              >
+                <div class="person-avatar-small" :style="{ background: person.color }">{{ getInitials(person.name) }}</div>
+                <span class="picker-item-name">{{ person.name }}</span>
+                <span v-if="person.role" class="picker-item-role">{{ person.role }}</span>
+              </div>
+            </div>
+            <div v-if="!hasExactStakeholderMatch && newPersonName.trim()" class="picker-create-hint" @mousedown.prevent="addPersonFromHeader">
+              Press Enter to create "{{ newPersonName.trim() }}"
+            </div>
+          </div>
         </div>
       </header>
 
-      <!-- Stakeholders View (tab-based) -->
-      <PersonsView
-        v-if="activeTab === 'stakeholders'"
-        :persons="isProjectSelected ? selectedProjectStakeholders : persons"
-        :all-persons="persons"
-        :all-tags="allTags"
-        :theme="theme"
-        :project-id="isProjectSelected ? currentFilter : null"
-        :pending-edit="pendingPersonEdit"
-        :current-view="currentView"
-        @refresh="loadProjectStakeholders; loadAllTags()"
-        @edit-opened="pendingPersonEdit = null"
-        @assign-person="assignStakeholder"
-        @unassign-person="unassignStakeholder"
-        @update-stakeholder="updateStakeholder"
-      />
+      <!-- Project fade transition -->
+      <Transition name="fade" mode="out-in">
+        <div :key="currentFilter" class="project-content">
+          <!-- Stakeholders View (tab-based) -->
+          <PersonsView
+            v-if="activeTab === 'stakeholders'"
+            :persons="isProjectSelected ? selectedProjectStakeholders : persons"
+            :all-persons="persons"
+            :all-tags="allTags"
+            :theme="theme"
+            :project-id="isProjectSelected ? currentFilter : null"
+            :pending-edit="pendingPersonEdit"
+            :current-view="currentView"
+            @refresh="() => { loadProjectStakeholders(); loadAllTags() }"
+            @edit-opened="pendingPersonEdit = null"
+            @assign-person="assignStakeholder"
+            @unassign-person="unassignStakeholder"
+            @update-stakeholder="updateStakeholder"
+          />
 
-      <!-- Cards View -->
-      <CardsView
-        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'cards'"
-        :sorted-todos="sortedTodos"
-        :grouped-todos="groupedTodos"
-        :group-by-project="groupByProject"
-        :topics="isProjectSelected ? projectTopics : []"
-        :selected-topic-id="selectedTopicId"
-        :is-project-view="isProjectSelected"
-        :selected-todo-id="selectedTodo?.id"
-        :focused-todo-id="focusedTodo?.id"
-        :is-trash-view="isTrashView"
-        :card-columns="cardColumns"
-        :sort-by="sortBy"
-        :current-filter="currentFilter"
-        :card-widths="cardWidths"
-        :grid-lock="gridLock"
-        @card-click="handleCardClick"
-        @card-mousedown="onCardMouseDown"
-        @card-resize="onCardResize"
-        @toggle-complete="toggleComplete"
-        @toggle-subtask="toggleSubtask"
-        @delete-todo="deleteTodo"
-        @restore-todo="restoreTodo"
-        @permanent-delete-todo="permanentlyDeleteTodo"
-        @update-sorted-todos="updateSortedTodos"
-        @drag-end="onDragEnd"
-        @update-group-todos="updateGroupTodos"
-        @group-drag-end="onGroupDragEnd"
-        @add-todo-to-project="addTodoToProject"
-        @drop-on-topic="handleDropOnTopic"
-        @add-topic="addTopicFromCards"
-        @select-topic="selectTopic"
-        @edit-topic="editTopic"
-        @delete-topic="deleteTopic"
-        @add-todo-to-topic="addTodoToTopic"
-      />
+          <!-- Split View (tab-based) -->
+          <div v-else-if="activeTab === 'split'" class="split-view">
+            <div
+              class="split-panels"
+              ref="splitPanelsRef"
+              @mousedown="onSplitMouseDown"
+              @mousemove="onSplitMouseMove"
+              @mouseup="onSplitMouseUp"
+              @mouseleave="onSplitMouseUp"
+            >
+              <!-- Selection Box -->
+              <div
+                v-if="splitIsSelecting"
+                class="selection-box"
+                :style="splitSelectionBoxStyle"
+              ></div>
+              <!-- Todos panel (left) - using TableView -->
+              <div
+                class="split-panel split-todos"
+                :class="{ 'drop-target': splitDropTarget === 'todos' }"
+                @dragover.prevent
+                @dragenter="onSplitDragEnter('todos')"
+                @dragleave="onSplitDragLeave"
+                @drop="onSplitDrop($event, 'todo')"
+              >
+                <div class="split-panel-header">
+                  <div class="split-panel-title">
+                    <span>Todos</span>
+                    <span class="split-count">{{ splitTodos.length }}</span>
+                  </div>
+                </div>
+                <div class="split-add-row">
+                  <input
+                    v-model="splitTodoTitle"
+                    class="split-add-input"
+                    placeholder="Add a new todo..."
+                    @keyup.enter="addSplitTodo"
+                  />
+                  <button class="split-add-btn" @click="addSplitTodo">+</button>
+                </div>
+                <div class="split-panel-content">
+                  <draggable
+                    :model-value="splitTodos"
+                    item-key="id"
+                    class="split-draggable-list"
+                    group="split-items"
+                    ghost-class="ghost"
+                    @end="onSplitDragEnd($event, 'todo')"
+                  >
+                    <template #item="{ element: todo }">
+                      <div
+                        class="split-item"
+                        :class="{ selected: selectedTodo?.id === todo.id || selectedTodoIds.has(todo.id), completed: todo.completed }"
+                        :data-id="todo.id"
+                        @click="selectTodo(todo.id)"
+                      >
+                        <input type="checkbox" :checked="todo.completed" @click.stop="toggleComplete(todo)" />
+                        <span class="split-item-title">{{ todo.title }}</span>
+                        <span v-if="todo.project_name" class="split-item-project" :style="{ color: todo.project_color }">{{ todo.project_name }}</span>
+                        <span v-if="todo.end_date" class="split-item-deadline" :class="{ overdue: isOverdue(todo.end_date) }">{{ formatShortDate(todo.end_date) }}</span>
+                      </div>
+                    </template>
+                  </draggable>
+                  <div v-if="splitTodos.length === 0" class="split-empty">No todos</div>
+                </div>
+              </div>
+              <div class="split-divider"></div>
+              <!-- Notes panel (right) -->
+              <div
+                class="split-panel split-notes"
+                :class="{ 'drop-target': splitDropTarget === 'notes' }"
+                @dragover.prevent
+                @dragenter="onSplitDragEnter('notes')"
+                @dragleave="onSplitDragLeave"
+                @drop="onSplitDrop($event, 'note')"
+              >
+                <div class="split-panel-header">
+                  <div class="split-panel-title">
+                    <span>Notes</span>
+                    <span class="split-count">{{ splitNotes.length }}</span>
+                  </div>
+                  <div class="split-panel-controls">
+                    <select v-model="splitNotesView" class="split-view-select">
+                      <option value="list">List</option>
+                      <option value="cards">Cards</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="split-add-row">
+                  <input
+                    v-model="splitNoteTitle"
+                    class="split-add-input"
+                    placeholder="Add a new note..."
+                    @keyup.enter="addSplitNote"
+                  />
+                  <button class="split-add-btn" @click="addSplitNote">+</button>
+                </div>
+                <div class="split-panel-content" :class="{ 'cards-mode': splitNotesView === 'cards' }">
+                  <!-- Topic boxes when project has topics -->
+                  <template v-if="splitHasTopics">
+                    <div class="split-topic-boxes">
+                      <div
+                        v-for="group in splitNoteTopicGroups"
+                        :key="group.id ?? 'no-topic'"
+                        class="split-topic-box"
+                      >
+                        <div class="split-topic-header">
+                          <span class="split-topic-dot" :style="{ background: group.color }"></span>
+                          <span class="split-topic-name">{{ group.name }}</span>
+                          <span class="split-topic-count">{{ group.todos.length }}</span>
+                        </div>
+                        <draggable
+                          :model-value="group.todos"
+                          item-key="id"
+                          class="split-topic-items split-draggable-list"
+                          group="split-items"
+                          ghost-class="ghost"
+                          @end="onSplitTopicDragEnd($event, group.id)"
+                        >
+                          <template #item="{ element: note }">
+                            <div
+                              class="split-item"
+                              :class="{ selected: selectedTodo?.id === note.id || selectedTodoIds.has(note.id), completed: note.completed, card: splitNotesView === 'cards' }"
+                              :data-id="note.id"
+                              @click="selectTodo(note.id)"
+                            >
+                              <input type="checkbox" :checked="note.completed" @click.stop="toggleComplete(note)" />
+                              <span class="split-item-title">{{ note.title }}</span>
+                            </div>
+                          </template>
+                        </draggable>
+                      </div>
+                      <div class="split-topic-box add-topic-box" @click="addTopicFromSidebar">
+                        <span class="add-topic-label">+ Add Topic</span>
+                      </div>
+                    </div>
+                  </template>
+                  <!-- Simple list when no topics -->
+                  <draggable
+                    v-else
+                    :model-value="splitNotes"
+                    item-key="id"
+                    class="split-draggable-list"
+                    group="split-items"
+                    ghost-class="ghost"
+                    @end="onSplitDragEnd($event, 'note')"
+                  >
+                    <template #item="{ element: note }">
+                      <div
+                        class="split-item"
+                        :class="{ selected: selectedTodo?.id === note.id || selectedTodoIds.has(note.id), completed: note.completed, card: splitNotesView === 'cards' }"
+                        :data-id="note.id"
+                        @click="selectTodo(note.id)"
+                      >
+                        <input type="checkbox" :checked="note.completed" @click.stop="toggleComplete(note)" />
+                        <span class="split-item-title">{{ note.title }}</span>
+                        <span v-if="note.project_name" class="split-item-project" :style="{ color: note.project_color }">{{ note.project_name }}</span>
+                      </div>
+                    </template>
+                  </draggable>
+                  <div v-if="splitNotes.length === 0" class="split-empty">No notes</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <!-- Table View -->
-      <TableView
-        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'table'"
-        :sorted-todos="sortedTodos"
-        :grouped-todos="groupedTodos"
-        :group-by-project="groupByProject"
-        :selected-todo-id="selectedTodo?.id"
-        :focused-todo-id="focusedTodo?.id"
-        :is-trash-view="isTrashView"
-        :subtasks-map="allSubtasksMap"
-        @select-todo="selectTodo"
-        @toggle-complete="toggleComplete"
-        @toggle-subtask="toggleSubtask"
-        @delete-todo="deleteTodo"
-        @delete-subtask="deleteSubtaskFromTable"
-        @restore-todo="restoreTodo"
-        @permanent-delete-todo="permanentlyDeleteTodo"
-        @add-todo-to-project="addTodoToProject"
-        @add-subtask="addSubtaskFromTable"
-        @update-subtask="updateSubtaskFromTable"
-      />
+          <!-- Views Container -->
+          <div v-else-if="activeTab !== 'stakeholders' && currentFilter !== 'persons'" class="views-container">
+          <!-- Cards View -->
+          <CardsView
+            v-if="currentView === 'cards'"
+            :sorted-todos="sortedTodos"
+            :grouped-todos="groupedTodos"
+            :group-by-project="groupByProject"
+            :topics="isProjectSelected ? projectTopics : []"
+            :selected-topic-id="selectedTopicId"
+            :is-project-view="isProjectSelected"
+            :selected-todo-id="selectedTodo?.id"
+            :selected-todo-ids="selectedTodoIds"
+            :focused-todo-id="focusedTodo?.id"
+            :is-trash-view="isTrashView"
+            :card-columns="cardColumns"
+            :sort-by="sortBy"
+            :current-filter="currentFilter"
+            :card-widths="cardWidths"
+            :grid-lock="gridLock"
+            @card-click="handleCardClick"
+            @card-mousedown="onCardMouseDown"
+            @card-resize="onCardResize"
+            @toggle-complete="toggleComplete"
+            @toggle-subtask="toggleSubtask"
+            @delete-todo="deleteTodo"
+            @restore-todo="restoreTodo"
+            @permanent-delete-todo="permanentlyDeleteTodo"
+            @update-sorted-todos="updateSortedTodos"
+            @drag-end="onDragEnd"
+            @update-group-todos="updateGroupTodos"
+            @group-drag-end="onGroupDragEnd"
+            @add-todo-to-project="addTodoToProject"
+            @drop-on-topic="handleDropOnTopic"
+            @add-topic="addTopicFromCards"
+            @select-topic="selectTopic"
+            @edit-topic="editTopic"
+            @delete-topic="deleteTopic"
+            @add-todo-to-topic="addTodoToTopic"
+            @marquee-select="handleMarqueeSelect"
+          />
 
-      <!-- Kanban View -->
-      <KanbanView
-        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'kanban'"
-        :kanban-group-by="kanbanGroupBy"
-        :effective-kanban-group-by="effectiveKanbanGroupBy"
-        :is-project-selected="isProjectSelected"
-        :group-by-project="groupByProject"
-        :grouped-todos="groupedTodos"
-        :projects="projects"
-        :categories="categories"
-        :statuses="statuses"
-        :inbox-todos="inboxTodos"
-        :uncategorized-todos="uncategorizedTodos"
-        :no-status-todos="noStatusTodos"
-        :selected-todo-id="selectedTodo?.id"
-        :all-todos="filteredTodos"
-        @update:kanban-group-by="kanbanGroupBy = $event"
-        @select-todo="selectTodo"
-        @toggle-complete="toggleComplete"
-        @delete-todo="deleteTodo"
-        @add-todo-to-project="addTodoToProject"
-        @add-todo-to-category="addTodoToCategory"
-        @add-todo-to-status="addTodoToStatus"
-        @update-project-todos="updateProjectTodos"
-        @update-category-todos="updateCategoryTodos"
-        @update-status-todos="updateStatusTodos"
-        @kanban-drop="onKanbanDrop"
-        @kanban-drop-category="onKanbanDropCategory"
-        @kanban-drop-status="onKanbanDropStatus"
-        @stacked-kanban-drop="onStackedKanbanDrop"
-      />
+          <!-- Table View -->
+          <TableView
+            v-else-if="currentView === 'table'"
+            key="table"
+            :sorted-todos="sortedTodos"
+            :grouped-todos="groupedTodos"
+            :group-by-project="groupByProject"
+            :selected-todo-id="selectedTodo?.id"
+            :selected-todo-ids="selectedTodoIds"
+            :focused-todo-id="focusedTodo?.id"
+            :is-trash-view="isTrashView"
+            :subtasks-map="allSubtasksMap"
+            @row-click="handleRowClick"
+            @toggle-complete="toggleComplete"
+            @toggle-subtask="toggleSubtask"
+            @delete-todo="deleteTodo"
+            @delete-subtask="deleteSubtaskFromTable"
+            @restore-todo="restoreTodo"
+            @permanent-delete-todo="permanentlyDeleteTodo"
+            @add-todo-to-project="addTodoToProject"
+            @add-subtask="addSubtaskFromTable"
+            @update-subtask="updateSubtaskFromTable"
+            @update-subtask-due-date="updateSubtaskDueDate"
+          />
 
-      <!-- Gantt/Timeline View -->
-      <div v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'timeline'" class="gantt-view">
-        <div class="gantt-controls">
+          <!-- Kanban View -->
+          <KanbanView
+            v-else-if="currentView === 'kanban'"
+            key="kanban"
+            :kanban-group-by="kanbanGroupBy"
+            :effective-kanban-group-by="effectiveKanbanGroupBy"
+            :is-project-selected="isProjectSelected"
+            :group-by-project="groupByProject"
+            :grouped-todos="groupedTodos"
+            :projects="projects"
+            :categories="categories"
+            :statuses="statuses"
+            :inbox-todos="inboxTodos"
+            :uncategorized-todos="uncategorizedTodos"
+            :no-status-todos="noStatusTodos"
+            :selected-todo-id="selectedTodo?.id"
+            :selected-todo-ids="selectedTodoIds"
+            :all-todos="filteredTodos"
+            @update:kanban-group-by="kanbanGroupBy = $event"
+            @card-click="handleCardClick"
+            @toggle-complete="toggleComplete"
+            @delete-todo="deleteTodo"
+            @add-todo-to-project="addTodoToProject"
+            @add-todo-to-category="addTodoToCategory"
+            @add-todo-to-status="addTodoToStatus"
+            @update-project-todos="updateProjectTodos"
+            @update-category-todos="updateCategoryTodos"
+            @update-status-todos="updateStatusTodos"
+            @kanban-drop="onKanbanDrop"
+            @kanban-drop-category="onKanbanDropCategory"
+            @kanban-drop-status="onKanbanDropStatus"
+            @stacked-kanban-drop="onStackedKanbanDrop"
+          />
+
+          <!-- Gantt/Timeline View -->
+          <div v-else-if="currentView === 'timeline'" key="timeline" class="gantt-view">
+            <div class="gantt-controls">
           <div class="timeline-mode-switcher">
             <button :class="{ active: timelineMode === 'gantt' }" @click="timelineMode = 'gantt'">Gantt</button>
             <button :class="{ active: timelineMode === 'month' }" @click="timelineMode = 'month'">Month</button>
@@ -571,9 +772,9 @@
         </div>
       </div>
 
-      <!-- Graph View -->
-      <div
-        v-if="activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView === 'graph'" ref="graphContainer" class="graph-view" :class="{ dragging: draggingNode, panning: isPanning }"
+          <!-- Graph View -->
+          <div
+            v-else-if="currentView === 'graph'" key="graph" ref="graphContainer" class="graph-view" :class="{ dragging: draggingNode, panning: isPanning }"
         @wheel.prevent="onGraphWheel"
         @mousedown="onGraphMouseDown"
         @mousemove="onGraphMouseMove"
@@ -585,24 +786,18 @@
             <!-- Connection lines -->
             <g class="graph-links">
               <g v-for="link in graphLinks" :key="`${link.source}-${link.target}`">
-                <!-- Invisible wider line for hover detection -->
-                <line
-                  :x1="getNodeX(link.source)"
-                  :y1="getNodeY(link.source)"
-                  :x2="getNodeX(link.target)"
-                  :y2="getNodeY(link.target)"
+                <!-- Invisible wider path for hover detection -->
+                <path
+                  :d="getEdgePath(link)"
                   class="graph-link-hover"
                   @mouseenter="hoveredLink = link"
                   @mouseleave="hoveredLink = null"
                   @click="onLinkClick($event, link)"
                   @contextmenu.prevent="onLinkRightClick($event, link)"
                 />
-                <!-- Visible line -->
-                <line
-                  :x1="getNodeX(link.source)"
-                  :y1="getNodeY(link.source)"
-                  :x2="getNodeX(link.target)"
-                  :y2="getNodeY(link.target)"
+                <!-- Visible path -->
+                <path
+                  :d="getEdgePath(link)"
                   class="graph-link"
                   :class="{ hovered: hoveredLink === link, 'person-link': isPersonLink(link) }"
                   :style="{ stroke: getLinkColor(link) }"
@@ -645,12 +840,13 @@
               >
                 <!-- Person node (pill shape) -->
                 <template v-if="todo.type === 'person'">
-                  <foreignObject x="-80" y="-20" width="160" height="40" class="node-foreign" overflow="visible">
+                  <foreignObject x="-80" y="-25" width="160" height="50" class="node-foreign" overflow="visible">
                     <div
                       xmlns="http://www.w3.org/1999/xhtml"
                       class="person-node-wrapper"
-                      :style="{ backgroundColor: todo.color || '#8e44ad' }"
+                      :style="{ borderColor: todo.color || '#8e44ad' }"
                     >
+                      <button class="person-node-remove" @mousedown.stop.prevent="removePersonFromGraph(todo)" title="Remove from graph">×</button>
                       {{ todo.title }}
                     </div>
                   </foreignObject>
@@ -725,53 +921,64 @@
           <button @click="linkContextMenu = null">Cancel</button>
         </div>
         <div class="graph-controls">
-          <button @click="graphZoom = Math.max(0.3, graphZoom - 0.1)">-</button>
-          <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
-          <button @click="graphZoom = Math.min(3, graphZoom + 0.1)">+</button>
-          <button @click="resetGraphView">Center</button>
-          <div class="control-divider"></div>
-          <select v-model="graphLayoutType" class="layout-select" @change="onLayoutTypeChange">
-            <option value="force">Force</option>
-            <option value="tree">Tree</option>
-          </select>
-          <button
-            :class="{ active: isSimulating }"
-            @click="runLayout"
-          >{{ isSimulating ? 'Stop' : 'Apply Layout' }}</button>
-          <button :class="{ active: showGraphSettings }" @click="showGraphSettings = !showGraphSettings">Settings</button>
-          <div class="control-divider"></div>
-          <button
-            :class="{ active: graphLinkMode }"
-            @click="toggleGraphLinkMode"
-          >{{ graphLinkMode ? 'Cancel' : 'Link' }}</button>
-          <span v-if="graphLinkMode && graphLinkSource" class="link-hint">Click another node to link with "{{ graphLinkSource.title }}"</span>
-          <span v-else-if="graphLinkMode" class="link-hint">Click a node to start linking</span>
+          <div class="control-group zoom-group">
+            <button class="icon-btn" @click="graphZoom = Math.max(0.3, graphZoom - 0.1)" title="Zoom out">-</button>
+            <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
+            <button class="icon-btn" @click="graphZoom = Math.min(3, graphZoom + 0.1)" title="Zoom in">+</button>
+            <button class="icon-btn" @click="resetGraphView" title="Center view">O</button>
+          </div>
+          <div class="control-group layout-group">
+            <select v-model="graphLayoutType" class="layout-select" @change="onLayoutTypeChange">
+              <option value="force">Force</option>
+              <option value="tree">Tree</option>
+              <option value="grid">Grid</option>
+            </select>
+            <button :class="{ active: isSimulating }" @click="runLayout">{{ isSimulating ? 'Stop' : 'Run' }}</button>
+          </div>
+          <div class="control-group">
+            <button :class="{ active: graphLinkMode }" @click="toggleGraphLinkMode">{{ graphLinkMode ? 'Cancel' : 'Link' }}</button>
+            <button :class="{ active: showGraphSettings }" @click="showGraphSettings = !showGraphSettings" title="Settings">Cfg</button>
+          </div>
+          <span v-if="graphLinkMode" class="link-hint">{{ graphLinkSource ? `Link to "${graphLinkSource.title}"` : 'Select node' }}</span>
         </div>
         <div v-if="showGraphSettings" class="graph-settings">
+          <div class="setting-row type-filter-row">
+            <label class="type-label">Show:</label>
+            <label class="radio-label"><input type="radio" v-model="graphTypeFilter" value="notes" @change="onGraphTypeFilterChange" /> Notes</label>
+            <label class="radio-label"><input type="radio" v-model="graphTypeFilter" value="todos" @change="onGraphTypeFilterChange" /> Todos</label>
+            <label class="radio-label"><input type="radio" v-model="graphTypeFilter" value="all" @change="onGraphTypeFilterChange" /> Both</label>
+          </div>
           <div class="setting-row checkbox-row">
             <input id="show-persons" v-model="showPersonsInGraph" type="checkbox" @change="updateGraphData" />
-            <label for="show-persons">Show Persons</label>
+            <label for="show-persons">Persons</label>
           </div>
-          <div class="setting-row">
-            <label>Repulsion:</label>
+          <div class="setting-row checkbox-row">
+            <input id="orthogonal-edges" v-model="orthogonalEdges" type="checkbox" @change="saveOrthogonalSetting" />
+            <label for="orthogonal-edges">Orthogonal</label>
+          </div>
+          <div v-if="graphLayoutType === 'force'" class="setting-row">
+            <label>Repel</label>
             <input v-model.number="graphRepulsion" type="range" min="-1000" max="-50" step="50" @input="onGraphSettingChange" />
             <span>{{ Math.abs(graphRepulsion) }}</span>
           </div>
           <div class="setting-row">
-            <label>Link Distance:</label>
-            <input v-model.number="graphEdgeLength" type="range" min="30" max="300" step="10" @input="onGraphSettingChange" />
-            <span>{{ graphEdgeLength }}px</span>
+            <label>Distance</label>
+            <input v-model.number="graphEdgeLength" type="range" min="10" max="300" step="5" @input="onGraphSettingChange" />
+            <span>{{ graphEdgeLength }}</span>
           </div>
-          <button class="reset-settings-btn" @click="resetGraphSettings">Reset Defaults</button>
+          <button class="reset-settings-btn" @click="resetGraphSettings">Reset</button>
         </div>
       </div>
+          </div>
 
-      <div v-if="filteredTodos.length === 0 && activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
-        <p>{{ activeTab === 'notes' ? 'No notes yet.' : 'No todos yet.' }} Add one above.</p>
-      </div>
+          <div v-if="filteredTodos.length === 0 && activeTab !== 'stakeholders' && activeTab !== 'split' && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
+            <p>{{ activeTab === 'notes' ? 'No notes yet.' : 'No todos yet.' }} Add one above.</p>
+          </div>
+        </div>
+      </Transition>
 
-      <!-- Bottom Bar with Card Size Slider -->
-      <div v-if="!selectedTodo && currentView === 'cards'" class="bottom-bar">
+      <!-- Bottom Bar with Card Size Slider - outside transition -->
+      <div v-if="!selectedTodo && currentView === 'cards' && activeTab !== 'stakeholders'" class="bottom-bar">
         <div class="card-size-control">
           <label class="card-size-label">
             <span>Columns: {{ cardColumns }}</span>
@@ -835,6 +1042,8 @@
       @clear-start-date="clearStartDate"
       @update-end-date="updateEndDateFromPanel"
       @clear-end-date="clearEndDate"
+      @update-due-date="updateDueDateFromPanel"
+      @clear-due-date="clearDueDate"
       @update-recurrence-type="handleRecurrenceTypeChange"
       @update-recurrence-interval="handleRecurrenceIntervalChange"
       @update-recurrence-end-date="updateRecurrenceEndDateFromPanel"
@@ -843,6 +1052,7 @@
       @delete-subtask="deleteSubtask"
       @add-subtask="addSubtask"
       @reorder-subtasks="reorderSubtasks"
+      @update-subtask-due-date="updateSubtaskDueDate"
       @update:new-subtask-title="newSubtaskTitle = $event"
       @select-linked="selectTodo"
       @unlink="unlinkFrom"
@@ -880,6 +1090,7 @@
 import { renderMarkdown, renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
 import * as d3Force from 'd3-force'
+import draggable from 'vuedraggable'
 import PersonsView from './PersonsView.vue'
 import CalendarView from './components/CalendarView.vue'
 import GlobalSearch from './components/GlobalSearch.vue'
@@ -1032,6 +1243,7 @@ marked.use(mermaidExtension)
 export default {
   name: 'App',
   components: {
+    draggable,
     PersonsView,
     CalendarView,
     MainTabs,
@@ -1060,6 +1272,15 @@ export default {
       kanbanGroupBy: 'status',
       newTodoTitle: '',
       newPersonName: '',
+      splitNoteTitle: '',
+      splitTodoTitle: '',
+      splitNotesView: localStorage.getItem('split-notes-view') || 'list',
+      splitTopicFilter: 'all',
+      splitDropTarget: null,
+      splitIsSelecting: false,
+      splitSelectionStart: { x: 0, y: 0 },
+      splitSelectionCurrent: { x: 0, y: 0 },
+      splitExpandedTodos: new Set(),
       newProjectName: '',
       newCategoryName: '',
       newStatusName: '',
@@ -1071,6 +1292,7 @@ export default {
       editingCategory: null,
       editingStatus: null,
       selectedTodo: null,
+      selectedTodoIds: new Set(),
       detailFullscreen: localStorage.getItem('detail-fullscreen') === 'true',
       linkedTodos: [],
       childTodos: [],
@@ -1086,6 +1308,7 @@ export default {
       todoTags: [],
       allTags: [],
       showPersonPicker: false,
+      showStakeholderPicker: false,
       saveTimeout: null,
       sortBy: localStorage.getItem('sort-by') || 'manual',
       groupByProject: localStorage.getItem('group-by-project') === 'true',
@@ -1095,6 +1318,7 @@ export default {
       justResizedCard: false,
       cardMouseDownHeight: null,
       gridLock: localStorage.getItem('grid-lock') === 'true',
+      timezone: localStorage.getItem('timezone') || 'auto',
       gridSize: 100,
       filterProjectId: null,
       filterCategoryId: null,
@@ -1139,6 +1363,12 @@ export default {
       selectedLink: null,
       mousePos: { x: 0, y: 0 },
       isSimulating: false,
+      // View transition properties
+      viewTransitionDirection: 'forward',
+      previousViewIndex: 0,
+      projectTransitionDirection: 'forward',
+      previousProjectFilter: null,
+      tabTransitionDirection: 'forward',
       projectColors: [
         // Blues
         '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
@@ -1186,6 +1416,8 @@ export default {
       graphLayoutType: localStorage.getItem('graph-layout-type') || 'force',
       showGraphSettings: false,
       showPersonsInGraph: localStorage.getItem('show-persons-in-graph') === 'true',
+      graphTypeFilter: localStorage.getItem('graph-type-filter') || 'all',
+      orthogonalEdges: localStorage.getItem('orthogonal-edges') === 'true',
       todoPersons: {},
       d3Simulation: null,
       // Theme
@@ -1320,6 +1552,24 @@ export default {
       if (!this.isProjectSelected) return []
       return this.projectPersons[this.currentFilter] || []
     },
+    availableStakeholders() {
+      if (!this.isProjectSelected) return this.persons
+      const assigned = this.selectedProjectStakeholders.map(p => p.id)
+      return this.persons.filter(p => !assigned.includes(p.id))
+    },
+    filteredAvailableStakeholders() {
+      if (!this.newPersonName.trim()) return this.availableStakeholders
+      const query = this.newPersonName.toLowerCase().trim()
+      return this.availableStakeholders.filter(p =>
+        p.name.toLowerCase().includes(query) ||
+        (p.role && p.role.toLowerCase().includes(query))
+      )
+    },
+    hasExactStakeholderMatch() {
+      if (!this.newPersonName.trim()) return false
+      const query = this.newPersonName.toLowerCase().trim()
+      return this.persons.some(p => p.name.toLowerCase() === query)
+    },
     selectedTodoTopics() {
       // Return topics for the selected todo's project
       if (!this.selectedTodo?.project_id) return []
@@ -1393,9 +1643,26 @@ export default {
       const views = {
         notes: ['cards', 'graph'],
         todos: ['cards', 'table', 'kanban', 'timeline'],
+        split: ['cards'],
         stakeholders: ['cards', 'table']
       }
       return views[this.activeTab] || ['cards']
+    },
+    currentViewIndex() {
+      return this.availableViews.indexOf(this.currentView)
+    },
+    viewTransitionName() {
+      return this.viewTransitionDirection === 'forward' ? 'cube' : 'cube-reverse'
+    },
+    projectTransitionName() {
+      return this.projectTransitionDirection === 'forward' ? 'project-cube' : 'project-cube-reverse'
+    },
+    projectTransitionKey() {
+      // Generate a key that changes when project changes
+      return `project-${this.currentFilter}`
+    },
+    tabTransitionName() {
+      return this.tabTransitionDirection === 'forward' ? 'tab-slide' : 'tab-slide-reverse'
     },
     inboxTodos() {
       return this.filteredTodos.filter(t => !t.project_id)
@@ -1537,6 +1804,62 @@ export default {
           return new Date(aDate) - new Date(bDate)
         })
     },
+    // Split view computed properties
+    splitNotes() {
+      let todos = this.currentFilter === null ? this.allTodos : this.todos
+      todos = todos.filter(t => t.type === 'note')
+      if (this.hideCompleted) {
+        todos = todos.filter(t => !t.completed)
+      }
+      if (this.splitTopicFilter === 'none') {
+        todos = todos.filter(t => !t.topic_id)
+      } else if (this.splitTopicFilter !== 'all') {
+        todos = todos.filter(t => t.topic_id === this.splitTopicFilter)
+      }
+      return todos
+    },
+    splitTodos() {
+      let todos = this.currentFilter === null ? this.allTodos : this.todos
+      todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
+      if (this.hideCompleted) {
+        todos = todos.filter(t => !t.completed)
+      }
+      if (this.splitTopicFilter === 'none') {
+        todos = todos.filter(t => !t.topic_id)
+      } else if (this.splitTopicFilter !== 'all') {
+        todos = todos.filter(t => t.topic_id === this.splitTopicFilter)
+      }
+      return todos
+    },
+    splitNoteTopicGroups() {
+      if (!this.isProjectSelected || this.projectTopics.length === 0) return []
+      const notes = this.splitNotes
+      const groups = []
+      // No topic group first
+      const noTopic = notes.filter(n => !n.topic_id)
+      groups.push({ id: null, name: 'No Topic', color: '#666', todos: noTopic })
+      // Topic groups
+      for (const topic of this.projectTopics) {
+        const topicNotes = notes.filter(n => n.topic_id === topic.id)
+        groups.push({ id: topic.id, name: topic.name, color: topic.color, todos: topicNotes })
+      }
+      return groups
+    },
+    splitHasTopics() {
+      return this.isProjectSelected && this.projectTopics.length > 0
+    },
+    splitSelectionBoxStyle() {
+      const left = Math.min(this.splitSelectionStart.x, this.splitSelectionCurrent.x)
+      const top = Math.min(this.splitSelectionStart.y, this.splitSelectionCurrent.y)
+      const width = Math.abs(this.splitSelectionCurrent.x - this.splitSelectionStart.x)
+      const height = Math.abs(this.splitSelectionCurrent.y - this.splitSelectionStart.y)
+      return {
+        left: left + 'px',
+        top: top + 'px',
+        width: width + 'px',
+        height: height + 'px'
+      }
+    },
     timelineRange() {
       const now = new Date()
       if (this.timelineTodos.length === 0) {
@@ -1643,19 +1966,27 @@ export default {
       return 14                                    // Every 2 weeks
     },
     graphNodes() {
-      let todos = [...this.filteredTodos]
+      // Use allTodos filtered by graphTypeFilter instead of tab-based filtering
+      let todos = [...this.allTodos]
 
-      // For Notes tab, show all notes regardless of project
-      // For Todos tab, filter by project as before
-      if (this.activeTab !== 'notes') {
-        // When inbox is selected (or no filter), only show items without a project
-        if (this.currentFilter === null || this.currentFilter === 'inbox') {
-          todos = todos.filter(t => t.project_id === null)
-        }
-        // When a specific project is selected, ensure only that project's todos are shown
-        else if (typeof this.currentFilter === 'number') {
-          todos = todos.filter(t => t.project_id === this.currentFilter)
-        }
+      // Apply type filter from graph settings
+      if (this.graphTypeFilter === 'notes') {
+        todos = todos.filter(t => t.type === 'note')
+      } else if (this.graphTypeFilter === 'todos') {
+        todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
+      }
+      // 'all' shows both notes and todos
+
+      // Apply project filter
+      if (this.currentFilter === null || this.currentFilter === 'inbox') {
+        todos = todos.filter(t => t.project_id === null)
+      } else if (typeof this.currentFilter === 'number') {
+        todos = todos.filter(t => t.project_id === this.currentFilter)
+      }
+
+      // Apply hideCompleted filter
+      if (this.hideCompleted) {
+        todos = todos.filter(t => !t.completed)
       }
 
       const nodes = [...todos]
@@ -1861,6 +2192,13 @@ export default {
       }
     },
     currentView(val, oldVal) {
+      // Determine transition direction based on view order
+      const views = this.availableViews
+      const oldIndex = views.indexOf(oldVal)
+      const newIndex = views.indexOf(val)
+      this.viewTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
+      this.previousViewIndex = oldIndex
+
       // Handle leaving graph view
       if (oldVal === 'graph') {
         this.stopForceLayout()
@@ -1879,7 +2217,13 @@ export default {
         this.loadMilestoneRelations()
       }
     },
-    activeTab(val) {
+    activeTab(val, oldVal) {
+      // Determine tab transition direction
+      const tabOrder = ['todos', 'notes', 'stakeholders']
+      const oldIndex = tabOrder.indexOf(oldVal)
+      const newIndex = tabOrder.indexOf(val)
+      this.tabTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
+
       // Clear topic filter when switching tabs
       this.selectedTopicId = null
       // Load project stakeholders when switching to stakeholders tab
@@ -1887,7 +2231,22 @@ export default {
         this.loadProjectPersons(this.currentFilter)
       }
     },
-    currentFilter(val) {
+    currentFilter(val, oldVal) {
+      // Determine project transition direction
+      const getFilterIndex = (filter) => {
+        if (filter === null) return 0
+        if (filter === 'inbox') return 1
+        if (filter === 'trash') return 2
+        if (filter === 'persons') return 3
+        // For project IDs, find index in projects array
+        const idx = this.projects.findIndex(p => p.id === filter)
+        return idx >= 0 ? idx + 4 : 999
+      }
+      const oldIndex = getFilterIndex(oldVal)
+      const newIndex = getFilterIndex(val)
+      this.projectTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
+      this.previousProjectFilter = oldVal
+
       // Clear topic selection when project changes
       this.selectedTopicId = null
       // Load project topics when a project is selected
@@ -1922,6 +2281,9 @@ export default {
     },
     cardColumns(val) {
       localStorage.setItem('card-columns', val)
+    },
+    splitNotesView(val) {
+      localStorage.setItem('split-notes-view', val)
     },
     isProjectSelected(val) {
       if (val && this.groupByProject) {
@@ -2113,6 +2475,10 @@ export default {
       this.gridLock = value
       localStorage.setItem('grid-lock', value.toString())
     },
+    onTimezoneChange(value) {
+      this.timezone = value
+      localStorage.setItem('timezone', value)
+    },
     onOpenTodosInWindowChange(value) {
       this.openTodosInWindow = value
       const mode = value ? 'window' : 'sidebar'
@@ -2186,31 +2552,40 @@ export default {
       await window.api.updateTodo({ ...todo, topic_id: topicId })
       await this.loadAllTodos()
     },
-    async handleDropOnTopic(todoId, topicId) {
-      console.log('handleDropOnTopic called:', todoId, topicId)
-      const todo = this.allTodos.find(t => t.id === todoId)
-      if (!todo) {
-        console.log('Todo not found:', todoId)
-        return
-      }
-      console.log('Updating todo:', todo.id, 'from topic', todo.topic_id, 'to', topicId)
-      const updated = await window.api.updateTodo({ ...todo, topic_id: topicId })
-      console.log('Updated todo result:', updated)
+    async handleDropOnTopic(todoIds, topicId) {
+      // Handle both single ID (legacy) and array of IDs
+      const ids = Array.isArray(todoIds) ? todoIds : [todoIds]
+      console.log('handleDropOnTopic called:', ids, topicId)
 
-      // Directly update local state for immediate reactivity
-      const allTodoIndex = this.allTodos.findIndex(t => t.id === todoId)
-      if (allTodoIndex !== -1) {
-        this.allTodos[allTodoIndex] = { ...this.allTodos[allTodoIndex], topic_id: topicId }
-        // Trigger reactivity by reassigning array
-        this.allTodos = [...this.allTodos]
+      for (const todoId of ids) {
+        const todo = this.allTodos.find(t => t.id === todoId)
+        if (!todo) {
+          console.log('Todo not found:', todoId)
+          continue
+        }
+        console.log('Updating todo:', todo.id, 'from topic', todo.topic_id, 'to', topicId)
+        await window.api.updateTodo({ ...todo, topic_id: topicId })
+
+        // Directly update local state for immediate reactivity
+        const allTodoIndex = this.allTodos.findIndex(t => t.id === todoId)
+        if (allTodoIndex !== -1) {
+          this.allTodos[allTodoIndex] = { ...this.allTodos[allTodoIndex], topic_id: topicId }
+        }
+        const todoIndex = this.todos.findIndex(t => t.id === todoId)
+        if (todoIndex !== -1) {
+          this.todos[todoIndex] = { ...this.todos[todoIndex], topic_id: topicId }
+        }
       }
-      const todoIndex = this.todos.findIndex(t => t.id === todoId)
-      if (todoIndex !== -1) {
-        this.todos[todoIndex] = { ...this.todos[todoIndex], topic_id: topicId }
-        // Trigger reactivity by reassigning array
-        this.todos = [...this.todos]
-      }
-      console.log('Local state updated - todo topic_id now:', this.allTodos.find(t => t.id === todoId)?.topic_id)
+
+      // Trigger reactivity by reassigning arrays
+      this.allTodos = [...this.allTodos]
+      this.todos = [...this.todos]
+
+      // Clear multi-selection after drop
+      this.selectedTodoIds.clear()
+      this.selectedTodoIds = new Set()
+
+      console.log('handleDropOnTopic completed for', ids.length, 'items')
     },
     async addTopicFromCards(name) {
       if (!name.trim() || !this.isProjectSelected) return
@@ -2363,6 +2738,9 @@ export default {
         localStorage.setItem('current-filter', JSON.stringify(filter))
       }
       await this.loadTodos()
+      // Load project-specific graph settings and positions
+      this.loadGraphSettings()
+      this.loadNodePositions()
       // Update graph person data when filter changes
       if (this.showPersonsInGraph) {
         await this.updateGraphData()
@@ -2399,6 +2777,202 @@ export default {
         if (milestone && milestone.id) this.selectTodo(milestone.id)
       } catch (e) {
         console.error('Failed to create milestone:', e)
+      }
+    },
+    async addSplitNote() {
+      if (!this.splitNoteTitle.trim()) return
+      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
+        ? this.currentFilter
+        : null
+      await window.api.createTodo(this.splitNoteTitle.trim(), projectId, 'note')
+      this.splitNoteTitle = ''
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async addSplitTodo() {
+      if (!this.splitTodoTitle.trim()) return
+      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
+        ? this.currentFilter
+        : null
+      await window.api.createTodo(this.splitTodoTitle.trim(), projectId, 'todo')
+      this.splitTodoTitle = ''
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    toggleSplitExpand(todoId) {
+      if (this.splitExpandedTodos.has(todoId)) {
+        this.splitExpandedTodos.delete(todoId)
+      } else {
+        this.splitExpandedTodos.add(todoId)
+        this.loadSubtasksForTodo(todoId)
+      }
+      this.splitExpandedTodos = new Set(this.splitExpandedTodos)
+    },
+    getSplitSubtasks(todoId) {
+      return this.subtasksMap[todoId] || []
+    },
+    // Split view drag-drop handlers
+    onSplitItemDragStart(event, item) {
+      event.dataTransfer.setData('text/plain', JSON.stringify([item.id]))
+      event.dataTransfer.effectAllowed = 'move'
+    },
+    onSplitDragEnter(target) {
+      this.splitDropTarget = target
+    },
+    onSplitDragLeave(event) {
+      // Only clear if leaving the panel entirely
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        this.splitDropTarget = null
+      }
+    },
+    async onSplitDrop(event, targetType) {
+      this.splitDropTarget = null
+      try {
+        const data = event.dataTransfer.getData('text/plain')
+        const ids = JSON.parse(data)
+        for (const id of ids) {
+          const todo = this.allTodos.find(t => t.id === id)
+          if (todo && todo.type !== targetType) {
+            await window.api.updateTodo({ ...todo, type: targetType })
+          }
+        }
+        await this.loadAllTodos()
+        await this.loadTodos()
+      } catch (e) {
+        console.error('Split drop error:', e)
+      }
+    },
+    async onSplitDragEnd(event, targetType) {
+      const { from, to } = event
+      // If moved between lists (from notes to todos or vice versa), change type
+      if (from !== to) {
+        // Get the dragged item from vuedraggable's context
+        const draggedItem = event.item?.__draggable_context?.element
+        if (draggedItem && draggedItem.type !== targetType) {
+          await window.api.updateTodo({ ...draggedItem, type: targetType })
+          await this.loadAllTodos()
+          await this.loadTodos()
+        }
+      }
+    },
+    async onSplitTopicDragEnd(event, targetTopicId) {
+      const { from, to } = event
+      const draggedItem = event.item?.__draggable_context?.element
+      if (!draggedItem) return
+
+      // If moved to a different list (different topic or to todos panel)
+      if (from !== to) {
+        // Check if it was moved to the todos panel (type conversion)
+        const toParent = to.parentElement?.closest('.split-todos')
+        if (toParent) {
+          // Converting note to todo
+          await window.api.updateTodo({ ...draggedItem, type: 'todo', topic_id: null })
+        } else {
+          // Moving between topics - update topic_id
+          await window.api.updateTodo({ ...draggedItem, topic_id: targetTopicId })
+        }
+        await this.loadAllTodos()
+        await this.loadTodos()
+      }
+    },
+    // Split view lasso selection
+    onSplitMouseDown(event) {
+      const target = event.target
+      const isInteractive = target.closest('.split-item, button, input, select, a, .split-add-row')
+      if (isInteractive) return
+
+      const container = this.$refs.splitPanelsRef
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+      const x = event.clientX - rect.left + container.scrollLeft
+      const y = event.clientY - rect.top + container.scrollTop
+
+      this.splitIsSelecting = true
+      this.splitSelectionStart = { x, y }
+      this.splitSelectionCurrent = { x, y }
+      event.preventDefault()
+    },
+    onSplitMouseMove(event) {
+      if (!this.splitIsSelecting) return
+
+      const container = this.$refs.splitPanelsRef
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+      const x = event.clientX - rect.left + container.scrollLeft
+      const y = event.clientY - rect.top + container.scrollTop
+
+      this.splitSelectionCurrent = { x, y }
+      this.updateSplitSelectionFromBox()
+    },
+    onSplitMouseUp() {
+      if (!this.splitIsSelecting) return
+      this.updateSplitSelectionFromBox()
+      this.splitIsSelecting = false
+    },
+    updateSplitSelectionFromBox() {
+      const container = this.$refs.splitPanelsRef
+      if (!container) return
+
+      const boxLeft = Math.min(this.splitSelectionStart.x, this.splitSelectionCurrent.x)
+      const boxTop = Math.min(this.splitSelectionStart.y, this.splitSelectionCurrent.y)
+      const boxRight = Math.max(this.splitSelectionStart.x, this.splitSelectionCurrent.x)
+      const boxBottom = Math.max(this.splitSelectionStart.y, this.splitSelectionCurrent.y)
+
+      // Skip if selection is too small
+      if (boxRight - boxLeft < 10 && boxBottom - boxTop < 10) return
+
+      const items = container.querySelectorAll('.split-item')
+      const containerRect = container.getBoundingClientRect()
+      const selectedIds = []
+
+      items.forEach(item => {
+        const itemRect = item.getBoundingClientRect()
+        const itemLeft = itemRect.left - containerRect.left + container.scrollLeft
+        const itemTop = itemRect.top - containerRect.top + container.scrollTop
+        const itemRight = itemLeft + itemRect.width
+        const itemBottom = itemTop + itemRect.height
+
+        // Check if item intersects with selection box
+        const intersects = !(itemRight < boxLeft || itemLeft > boxRight ||
+                           itemBottom < boxTop || itemTop > boxBottom)
+        if (intersects) {
+          // Find the todo ID from the item's parent draggable context or data attribute
+          const todoEl = item.closest('[data-id]') || item
+          const todoId = parseInt(todoEl.dataset?.id)
+          if (!todoId) {
+            // Try to find ID from the click handler's todo reference
+            const parentDraggable = item.parentElement?.closest('.split-draggable-list')
+            if (parentDraggable) {
+              const index = Array.from(parentDraggable.children).indexOf(item.parentElement || item)
+              const allItems = [...this.splitTodos, ...this.splitNotes]
+              if (index >= 0 && index < allItems.length) {
+                // This is a rough approximation - proper implementation would need data-id
+              }
+            }
+          }
+          if (todoId) selectedIds.push(todoId)
+        }
+      })
+
+      if (selectedIds.length > 0) {
+        this.selectedTodoIds = new Set(selectedIds)
+      }
+    },
+    async onSplitTopicDrop(event, topicId) {
+      this.splitDropTarget = null
+      try {
+        const data = event.dataTransfer.getData('text/plain')
+        const ids = JSON.parse(data)
+        for (const id of ids) {
+          const todo = this.allTodos.find(t => t.id === id)
+          if (todo) {
+            await window.api.updateTodo({ ...todo, topic_id: topicId })
+          }
+        }
+        await this.loadAllTodos()
+        await this.loadTodos()
+      } catch (e) {
+        console.error('Split topic drop error:', e)
       }
     },
     async createTodoOnDate(dateKey) {
@@ -2531,6 +3105,26 @@ export default {
       if (confirm(`Delete "${title}"?`)) {
         // Keep node position for undo - only remove on permanent delete
         await this.deleteTodo(id)
+      }
+    },
+    async removePersonFromGraph(personNode) {
+      const personId = personNode.personId
+      const personName = personNode.title
+      // Find all todos this person is connected to
+      const connectedTodoIds = this.graphLinks
+        .filter(l => l.type === 'person-todo' && l.source === personNode.id)
+        .map(l => l.target)
+
+      if (connectedTodoIds.length === 0) {
+        // Not connected to anything, just hide by disabling persons in graph
+        return
+      }
+
+      if (confirm(`Remove ${personName} from ${connectedTodoIds.length} item(s)?`)) {
+        for (const todoId of connectedTodoIds) {
+          await window.api.unlinkTodoPerson(todoId, personId)
+        }
+        await this.updateGraphData()
       }
     },
     handleNodeLinkClick(event) {
@@ -2671,7 +3265,44 @@ export default {
         return
       }
 
+      // Multi-select with Ctrl/Cmd+click
+      if (event.ctrlKey || event.metaKey) {
+        if (this.selectedTodoIds.has(id)) {
+          this.selectedTodoIds.delete(id)
+        } else {
+          this.selectedTodoIds.add(id)
+        }
+        // Trigger reactivity
+        this.selectedTodoIds = new Set(this.selectedTodoIds)
+        return
+      }
+
+      // Normal click - clear multi-select and select single
+      this.selectedTodoIds.clear()
+      this.selectedTodoIds = new Set()
       this.selectTodo(id)
+    },
+    handleRowClick(event, id) {
+      // Multi-select with Ctrl/Cmd+click
+      if (event.ctrlKey || event.metaKey) {
+        if (this.selectedTodoIds.has(id)) {
+          this.selectedTodoIds.delete(id)
+        } else {
+          this.selectedTodoIds.add(id)
+        }
+        // Trigger reactivity
+        this.selectedTodoIds = new Set(this.selectedTodoIds)
+        return
+      }
+
+      // Normal click - clear multi-select and select single
+      this.selectedTodoIds.clear()
+      this.selectedTodoIds = new Set()
+      this.selectTodo(id)
+    },
+    handleMarqueeSelect(ids) {
+      // Set the selected IDs from marquee selection
+      this.selectedTodoIds = new Set(ids)
     },
     async selectTodo(id) {
       const openInWindow = localStorage.getItem('todo-open-mode') === 'window'
@@ -2949,24 +3580,32 @@ export default {
     async deleteSubtaskFromTable(id) {
       await window.api.deleteSubtask(id)
       await this.loadAllSubtasks()
+      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
     async addSubtaskFromTable({ todoId, title }) {
       await window.api.createSubtask(todoId, title)
       await this.loadAllSubtasks()
+      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
     async updateSubtaskFromTable({ id, title }) {
       await window.api.updateSubtask({ id, title })
       await this.loadAllSubtasks()
+      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
     async reorderSubtasks(ids) {
       await window.api.reorderSubtasks(ids)
       await this.loadSubtasks()
+    },
+    async updateSubtaskDueDate({ id, due_date }) {
+      await window.api.updateSubtask({ id, due_date })
+      await this.loadSubtasks()
+      await this.loadAllSubtasks()
     },
     async saveRecurrence() {
       if (!this.selectedTodo) return
@@ -3253,6 +3892,22 @@ export default {
     },
     async updateEndDateFromPanel(value) {
       this.selectedTodo.end_date = value || null
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async updateDueDateFromPanel(value) {
+      this.selectedTodo.due_date = value || null
+      const todoData = this.toPlainTodo(this.selectedTodo)
+      const updated = await window.api.updateTodo(todoData)
+      this.selectedTodo = updated
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async clearDueDate() {
+      this.selectedTodo.due_date = null
       const todoData = this.toPlainTodo(this.selectedTodo)
       const updated = await window.api.updateTodo(todoData)
       this.selectedTodo = updated
@@ -3709,18 +4364,65 @@ export default {
       return sourceNode?.type === 'person' || targetNode?.type === 'person'
     },
     getLinkColor(link) {
-      // Use the source node's project color for the link
       const sourceNode = this.graphNodes.find(n => n.id === link.source)
+      const targetNode = this.graphNodes.find(n => n.id === link.target)
+
+      // For person-todo links, use the person's color
+      if (sourceNode?.type === 'person' && sourceNode.color) {
+        return sourceNode.color
+      }
+      if (targetNode?.type === 'person' && targetNode.color) {
+        return targetNode.color
+      }
+
+      // Use the source node's project color for the link
       if (sourceNode?.project_color) {
         return sourceNode.project_color
       }
       // Fallback to target node's color
-      const targetNode = this.graphNodes.find(n => n.id === link.target)
       if (targetNode?.project_color) {
         return targetNode.project_color
       }
       // Default color
       return '#0f4c75'
+    },
+    getEdgePath(link, index) {
+      const x1 = this.getNodeX(link.source)
+      const y1 = this.getNodeY(link.source)
+      const x2 = this.getNodeX(link.target)
+      const y2 = this.getNodeY(link.target)
+
+      if (!this.orthogonalEdges) {
+        return `M ${x1} ${y1} L ${x2} ${y2}`
+      }
+
+      // Check if this is a person link
+      const isPersonLink = link.type === 'person-todo'
+
+      // Calculate offset to avoid overlapping edges
+      const linkIndex = this.graphLinks.indexOf(link)
+      const offset = (linkIndex % 7) * 6 - 18
+
+      if (isPersonLink) {
+        // Person links: source is person (right), target is todo (left)
+        // Route: person -> left -> up/down -> todo
+        const midX = x2 + (x1 - x2) * 0.7 + offset
+        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
+      }
+
+      // Regular tree links: source is parent (left), target is child (right)
+      if (x2 > x1) {
+        // Parent -> Child (left to right)
+        const midX = x1 + (x2 - x1) * 0.5 + offset
+        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
+      } else {
+        // Child -> Parent or same level connection
+        const midX = Math.max(x1, x2) + 40 + Math.abs(offset)
+        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
+      }
+    },
+    saveOrthogonalSetting() {
+      localStorage.setItem('orthogonal-edges', this.orthogonalEdges)
     },
     calculateNodePosition(todoId) {
       const nodes = this.graphNodes
@@ -4504,6 +5206,10 @@ export default {
       localStorage.setItem('graph-layout-type', this.graphLayoutType)
     },
     runLayout() {
+      // Stop any running force simulation first
+      if (this.d3Simulation) {
+        this.stopForceLayout()
+      }
       switch (this.graphLayoutType) {
         case 'force':
           this.runForceLayout()
@@ -4511,11 +5217,67 @@ export default {
         case 'tree':
           this.runTreeLayout()
           break
+        case 'grid':
+          this.runGridLayout()
+          break
         default:
           this.runForceLayout()
       }
     },
+    runGridLayout() {
+      const nodes = this.graphNodes
+      if (nodes.length === 0) return
+
+      const newPositions = {}
+
+      // Separate person nodes from todo nodes
+      const todoNodes = nodes.filter(n => n.type !== 'person')
+      const personNodes = nodes.filter(n => n.type === 'person')
+
+      // Grid settings - distance slider controls spacing
+      // Base node size + gap based on edge length setting
+      const baseWidth = 200
+      const baseHeight = 120
+      const gap = this.graphEdgeLength
+      const cellWidth = baseWidth + gap
+      const cellHeight = baseHeight + gap * 0.6
+      const startX = 150
+      const startY = 100
+
+      // Calculate columns based on number of nodes (aim for roughly square grid)
+      const totalTodos = todoNodes.length
+      const cols = Math.max(1, Math.ceil(Math.sqrt(totalTodos * 1.2)))
+
+      // Position todo nodes in grid
+      todoNodes.forEach((node, idx) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        newPositions[node.id] = {
+          x: startX + col * cellWidth,
+          y: startY + row * cellHeight
+        }
+      })
+
+      // Position person nodes in a row below the todo grid
+      const todoRows = Math.ceil(totalTodos / cols)
+      const personStartY = startY + todoRows * cellHeight + 60
+      const personCellWidth = 160 + gap * 0.5
+
+      personNodes.forEach((person, idx) => {
+        newPositions[person.id] = {
+          x: startX + idx * personCellWidth,
+          y: personStartY
+        }
+      })
+
+      this.nodePositions = newPositions
+      this.saveNodePositions()
+    },
     runTreeLayout() {
+      // Auto-enable orthogonal edges for tree layout
+      this.orthogonalEdges = true
+      this.saveOrthogonalSetting()
+
       const nodes = this.graphNodes.filter(n => n.type !== 'person')
       const links = this.graphLinks.filter(l => l.type !== 'person-todo')
 
@@ -4531,61 +5293,147 @@ export default {
       // Find root nodes (nodes with no incoming links)
       const roots = nodes.filter(n => !hasParent.has(n.id))
       if (roots.length === 0 && nodes.length > 0) {
-        roots.push(nodes[0]) // Fallback to first node
+        roots.push(nodes[0])
       }
 
       const newPositions = {}
-      const nodeSpacingX = 250
-      const nodeSpacingY = 150
-      const startX = 200
-      const startY = 150
+      // Spacing based on edge length setting
+      const nodeWidth = 160
+      const nodeHeight = 60
+      const hGap = Math.max(40, this.graphEdgeLength * 0.5)
+      const vGap = Math.max(20, this.graphEdgeLength * 0.3)
+      const levelSpacing = nodeWidth + hGap
+      const nodeSpacing = nodeHeight + vGap
 
-      // BFS to assign positions
-      let currentY = startY
-      roots.forEach((root) => {
-        const queue = [{ id: root.id, depth: 0 }]
-        const visited = new Set()
-        const levelNodes = {}
+      // Assign levels to all nodes using BFS
+      const nodeLevel = {}
+      const visited = new Set()
 
+      const assignLevels = (rootId) => {
+        const queue = [{ id: rootId, level: 0 }]
         while (queue.length > 0) {
-          const { id, depth } = queue.shift()
+          const { id, level } = queue.shift()
           if (visited.has(id)) continue
           visited.add(id)
-
-          if (!levelNodes[depth]) levelNodes[depth] = []
-          levelNodes[depth].push(id)
-
+          nodeLevel[id] = level
           const nodeChildren = children[id] || []
           nodeChildren.forEach(childId => {
             if (!visited.has(childId)) {
-              queue.push({ id: childId, depth: depth + 1 })
+              queue.push({ id: childId, level: level + 1 })
             }
           })
         }
+      }
 
-        // Position nodes by level
-        Object.entries(levelNodes).forEach(([depth, nodeIds]) => {
-          const d = parseInt(depth)
-          nodeIds.forEach((nodeId, idx) => {
-            newPositions[nodeId] = {
-              x: startX + d * nodeSpacingX,
-              y: currentY + idx * nodeSpacingY
-            }
-          })
-        })
-
-        // Calculate max height for this tree
-        const maxNodesInLevel = Math.max(...Object.values(levelNodes).map(l => l.length))
-        currentY += maxNodesInLevel * nodeSpacingY + 100
+      roots.forEach(root => assignLevels(root.id))
+      // Assign disconnected nodes
+      nodes.forEach(n => {
+        if (!visited.has(n.id)) {
+          assignLevels(n.id)
+        }
       })
 
-      // Position unvisited nodes
-      let unvisitedY = currentY
-      nodes.forEach(node => {
-        if (!newPositions[node.id]) {
-          newPositions[node.id] = { x: startX, y: unvisitedY }
-          unvisitedY += nodeSpacingY
+      // Group nodes by level
+      const levelNodes = {}
+      let maxLevel = 0
+      nodes.forEach(n => {
+        const level = nodeLevel[n.id] || 0
+        if (!levelNodes[level]) levelNodes[level] = []
+        levelNodes[level].push(n)
+        maxLevel = Math.max(maxLevel, level)
+      })
+
+      // Position nodes level by level, left to right
+      const startX = 80
+      const startY = 50
+
+      for (let level = 0; level <= maxLevel; level++) {
+        const nodesAtLevel = levelNodes[level] || []
+        nodesAtLevel.forEach((node, idx) => {
+          newPositions[node.id] = {
+            x: startX + level * levelSpacing,
+            y: startY + idx * nodeSpacing
+          }
+        })
+      }
+
+      // Refine: center parents among their children
+      for (let level = maxLevel - 1; level >= 0; level--) {
+        const nodesAtLevel = levelNodes[level] || []
+        nodesAtLevel.forEach(node => {
+          const nodeChildren = children[node.id] || []
+          if (nodeChildren.length > 0) {
+            const childYs = nodeChildren
+              .filter(cid => newPositions[cid])
+              .map(cid => newPositions[cid].y)
+            if (childYs.length > 0) {
+              const minY = Math.min(...childYs)
+              const maxY = Math.max(...childYs)
+              newPositions[node.id].y = (minY + maxY) / 2
+            }
+          }
+        })
+      }
+
+      // Resolve overlaps within each level
+      for (let level = 0; level <= maxLevel; level++) {
+        const nodesAtLevel = levelNodes[level] || []
+        // Sort by Y position
+        nodesAtLevel.sort((a, b) => (newPositions[a.id]?.y || 0) - (newPositions[b.id]?.y || 0))
+        // Ensure minimum spacing
+        for (let i = 1; i < nodesAtLevel.length; i++) {
+          const prev = newPositions[nodesAtLevel[i - 1].id]
+          const curr = newPositions[nodesAtLevel[i].id]
+          if (curr && prev && curr.y - prev.y < nodeSpacing) {
+            curr.y = prev.y + nodeSpacing
+          }
         }
+      }
+
+      // Position person nodes in a column on the right
+      const personNodes = this.graphNodes.filter(n => n.type === 'person')
+      const personLinks = this.graphLinks.filter(l => l.type === 'person-todo')
+
+      // Find the rightmost todo X position
+      let maxTodoX = startX
+      Object.values(newPositions).forEach(pos => {
+        maxTodoX = Math.max(maxTodoX, pos.x)
+      })
+
+      // Person column is to the right of all todos
+      const personColumnX = maxTodoX + levelSpacing
+
+      // Sort person nodes by average Y of connected todos
+      const personAvgY = {}
+      personNodes.forEach(person => {
+        const connectedTodoIds = personLinks
+          .filter(l => l.source === person.id)
+          .map(l => l.target)
+
+        if (connectedTodoIds.length > 0) {
+          let sumY = 0, count = 0
+          connectedTodoIds.forEach(todoId => {
+            if (newPositions[todoId]) {
+              sumY += newPositions[todoId].y
+              count++
+            }
+          })
+          personAvgY[person.id] = count > 0 ? sumY / count : startY
+        } else {
+          personAvgY[person.id] = startY + Object.keys(personAvgY).length * nodeSpacing
+        }
+      })
+
+      // Sort persons by their average Y
+      personNodes.sort((a, b) => (personAvgY[a.id] || 0) - (personAvgY[b.id] || 0))
+
+      // Position person nodes with minimum spacing
+      let lastPersonY = -nodeSpacing
+      personNodes.forEach(person => {
+        const targetY = personAvgY[person.id] || startY
+        const personY = Math.max(targetY, lastPersonY + nodeSpacing)
+        newPositions[person.id] = { x: personColumnX, y: personY }
+        lastPersonY = personY
       })
 
       this.nodePositions = newPositions
@@ -4612,13 +5460,17 @@ export default {
 
       const links = this.graphLinks.map(l => ({
         source: l.source,
-        target: l.target
+        target: l.target,
+        type: l.type
       }))
 
       // Calculate collision radius based on actual node size
       const getNodeRadius = (nodeId) => {
         const todo = this.graphNodes.find(n => n.id === nodeId)
         if (!todo) return 80
+
+        // Person nodes are smaller
+        if (todo.type === 'person') return 40
 
         // Estimate node dimensions based on content (matching CSS min/max-width)
         const titleLength = todo.title?.length || 0
@@ -4642,8 +5494,20 @@ export default {
       this.d3Simulation = d3Force.forceSimulation(nodes)
         .force('link', d3Force.forceLink(links)
           .id(d => d.id)
-          .distance(this.graphEdgeLength * 2)
-          .strength(0.5))
+          .distance(d => {
+            // Shorter distance for person-todo links
+            if (d.type === 'person-todo') {
+              return this.graphEdgeLength * 0.5
+            }
+            return this.graphEdgeLength * 2
+          })
+          .strength(d => {
+            // Stronger pull for person links to keep them closer
+            if (d.type === 'person-todo') {
+              return 0.9
+            }
+            return 0.5
+          }))
         .force('charge', d3Force.forceManyBody()
           .strength(this.graphRepulsion)
           .distanceMin(100)
@@ -4682,26 +5546,70 @@ export default {
         this.d3Simulation = null
       }
     },
-    saveGraphSettings() {
-      localStorage.setItem('graph-repulsion', this.graphRepulsion)
-      localStorage.setItem('graph-edge-length', this.graphEdgeLength)
+    getGraphStorageKey() {
+      // Use project-specific key, or 'all' for no project filter
+      const projectId = this.isProjectSelected ? this.currentFilter : 'all'
+      return `graph-${projectId}`
     },
     saveNodePositions() {
-      localStorage.setItem('graph-node-positions', JSON.stringify(this.nodePositions))
+      const key = this.getGraphStorageKey()
+      localStorage.setItem(`${key}-positions`, JSON.stringify(this.nodePositions))
     },
     loadNodePositions() {
       try {
-        const saved = localStorage.getItem('graph-node-positions')
+        const key = this.getGraphStorageKey()
+        const saved = localStorage.getItem(`${key}-positions`)
         if (saved) {
           this.nodePositions = JSON.parse(saved)
+        } else {
+          this.nodePositions = {}
         }
       } catch (e) {
         console.error('Failed to load node positions:', e)
+        this.nodePositions = {}
+      }
+    },
+    saveGraphSettings() {
+      const key = this.getGraphStorageKey()
+      localStorage.setItem(`${key}-settings`, JSON.stringify({
+        layoutType: this.graphLayoutType,
+        edgeLength: this.graphEdgeLength,
+        repulsion: this.graphRepulsion,
+        orthogonal: this.orthogonalEdges,
+        showPersons: this.showPersonsInGraph
+      }))
+      // Also save as defaults
+      localStorage.setItem('graph-repulsion', this.graphRepulsion)
+      localStorage.setItem('graph-edge-length', this.graphEdgeLength)
+    },
+    loadGraphSettings() {
+      try {
+        const key = this.getGraphStorageKey()
+        const saved = localStorage.getItem(`${key}-settings`)
+        if (saved) {
+          const settings = JSON.parse(saved)
+          this.graphLayoutType = settings.layoutType || 'force'
+          this.graphEdgeLength = settings.edgeLength || 100
+          this.graphRepulsion = settings.repulsion || -300
+          this.orthogonalEdges = settings.orthogonal || false
+          this.showPersonsInGraph = settings.showPersons || false
+        }
+      } catch (e) {
+        console.error('Failed to load graph settings:', e)
       }
     },
     onGraphSettingChange() {
       this.saveGraphSettings()
-      // Only update if simulation is already running
+      // For tree/grid layout, re-run layout immediately
+      if (this.graphLayoutType === 'tree') {
+        this.runTreeLayout()
+        return
+      }
+      if (this.graphLayoutType === 'grid') {
+        this.runGridLayout()
+        return
+      }
+      // For force layout, only update if simulation is already running
       if (this.d3Simulation) {
         this.d3Simulation
           .force('charge', d3Force.forceManyBody().strength(this.graphRepulsion))
@@ -4716,6 +5624,10 @@ export default {
       this.graphRepulsion = -400
       this.graphEdgeLength = 100
       this.onGraphSettingChange()
+    },
+    onGraphTypeFilterChange() {
+      localStorage.setItem('graph-type-filter', this.graphTypeFilter)
+      this.updateGraphData()
     },
     // Keyboard shortcuts
     handleKeyDown(e) {
@@ -5094,6 +6006,16 @@ export default {
       if (stakeholders.some(p => p.id === person.id)) return
       await window.api.linkProjectPerson(this.currentFilter, person.id)
       await this.loadProjectPersons(this.currentFilter)
+    },
+    onStakeholderInputBlur() {
+      setTimeout(() => {
+        this.showStakeholderPicker = false
+      }, 150)
+    },
+    async assignStakeholderFromPicker(person) {
+      await this.assignStakeholder(person)
+      this.newPersonName = ''
+      this.showStakeholderPicker = false
     },
     async unassignStakeholder(person) {
       if (!this.isProjectSelected) return

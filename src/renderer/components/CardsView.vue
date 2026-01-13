@@ -1,5 +1,18 @@
 <template>
-  <div class="cards-view">
+  <div
+    class="cards-view"
+    ref="cardsViewRef"
+    @mousedown="onContainerMouseDown"
+    @mousemove="onContainerMouseMove"
+    @mouseup="onContainerMouseUp"
+    @mouseleave="onContainerMouseUp"
+  >
+    <!-- Selection Box -->
+    <div
+      v-if="isSelecting"
+      class="selection-box"
+      :style="selectionBoxStyle"
+    ></div>
     <template v-if="groupByProject">
       <div class="cards-groups-container" :style="{ '--card-columns': cardColumns }">
         <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
@@ -22,9 +35,10 @@
             <template #item="{ element }">
               <CardItem
                 :todo="element"
-                :selected="selectedTodoId === element.id"
+                :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :focused="focusedTodoId === element.id"
                 :is-trash-view="isTrashView"
+                :selected-todo-ids="selectedTodoIds"
                 :card-style="getCardStyle(element.id, element.project_color)"
                 :current-filter="currentFilter"
                 :show-project="false"
@@ -87,9 +101,10 @@
           <template #item="{ element }">
             <CardItem
               :todo="element"
-              :selected="selectedTodoId === element.id"
+              :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
               :focused="focusedTodoId === element.id"
               :is-trash-view="isTrashView"
+                :selected-todo-ids="selectedTodoIds"
               :card-style="getCardStyle(element.id, element.project_color)"
               :current-filter="currentFilter"
               :show-project="false"
@@ -125,19 +140,20 @@
             <span class="topic-dot" :style="{ background: group.color, width: '10px', height: '10px', borderRadius: '50%' }"></span>
             <span class="topic-name" style="flex: 1; font-weight: 500; color: #eee;">{{ group.name }}</span>
             <span class="topic-count" style="background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #888;">{{ group.todos.length }}</span>
+            <button class="topic-add-btn" style="padding: 2px 8px; background: transparent; border: 1px solid #444; border-radius: 4px; color: #888; font-size: 12px; cursor: pointer;" @click.stop="$emit('add-todo-to-topic', group.id)">+</button>
           </div>
           <div
             class="topic-box-cards"
             style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #000; border-radius: 0 0 8px 8px;"
           >
-            <button class="add-card-btn" @click="$emit('add-todo-to-topic', group.id)">+ Add</button>
             <CardItem
               v-for="todo in group.todos"
               :key="todo.id"
               :todo="todo"
-              :selected="selectedTodoId === todo.id"
+              :selected="selectedTodoId === todo.id || selectedTodoIds.has(todo.id)"
               :focused="focusedTodoId === todo.id"
               :is-trash-view="isTrashView"
+                :selected-todo-ids="selectedTodoIds"
               :card-style="getCardStyle(todo.id, todo.project_color)"
               :current-filter="currentFilter"
               :show-project="false"
@@ -207,9 +223,10 @@
         <template #item="{ element }">
           <CardItem
             :todo="element"
-            :selected="selectedTodoId === element.id"
+            :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
             :focused="focusedTodoId === element.id"
             :is-trash-view="isTrashView"
+                :selected-todo-ids="selectedTodoIds"
             :card-style="getCardStyle(element.id, element.project_color)"
             :current-filter="currentFilter"
             :show-project="currentFilter === null"
@@ -275,6 +292,10 @@ export default {
       type: Number,
       default: null
     },
+    selectedTodoIds: {
+      type: Set,
+      default: () => new Set()
+    },
     focusedTodoId: {
       type: Number,
       default: null
@@ -327,7 +348,8 @@ export default {
     'edit-topic',
     'delete-topic',
     'reorder-todos',
-    'add-todo-to-topic'
+    'add-todo-to-topic',
+    'marquee-select'
   ],
   computed: {
     hasTopics() {
@@ -360,6 +382,18 @@ export default {
         })
       })
       return groups
+    },
+    selectionBoxStyle() {
+      const left = Math.min(this.selectionStart.x, this.selectionCurrent.x)
+      const top = Math.min(this.selectionStart.y, this.selectionCurrent.y)
+      const width = Math.abs(this.selectionCurrent.x - this.selectionStart.x)
+      const height = Math.abs(this.selectionCurrent.y - this.selectionStart.y)
+      return {
+        left: left + 'px',
+        top: top + 'px',
+        width: width + 'px',
+        height: height + 'px'
+      }
     }
   },
   data() {
@@ -372,7 +406,11 @@ export default {
         x: 0,
         y: 0,
         topic: null
-      }
+      },
+      // Marquee selection
+      isSelecting: false,
+      selectionStart: { x: 0, y: 0 },
+      selectionCurrent: { x: 0, y: 0 }
     }
   },
   mounted() {
@@ -405,10 +443,21 @@ export default {
       this.dragOverTopicId = null
       const data = event.dataTransfer.getData('text/plain')
       console.log('dataTransfer data:', data)
-      const todoId = parseInt(data)
-      if (todoId) {
-        console.log('Emitting drop-on-topic:', todoId, topicId)
-        this.$emit('drop-on-topic', todoId, topicId)
+
+      // Parse the data - could be JSON array or single ID
+      let todoIds = []
+      try {
+        const parsed = JSON.parse(data)
+        todoIds = Array.isArray(parsed) ? parsed : [parsed]
+      } catch {
+        // Fallback for single ID (old format)
+        const todoId = parseInt(data)
+        if (todoId) todoIds = [todoId]
+      }
+
+      if (todoIds.length > 0) {
+        console.log('Emitting drop-on-topic:', todoIds, topicId)
+        this.$emit('drop-on-topic', todoIds, topicId)
       }
     },
     addTopic() {
@@ -442,12 +491,107 @@ export default {
         this.$emit('delete-topic', this.topicContextMenu.topic?.id)
       }
       this.hideTopicContextMenu()
+    },
+    // Marquee selection methods
+    onContainerMouseDown(event) {
+      // Only start selection if clicking on empty space (not on a card or interactive element)
+      const target = event.target
+      const isCard = target.closest('.todo-card, .kanban-card, .topic-box-header, button, input, select, a')
+      if (isCard) return
+
+      // Get position relative to container
+      const container = this.$refs.cardsViewRef
+      const rect = container.getBoundingClientRect()
+      const x = event.clientX - rect.left + container.scrollLeft
+      const y = event.clientY - rect.top + container.scrollTop
+
+      this.isSelecting = true
+      this.selectionStart = { x, y }
+      this.selectionCurrent = { x, y }
+
+      // Prevent text selection
+      event.preventDefault()
+    },
+    onContainerMouseMove(event) {
+      if (!this.isSelecting) return
+
+      const container = this.$refs.cardsViewRef
+      const rect = container.getBoundingClientRect()
+      const x = event.clientX - rect.left + container.scrollLeft
+      const y = event.clientY - rect.top + container.scrollTop
+
+      this.selectionCurrent = { x, y }
+
+      // Find cards that intersect with selection box
+      this.updateSelectionFromBox()
+    },
+    onContainerMouseUp() {
+      if (!this.isSelecting) return
+
+      // Finalize selection
+      this.updateSelectionFromBox()
+      this.isSelecting = false
+    },
+    updateSelectionFromBox() {
+      const container = this.$refs.cardsViewRef
+      if (!container) return
+
+      // Calculate selection box bounds
+      const boxLeft = Math.min(this.selectionStart.x, this.selectionCurrent.x)
+      const boxTop = Math.min(this.selectionStart.y, this.selectionCurrent.y)
+      const boxRight = Math.max(this.selectionStart.x, this.selectionCurrent.x)
+      const boxBottom = Math.max(this.selectionStart.y, this.selectionCurrent.y)
+
+      // Skip if selection is too small (likely just a click)
+      if (boxRight - boxLeft < 10 && boxBottom - boxTop < 10) return
+
+      // Find all cards in the container
+      const cards = container.querySelectorAll('.todo-card')
+      const containerRect = container.getBoundingClientRect()
+      const selectedIds = []
+
+      cards.forEach(card => {
+        const cardRect = card.getBoundingClientRect()
+        // Convert card rect to container-relative coordinates
+        const cardLeft = cardRect.left - containerRect.left + container.scrollLeft
+        const cardTop = cardRect.top - containerRect.top + container.scrollTop
+        const cardRight = cardLeft + cardRect.width
+        const cardBottom = cardTop + cardRect.height
+
+        // Check intersection
+        const intersects = !(cardRight < boxLeft || cardLeft > boxRight || cardBottom < boxTop || cardTop > boxBottom)
+
+        if (intersects) {
+          // Get todo ID from data attribute
+          const todoId = parseInt(card.dataset.todoId)
+          if (todoId) {
+            selectedIds.push(todoId)
+          }
+        }
+      })
+
+      if (selectedIds.length > 0) {
+        this.$emit('marquee-select', selectedIds)
+      }
     }
   }
 }
 </script>
 
 <style scoped>
+.cards-view {
+  position: relative;
+}
+
+.selection-box {
+  position: absolute;
+  border: 2px solid rgba(26, 111, 171, 0.8);
+  background: rgba(26, 111, 171, 0.15);
+  pointer-events: none;
+  z-index: 100;
+  border-radius: 2px;
+}
+
 .topic-context-menu {
   position: fixed;
   z-index: 1000;

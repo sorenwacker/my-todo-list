@@ -248,7 +248,10 @@ export default {
   },
   methods: {
     formatDateKey(date) {
-      return date.toISOString().split('T')[0]
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
     },
     getWeekStart(date) {
       const d = new Date(date)
@@ -265,6 +268,9 @@ export default {
     },
     getTodosForDate(dateKey) {
       return this.todos.filter(t => {
+        // Check due_date first
+        if (t.due_date && t.due_date === dateKey) return true
+        // Check start_date/end_date range
         if (!t.start_date && !t.end_date) return false
         const start = t.start_date || t.end_date
         const end = t.end_date || t.start_date

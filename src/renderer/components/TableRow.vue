@@ -1,7 +1,9 @@
 <template>
   <tr
     :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused }"
-    @click="$emit('select')"
+    draggable="true"
+    @dragstart="onDragStart"
+    @click="$emit('select', $event)"
   >
     <td class="col-check">
       <input
@@ -119,8 +121,13 @@ export default {
       default: false
     }
   },
-  emits: ['select', 'toggle-complete', 'toggle-expand', 'delete', 'restore', 'permanent-delete', 'add-to-project'],
+  emits: ['select', 'toggle-complete', 'toggle-expand', 'delete', 'restore', 'permanent-delete', 'add-to-project', 'dragstart'],
   methods: {
+    onDragStart(event) {
+      event.dataTransfer.setData('text/plain', JSON.stringify([this.todo.id]))
+      event.dataTransfer.effectAllowed = 'move'
+      this.$emit('dragstart', event, this.todo)
+    },
     getIconComponent(name) {
       return iconMap[name] || null
     },

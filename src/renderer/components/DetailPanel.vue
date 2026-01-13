@@ -1,5 +1,5 @@
 <template>
-  <aside v-if="todo" ref="detailPanel" class="detail-panel" :class="{ 'fullscreen': fullscreen }" :style="panelStyle">
+  <aside v-if="todo" ref="detailPanel" class="detail-panel" :class="{ 'fullscreen': fullscreen, 'vertical-mode': isVerticalLayout }" :style="panelStyle">
     <div
       v-if="!fullscreen"
       class="resize-handle"
@@ -74,24 +74,31 @@
         </div>
       </div>
 
+      <div class="collapsible-sections" :class="{ 'all-collapsed': notesCollapsed && tasksCollapsed && metadataCollapsed }">
       <div class="notes-section" :class="{ collapsed: notesCollapsed }">
         <div class="section-header" @click="notesCollapsed = !notesCollapsed">
           <span class="section-title">Notes</span>
         </div>
         <div v-show="!notesCollapsed" class="section-content">
-        <div class="tabs">
-          <button
-            :class="{ active: activeTab === 'edit' }"
-            @click="$emit('update:active-tab', 'edit')"
-          >Edit</button>
-          <button
-            :class="{ active: activeTab === 'preview' }"
-            @click="$emit('update:active-tab', 'preview')"
-          >Preview</button>
-          <button
-            :class="{ active: activeTab === 'split' }"
-            @click="$emit('update:active-tab', 'split')"
-          >Split</button>
+        <div class="tabs-row">
+          <div class="tabs">
+            <button
+              :class="{ active: activeTab === 'edit' }"
+              @click="$emit('update:active-tab', 'edit')"
+            >Edit</button>
+            <button
+              :class="{ active: activeTab === 'preview' }"
+              @click="$emit('update:active-tab', 'preview')"
+            >Preview</button>
+            <button
+              :class="{ active: activeTab === 'split' }"
+              @click="$emit('update:active-tab', 'split')"
+            >Split</button>
+          </div>
+          <label class="sensitive-checkbox">
+            <input :checked="todo.notes_sensitive" type="checkbox" @change="$emit('update:notes-sensitive', $event.target.checked)" />
+            <span class="lock-icon">🔒</span>
+          </label>
         </div>
 
         <textarea
@@ -119,16 +126,18 @@
 
         <div v-else class="notes-split">
           <textarea
+            ref="splitEditor"
             :value="todo.notes"
             placeholder="Add notes (Markdown supported)..."
             class="notes-editor split-editor"
-            :style="{ borderColor: todo.project_color || '#333' }"
             @input="$emit('update:notes', $event.target.value)"
             @keydown.escape="$emit('close')"
+            @scroll="syncScroll('editor')"
           ></textarea>
           <div
+            ref="splitPreview"
             class="notes-preview markdown-body split-preview"
-            :style="{ borderColor: todo.project_color || '#333' }"
+            @scroll="syncScroll('preview')"
           >
             <div v-if="todo.notes_sensitive && !notesRevealed" class="sensitive-notes-overlay">
               <div class="sensitive-icon">🔒</div>
@@ -137,14 +146,6 @@
             </div>
             <div v-else @click="$emit('markdown-click', $event)" v-html="renderedNotes"></div>
           </div>
-        </div>
-
-        <div class="sensitive-notes-row">
-          <label class="sensitive-checkbox">
-            <input :checked="todo.notes_sensitive" type="checkbox" @change="$emit('update:notes-sensitive', $event.target.checked)" />
-            <span class="lock-icon">🔒</span>
-            <span>Sensitive Notes</span>
-          </label>
         </div>
         </div>
       </div>
@@ -168,6 +169,13 @@
                 <span class="subtask-drag-handle">⋮⋮</span>
                 <input type="checkbox" :checked="subtask.completed" @change="$emit('toggle-subtask', subtask)" />
                 <span class="subtask-title">{{ subtask.title }}</span>
+                <input
+                  type="date"
+                  class="subtask-due-date"
+                  :value="subtask.due_date || ''"
+                  lang="sv-SE"
+                  @change="$emit('update-subtask-due-date', { id: subtask.id, due_date: $event.target.value || null })"
+                />
                 <button class="subtask-delete" @click="$emit('delete-subtask', subtask.id)">x</button>
               </div>
             </template>
@@ -236,6 +244,13 @@
               <button v-if="todo.end_date" class="clear-btn" @click="$emit('clear-end-date')">x</button>
             </div>
           </div>
+          <div class="meta-item">
+            <label>Due</label>
+            <div class="date-field">
+              <input type="date" :value="dueDate" lang="sv-SE" @change="$emit('update-due-date', $event.target.value)" />
+              <button v-if="todo.due_date" class="clear-btn" @click="$emit('clear-due-date')">x</button>
+            </div>
+          </div>
           <div class="meta-item recurrence-item">
             <label>Repeat</label>
             <div class="recurrence-controls">
@@ -265,15 +280,6 @@
             <div class="date-field">
               <input type="date" :value="todo.recurrence_end_date || ''" lang="sv-SE" @change="$emit('update-recurrence-end-date', $event.target.value)" />
               <button v-if="todo.recurrence_end_date" class="clear-btn" @click="$emit('clear-recurrence-end-date')">x</button>
-            </div>
-          </div>
-          <div class="meta-item links-item">
-            <label>Links</label>
-            <div class="inline-links">
-              <span v-for="linked in linkedTodos" :key="linked.id" class="link-chip" @click="$emit('select-linked', linked.id)">
-                {{ linked.title }}<button class="chip-x" @click.stop="$emit('unlink', linked)">x</button>
-              </span>
-              <button class="add-link-btn" @click="$emit('toggle-link-search')">+</button>
             </div>
           </div>
           <div class="meta-item persons-item">
@@ -344,6 +350,7 @@
         </div>
       </div>
       </div>
+      </div>
     </div>
   </aside>
 </template>
@@ -391,9 +398,10 @@ export default {
     'set-importance',
     'update-start-date', 'clear-start-date',
     'update-end-date', 'clear-end-date',
+    'update-due-date', 'clear-due-date',
     'update-recurrence-type', 'update-recurrence-interval',
     'update-recurrence-end-date', 'clear-recurrence-end-date',
-    'toggle-subtask', 'delete-subtask', 'add-subtask', 'update:new-subtask-title', 'reorder-subtasks',
+    'toggle-subtask', 'delete-subtask', 'add-subtask', 'update:new-subtask-title', 'reorder-subtasks', 'update-subtask-due-date',
     'select-linked', 'unlink', 'toggle-link-search', 'update:link-query', 'link-to',
     'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings', 'open-person', 'create-person',
     'reveal-notes', 'markdown-click',
@@ -437,6 +445,10 @@ export default {
       if (!this.todo?.end_date) return ''
       return this.todo.end_date.split('T')[0]
     },
+    dueDate() {
+      if (!this.todo?.due_date) return ''
+      return this.todo.due_date.split('T')[0]
+    },
     milestoneDate() {
       if (!this.todo?.milestone_date) return ''
       return this.todo.milestone_date.split('T')[0]
@@ -466,14 +478,30 @@ export default {
       newTagInput: '',
       notesCollapsed: false,
       tasksCollapsed: false,
-      metadataCollapsed: false
+      metadataCollapsed: false,
+      isSyncingScroll: false
     }
   },
   watch: {
     subtasks: {
       immediate: true,
-      handler(newVal) {
+      handler(newVal, oldVal) {
         this.localSubtasks = [...newVal]
+        // Auto-expand tasks section when subtasks are loaded for the first time
+        if (newVal.length > 0 && (!oldVal || oldVal.length === 0)) {
+          this.tasksCollapsed = false
+        }
+      }
+    },
+    todo: {
+      immediate: true,
+      handler(newTodo, oldTodo) {
+        if (newTodo && (!oldTodo || newTodo.id !== oldTodo.id)) {
+          // Expand notes if todo has notes content, collapse if empty
+          this.notesCollapsed = !newTodo.notes
+          // Keep tasks expanded by default
+          this.tasksCollapsed = false
+        }
       }
     }
   },
@@ -491,6 +519,30 @@ export default {
       if (!this.newTagInput.trim()) return
       this.$emit('add-tag', this.newTagInput.trim())
       this.newTagInput = ''
+    },
+    syncScroll(source) {
+      if (this.isSyncingScroll) return
+      this.isSyncingScroll = true
+
+      const editor = this.$refs.splitEditor
+      const preview = this.$refs.splitPreview
+
+      if (!editor || !preview) {
+        this.isSyncingScroll = false
+        return
+      }
+
+      if (source === 'editor') {
+        const scrollRatio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight || 1)
+        preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight)
+      } else {
+        const scrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight || 1)
+        editor.scrollTop = scrollRatio * (editor.scrollHeight - editor.clientHeight)
+      }
+
+      requestAnimationFrame(() => {
+        this.isSyncingScroll = false
+      })
     }
   }
 }
@@ -499,8 +551,8 @@ export default {
 <style scoped>
 .detail-panel {
   width: var(--detail-width, 600px);
-  background: var(--bg-secondary, #0d0d0d);
-  border-left: 3px solid #333;
+  background: #000;
+  border-left: 3px solid var(--border-color, #3a3f4b);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -570,39 +622,40 @@ export default {
 }
 
 .title-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 3px;
-  background: var(--bg-secondary, #0d0d0d);
+  border: 2px solid var(--checkbox-border, #555);
+  border-radius: 4px;
+  background: var(--checkbox-bg, #1a1a1a);
   cursor: pointer;
   position: relative;
   outline: none;
+  transition: all 0.15s ease;
 }
 
 .title-checkbox:checked {
-  background: var(--accent-color, #0f4c75);
-  border-color: var(--accent-color, #0f4c75);
+  background: var(--checkbox-checked-bg, #1a6fab);
+  border-color: var(--checkbox-checked-border, #1a6fab);
 }
 
 .title-checkbox:checked::after {
   content: '';
   position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .title-checkbox:hover {
-  border-color: var(--text-secondary, #a0a0a0);
+  border-color: var(--checkbox-hover-border, #888);
 }
 
 .title-input {
@@ -611,7 +664,7 @@ export default {
   font-weight: 600;
   padding: 8px 0;
   border: none;
-  border-bottom: 2px solid #333;
+  border-bottom: 2px solid var(--border-color, #3a3f4b);
   background: transparent;
   color: var(--text-primary, #e0e0e0);
   outline: none;
@@ -709,6 +762,46 @@ export default {
   margin-bottom: 0;
 }
 
+/* All three sections collapsed */
+.collapsible-sections {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.collapsible-sections.all-collapsed {
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+
+.collapsible-sections.all-collapsed .notes-section,
+.collapsible-sections.all-collapsed .bottom-sections {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.collapsible-sections.all-collapsed .bottom-sections {
+  display: flex;
+  gap: 8px;
+}
+
+.collapsible-sections.all-collapsed .notes-section.collapsed,
+.collapsible-sections.all-collapsed .subtasks-section.collapsed,
+.collapsible-sections.all-collapsed .meta-section.collapsed {
+  margin-bottom: 0;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.collapsible-sections.all-collapsed .section-header {
+  padding: 0;
+  margin-bottom: 0;
+}
+
 .section-content {
   width: 100%;
 }
@@ -726,6 +819,9 @@ export default {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  padding: 8px;
+  background: #000000;
+  border-radius: 6px;
 }
 
 .notes-section.collapsed {
@@ -751,10 +847,29 @@ export default {
   flex-direction: column;
 }
 
+.tabs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tabs-row .sensitive-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary, #a0a0a0);
+  cursor: pointer;
+}
+
+.tabs-row .sensitive-checkbox .lock-icon {
+  font-size: 14px;
+}
+
 .tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 8px;
 }
 
 .tabs button {
@@ -776,32 +891,39 @@ export default {
 .notes-editor,
 .notes-preview {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 6px;
-  background: var(--bg-primary, #1a1f2e);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   box-sizing: border-box;
   overflow-y: auto;
   flex: 1;
-  min-height: 100px;
+  min-height: 80px;
   height: 100%;
 }
 
 .notes-editor {
   color: var(--text-primary, #e0e0e0);
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: inherit;
   font-size: 13px;
   line-height: 1.5;
-  resize: vertical;
+  resize: none;
+}
+
+.notes-editor:focus {
+  outline: none;
 }
 
 /* Split view layout */
 .notes-split {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 16px;
   flex: 1;
   min-height: 0;
+  background: #000000;
+  padding: 8px;
+  border-radius: 6px;
 }
 
 .notes-split .split-editor,
@@ -810,6 +932,10 @@ export default {
   min-width: 0;
   width: auto;
   height: auto;
+  background: #000000;
+  padding: 12px;
+  border-radius: 4px;
+  border: none;
 }
 
 .notes-split .split-editor {
@@ -922,7 +1048,7 @@ export default {
   padding: 6px 8px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 4px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   color: var(--text-primary, #e0e0e0);
   font-size: 13px;
 }
@@ -972,7 +1098,7 @@ export default {
   padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   color: var(--text-primary, #e0e0e0);
   font-size: 11px;
 }
@@ -988,7 +1114,7 @@ export default {
   padding: 0;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 3px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   color: var(--text-secondary, #a0a0a0);
   cursor: pointer;
   font-size: 10px;
@@ -1039,7 +1165,7 @@ export default {
   padding: 2px 4px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 4px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   color: var(--text-primary, #e0e0e0);
   font-size: 12px;
 }
@@ -1062,7 +1188,7 @@ export default {
   align-items: center;
   gap: 2px;
   padding: 2px 6px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   border-radius: 10px;
   font-size: 11px;
   cursor: pointer;
@@ -1095,14 +1221,14 @@ export default {
 .link-search-popup {
   margin-top: 12px;
   padding: 12px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   border-radius: 8px;
 }
 
 .person-picker-popup {
   margin-top: 12px;
   padding: 12px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   border-radius: 8px;
   min-width: 320px;
 }
@@ -1153,7 +1279,7 @@ export default {
 
 .new-person-row button {
   padding: 8px 12px;
-  background: #2ecc71;
+  background: var(--accent-color, #0f4c75);
   color: white;
   border: none;
   border-radius: 4px;
@@ -1162,12 +1288,12 @@ export default {
 }
 
 .new-person-row button:disabled {
-  background: #444;
+  background: var(--border-color, #3a3f4b);
   cursor: not-allowed;
 }
 
 .new-person-row button:not(:disabled):hover {
-  background: #27ae60;
+  background: var(--accent-hover, #1a6faa);
 }
 
 .person-picker-list {
@@ -1219,7 +1345,7 @@ export default {
   padding: 8px;
   text-align: center;
   font-size: 12px;
-  color: var(--text-secondary, #888);
+  color: var(--text-secondary, #a0a0a0);
   border-top: 1px solid var(--border-color, #3a3f4b);
   margin-top: 4px;
 }
@@ -1245,7 +1371,7 @@ export default {
   width: 100%;
   height: var(--detail-height, 50%);
   border-left: none;
-  border-top: 3px solid #333;
+  border-top: 3px solid var(--border-color, #3a3f4b);
 }
 
 :global(.vertical-layout) .resize-handle {
@@ -1264,7 +1390,7 @@ export default {
   padding: 12px;
   background: var(--bg-primary, #1a1f2e);
   border-radius: 8px;
-  border-left: 3px solid #ffc107;
+  border-left: 3px solid var(--accent-color, #0f4c75);
 }
 
 .milestone-date-row {
@@ -1335,7 +1461,8 @@ export default {
 
 /* Tags */
 .tags-item {
-  flex-basis: 100%;
+  flex: 1;
+  min-width: 100px;
 }
 
 .inline-tags {
@@ -1350,7 +1477,7 @@ export default {
   align-items: center;
   gap: 2px;
   padding: 2px 6px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 10px;
   font-size: 11px;
@@ -1361,7 +1488,7 @@ export default {
   padding: 2px 6px;
   border: 1px solid var(--border-color, #3a3f4b);
   border-radius: 10px;
-  background: var(--bg-secondary, #0d0d0d);
+  background: #000;
   color: var(--text-primary, #e0e0e0);
   font-size: 11px;
   width: 80px;
@@ -1369,5 +1496,61 @@ export default {
 
 .tag-input::placeholder {
   color: var(--text-secondary, #a0a0a0);
+}
+
+/* Vertical/bottom mode - side by side layout */
+.detail-panel.vertical-mode .collapsible-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 8px 12px;
+}
+
+.detail-panel.vertical-mode .notes-section {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+}
+
+.detail-panel.vertical-mode .bottom-sections {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: contents;
+}
+
+.detail-panel.vertical-mode .subtasks-section {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-panel.vertical-mode .subtasks-section .section-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.detail-panel.vertical-mode .meta-section {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* When all collapsed in vertical mode */
+.detail-panel.vertical-mode .collapsible-sections.all-collapsed {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Narrower vertical panels fall back to stacked */
+@media (max-width: 700px) {
+  .detail-panel.vertical-mode .collapsible-sections {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .detail-panel.vertical-mode .bottom-sections {
+    display: block;
+  }
 }
 </style>

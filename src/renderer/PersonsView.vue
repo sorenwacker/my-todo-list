@@ -2,69 +2,41 @@
   <div class="persons-view" :class="{ 'light-theme': theme === 'light' }">
     <div class="persons-header">
       <h2>{{ isProjectMode ? 'Stakeholders' : 'People' }}</h2>
-      <div v-if="isProjectMode" class="stakeholder-add-inline">
-        <input
-          ref="personSearchInput"
-          v-model="personSearchQuery"
-          type="text"
-          class="inline-person-input"
-          placeholder="Add stakeholder..."
-          @focus="showPersonPicker = true"
-          @blur="onInputBlur"
-          @keydown.esc="closePicker"
-          @keyup.enter="handleEnterKey"
-        />
-        <div v-if="showPersonPicker && personSearchQuery.trim()" class="person-picker-dropdown">
-          <div v-if="filteredAvailablePersons.length > 0" class="picker-results">
-            <div
-              v-for="person in filteredAvailablePersons.slice(0, 10)"
-              :key="person.id"
-              class="picker-item"
-              @mousedown.prevent="assignPerson(person)"
-            >
-              <div class="person-avatar-small" :style="{ background: person.color }">
-                {{ getInitials(person.name) }}
-              </div>
-              <span class="picker-item-name">{{ person.name }}</span>
-              <span v-if="person.role" class="picker-item-role">{{ person.role }}</span>
-            </div>
-            <div v-if="filteredAvailablePersons.length > 10" class="picker-more">
-              +{{ filteredAvailablePersons.length - 10 }} more
-            </div>
-          </div>
-          <div v-if="!hasExactMatch && personSearchQuery.trim()" class="picker-create-hint" @mousedown.prevent="quickCreatePerson">
-            Press Enter to create "{{ personSearchQuery.trim() }}"
-          </div>
-        </div>
-      </div>
-      <button v-else class="add-btn" @click="showAddPerson">+ Add Person</button>
+      <button v-if="!isProjectMode" class="add-btn" @click="showAddPerson">+ Add Person</button>
     </div>
 
     <!-- Cards View -->
-    <div v-if="currentView === 'cards'" class="persons-cards">
-      <div
-        v-for="person in sortedPersons"
-        :key="person.id"
-        class="person-card"
-        :style="{ borderLeftColor: person.color }"
-        @click="editPerson(person)"
-      >
-        <button v-if="isProjectMode" class="remove-btn" @click.stop="unassignPerson(person)" title="Remove from project">x</button>
-        <div class="card-header">
-          <div class="person-avatar" :style="{ background: person.color }">
-            {{ getInitials(person.name) }}
+    <draggable
+      v-if="currentView === 'cards'"
+      :model-value="sortedPersons"
+      item-key="id"
+      class="persons-cards"
+      ghost-class="ghost"
+      @update:model-value="onReorderPersons"
+    >
+      <template #item="{ element: person }">
+        <div
+          class="person-card"
+          :style="{ borderLeftColor: person.color }"
+          @click="editPerson(person)"
+        >
+          <button v-if="isProjectMode" class="remove-btn" @click.stop="unassignPerson(person)" title="Remove from project">x</button>
+          <div class="card-header">
+            <div class="person-avatar" :style="{ background: person.color }">
+              {{ getInitials(person.name) }}
+            </div>
+            <div class="person-info">
+              <div class="person-name">{{ person.name }}</div>
+              <div v-if="person.role" class="person-role">{{ person.role }}</div>
+            </div>
           </div>
-          <div class="person-info">
-            <div class="person-name">{{ person.name }}</div>
-            <div v-if="person.role" class="person-role">{{ person.role }}</div>
-          </div>
+          <div v-if="person.company" class="person-company">{{ person.company }}</div>
+          <div v-if="person.email" class="person-email">{{ person.email }}</div>
+          <div v-if="person.notes" class="person-notes" v-html="renderCardMarkdown(person.notes)"></div>
         </div>
-        <div v-if="person.company" class="person-company">{{ person.company }}</div>
-        <div v-if="person.email" class="person-email">{{ person.email }}</div>
-        <div v-if="person.notes" class="person-notes" v-html="renderCardMarkdown(person.notes)"></div>
-      </div>
-      <div v-if="sortedPersons.length === 0" class="empty-state">{{ isProjectMode ? 'No stakeholders assigned to this project' : 'No persons added yet' }}</div>
-    </div>
+      </template>
+    </draggable>
+    <div v-if="currentView === 'cards' && sortedPersons.length === 0" class="empty-state">{{ isProjectMode ? 'No stakeholders assigned to this project' : 'No persons added yet' }}</div>
 
     <!-- Table View -->
     <div v-if="currentView === 'table'" class="table-container">
@@ -81,6 +53,10 @@
               <span v-if="sortBy === 'role'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <template v-if="isProjectMode">
+              <th class="col-company sortable" @click="toggleSort('company')">
+                Company
+                <span v-if="sortBy === 'company'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+              </th>
               <th class="col-influence">Influence</th>
               <th class="col-interest">Interest</th>
               <th class="col-type">Type</th>
@@ -107,6 +83,7 @@
             <td class="col-name">{{ person.name }}</td>
             <td class="col-role">{{ person.role || '-' }}</td>
             <template v-if="isProjectMode">
+              <td class="col-company">{{ person.company || '-' }}</td>
               <td class="col-influence" @click.stop>
                 <select
                   :value="person.influence_level"
@@ -160,7 +137,7 @@
             </td>
           </tr>
           <tr v-if="sortedPersons.length === 0">
-            <td :colspan="isProjectMode ? 8 : 6" class="empty-row">{{ isProjectMode ? 'No stakeholders assigned' : 'No persons added yet' }}</td>
+            <td :colspan="isProjectMode ? 9 : 6" class="empty-row">{{ isProjectMode ? 'No stakeholders assigned' : 'No persons added yet' }}</td>
           </tr>
         </tbody>
       </table>
@@ -182,7 +159,7 @@
 
     <!-- Edit Person Modal -->
     <Teleport to="body">
-      <div v-if="editingPerson" class="person-modal" :class="{ 'light-theme': theme === 'light' }" @click.self="cancelEdit" @keydown.esc="cancelEdit" @keydown.left="navigatePerson(-1)" @keydown.right="navigatePerson(1)" tabindex="-1" ref="personModal">
+      <div v-if="editingPerson" class="person-modal" :class="{ 'light-theme': theme === 'light' }" @keydown.esc="cancelEdit" @keydown.left="navigatePerson(-1)" @keydown.right="navigatePerson(1)" tabindex="-1" ref="personModal">
         <div class="modal-content" @click.stop>
           <h3>{{ editingPerson.id ? 'Edit Person' : 'Add Person' }}</h3>
 
@@ -297,9 +274,13 @@
 <script>
 import { renderMarkdown, renderCardMarkdown } from './utils/markdown.js'
 import { getInitials } from './utils/helpers.js'
+import draggable from 'vuedraggable'
 
 export default {
   name: 'PersonsView',
+  components: {
+    draggable
+  },
   props: {
     persons: {
       type: Array,
@@ -337,7 +318,8 @@ export default {
       personTags: [],
       newTagInput: '',
       notesTab: 'edit',
-      sortBy: 'name',
+      backdropMouseDown: false,
+      sortBy: 'manual',
       sortDir: 'asc',
       currentPage: 1,
       pageSize: 25,
@@ -394,13 +376,17 @@ export default {
     },
     sortedPersons() {
       const sorted = [...this.persons]
-      sorted.sort((a, b) => {
-        const aVal = (a[this.sortBy] || '').toLowerCase()
-        const bVal = (b[this.sortBy] || '').toLowerCase()
-        if (aVal < bVal) return this.sortDir === 'asc' ? -1 : 1
-        if (aVal > bVal) return this.sortDir === 'asc' ? 1 : -1
-        return 0
-      })
+      if (this.sortBy === 'manual') {
+        sorted.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      } else {
+        sorted.sort((a, b) => {
+          const aVal = (a[this.sortBy] || '').toLowerCase()
+          const bVal = (b[this.sortBy] || '').toLowerCase()
+          if (aVal < bVal) return this.sortDir === 'asc' ? -1 : 1
+          if (aVal > bVal) return this.sortDir === 'asc' ? 1 : -1
+          return 0
+        })
+      }
       return sorted
     },
     totalPages() {
@@ -444,6 +430,11 @@ export default {
   methods: {
     getInitials,
     renderCardMarkdown,
+    async onReorderPersons(newOrder) {
+      const ids = newOrder.map(p => p.id)
+      await window.api.reorderPersons(ids)
+      this.$emit('refresh')
+    },
     toggleSort(column) {
       if (this.sortBy === column) {
         this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'
@@ -545,17 +536,45 @@ export default {
     },
 
     async deletePerson() {
+      console.log('deletePerson called', this.editingPerson)
+      if (!this.editingPerson?.id) {
+        console.error('No editingPerson.id')
+        return
+      }
       if (!confirm(`Delete ${this.editingPerson.name}? This will remove all assignments to todos and projects.`)) {
         return
       }
+      try {
+        console.log('Calling window.api.deletePerson with id:', this.editingPerson.id)
+        await window.api.deletePerson(this.editingPerson.id)
+        console.log('Delete successful')
+        this.$emit('refresh')
+        this.editingPerson = null
+      } catch (error) {
+        console.error('Delete failed:', error)
+        alert('Failed to delete person: ' + error.message)
+      }
+    },
 
-      await window.api.deletePerson(this.editingPerson.id)
+    async confirmDeletePerson(person) {
+      if (!confirm(`Delete ${person.name}? This will remove all assignments to todos and projects.`)) {
+        return
+      }
+      await window.api.deletePerson(person.id)
       this.$emit('refresh')
-      this.editingPerson = null
     },
 
     cancelEdit() {
       this.editingPerson = null
+    },
+    onBackdropMouseDown() {
+      this.backdropMouseDown = true
+    },
+    onBackdropMouseUp() {
+      if (this.backdropMouseDown) {
+        this.cancelEdit()
+      }
+      this.backdropMouseDown = false
     },
 
     // Stakeholder assignment methods
@@ -639,8 +658,7 @@ export default {
 <style scoped>
 .persons-view {
   padding: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .persons-header {
@@ -723,14 +741,15 @@ export default {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
   margin-top: 4px;
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 6px;
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  min-width: 300px;
+  min-width: 320px;
+  width: max-content;
+  max-width: 400px;
 }
 
 .picker-create-hint {
@@ -793,8 +812,7 @@ export default {
   flex: 1;
   font-size: 13px;
   color: #f0f0f0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 120px;
 }
 
 .picker-item span {
@@ -823,12 +841,35 @@ export default {
   position: relative;
 }
 
-.person-card:hover .remove-btn {
+.person-card:hover .remove-btn,
+.person-card:hover .delete-card-btn {
   opacity: 1;
 }
 
-.remove-btn:hover {
+.remove-btn:hover,
+.delete-card-btn:hover {
   background: #c0392b;
+}
+
+.delete-card-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
 
 /* Cards View */
@@ -840,12 +881,16 @@ export default {
 }
 
 .person-card {
+  position: relative;
   background: #0d0d0d;
   border-radius: 8px;
   padding: 16px;
   cursor: pointer;
   transition: all 0.15s;
   border-left: 4px solid #0f4c75;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .person-card:hover {
@@ -853,53 +898,55 @@ export default {
   transform: translateY(-2px);
 }
 
-.card-header {
+.person-card .card-header {
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-bottom: 12px;
 }
 
 .person-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .person-info .person-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: #f0f0f0;
+  line-height: 1.4;
 }
 
 .person-info .person-role {
-  font-size: 12px;
+  font-size: 13px;
   color: #888;
 }
 
 .person-company {
-  font-size: 12px;
+  font-size: 13px;
   color: #aaa;
-  margin-bottom: 4px;
 }
 
 .person-email {
-  font-size: 12px;
+  font-size: 13px;
   color: #888;
-  margin-bottom: 8px;
 }
 
 .person-notes {
-  font-size: 12px;
-  color: #aaa;
-  max-height: 60px;
-  overflow: hidden;
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ccc;
 }
 
 .empty-state {

@@ -290,6 +290,16 @@ export class Database {
       this.db.exec('ALTER TABLE todos ADD COLUMN topic_id INTEGER REFERENCES project_topics(id) ON DELETE SET NULL')
     } catch { /* column exists */ }
 
+    // Migration: add due_date column to todos
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN due_date TEXT')
+    } catch { /* column exists */ }
+
+    // Migration: add due_date column to subtasks
+    try {
+      this.db.exec('ALTER TABLE subtasks ADD COLUMN due_date TEXT')
+    } catch { /* column exists */ }
+
     // Seed default statuses if none exist
     const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
     if (statusCount === 0) {
@@ -538,7 +548,8 @@ export class Database {
                s.name as status_name, s.color as status_color,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
-               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
+               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json,
+               (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM todo_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.todo_id = t.id) as tags_json
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
@@ -553,7 +564,8 @@ export class Database {
                s.name as status_name, s.color as status_color,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
                (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
-               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
+               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json,
+               (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM todo_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.todo_id = t.id) as tags_json
         FROM todos t
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
@@ -1003,9 +1015,26 @@ export class Database {
   }
 
   updateSubtask(subtask) {
-    this.db.prepare(`
-      UPDATE subtasks SET title = ?, completed = ? WHERE id = ?
-    `).run(subtask.title, subtask.completed ? 1 : 0, subtask.id)
+    const fields = []
+    const values = []
+
+    if (subtask.title !== undefined) {
+      fields.push('title = ?')
+      values.push(subtask.title)
+    }
+    if (subtask.completed !== undefined) {
+      fields.push('completed = ?')
+      values.push(subtask.completed ? 1 : 0)
+    }
+    if (subtask.due_date !== undefined) {
+      fields.push('due_date = ?')
+      values.push(subtask.due_date)
+    }
+
+    if (fields.length > 0) {
+      values.push(subtask.id)
+      this.db.prepare(`UPDATE subtasks SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    }
 
     return this.getSubtask(subtask.id)
   }

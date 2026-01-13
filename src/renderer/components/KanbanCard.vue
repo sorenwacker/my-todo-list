@@ -4,7 +4,7 @@
     :class="{ completed: todo.completed, selected: selected }"
     :style="{ borderLeftColor: borderColor }"
     :data-todo-id="todo.id"
-    @click="$emit('select')"
+    @click="$emit('select', $event)"
   >
     <div class="card-header">
       <input
