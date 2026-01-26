@@ -138,18 +138,11 @@
         <div class="header-title-row">
           <h1 class="header-title">
             <span>{{ currentTitle }}</span>
-            <select v-if="projectTopics.length > 0 && isProjectSelected" v-model="splitTopicFilter" class="header-topic-select">
-              <option value="all">All Topics</option>
-              <option value="none">No Topic</option>
-              <option v-for="topic in projectTopics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
-            </select>
           </h1>
           <MainTabs
             v-if="currentFilter !== 'trash'"
             :active-tab="activeTab"
-            :notes-count="notesCount"
-            :todos-count="todosCount"
-            :milestones-count="milestonesCount"
+            :items-count="itemsCount"
             :stakeholders-count="stakeholdersCount"
             :theme="theme"
             :is-project-selected="isProjectSelected"
@@ -195,7 +188,7 @@
             </button>
           </div>
         </div>
-        <div v-if="currentFilter !== 'persons' && activeTab !== 'split'" class="header-controls">
+        <div v-if="currentFilter !== 'persons'" class="header-controls">
           <div class="sort-controls">
             <select v-model="sortBy" class="sort-select">
               <option value="manual">Manual Order</option>
@@ -238,16 +231,16 @@
           </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
-        <div v-if="!isTrashView && activeTab !== 'stakeholders' && activeTab !== 'split'" class="add-todo">
+        <div v-if="!isTrashView && activeTab !== 'stakeholders'" class="add-todo">
           <input
             ref="newTodoInput"
             v-model="newTodoTitle"
-            :placeholder="activeTab === 'notes' ? 'Add a new note... (press n)' : 'Add a new todo... (press n)'"
+            placeholder="Add a new item... (press n)"
             type="text"
             @keyup.enter="addTodo"
           />
           <button @click="addTodo">Add</button>
-          <button v-if="activeTab === 'todos'" class="add-milestone-btn" @click="addMilestone" title="Add Milestone">+ Milestone</button>
+          <button class="add-milestone-btn" @click="addMilestone" title="Add Milestone">+ Milestone</button>
         </div>
         <div v-if="activeTab === 'stakeholders'" class="add-todo stakeholder-add-wrapper">
           <input
@@ -300,172 +293,6 @@
             @unassign-person="unassignStakeholder"
             @update-stakeholder="updateStakeholder"
           />
-
-          <!-- Split View (tab-based) -->
-          <div v-else-if="activeTab === 'split'" class="split-view">
-            <div
-              class="split-panels"
-              ref="splitPanelsRef"
-              @mousedown="onSplitMouseDown"
-              @mousemove="onSplitMouseMove"
-              @mouseup="onSplitMouseUp"
-              @mouseleave="onSplitMouseUp"
-            >
-              <!-- Selection Box -->
-              <div
-                v-if="splitIsSelecting"
-                class="selection-box"
-                :style="splitSelectionBoxStyle"
-              ></div>
-              <!-- Todos panel (left) - using TableView -->
-              <div
-                class="split-panel split-todos"
-                :class="{ 'drop-target': splitDropTarget === 'todos' }"
-                @dragover.prevent
-                @dragenter="onSplitDragEnter('todos')"
-                @dragleave="onSplitDragLeave"
-                @drop="onSplitDrop($event, 'todo')"
-              >
-                <div class="split-panel-header">
-                  <div class="split-panel-title">
-                    <span>Todos</span>
-                    <span class="split-count">{{ splitTodos.length }}</span>
-                  </div>
-                </div>
-                <div class="split-add-row">
-                  <input
-                    v-model="splitTodoTitle"
-                    class="split-add-input"
-                    placeholder="Add a new todo..."
-                    @keyup.enter="addSplitTodo"
-                  />
-                  <button class="split-add-btn" @click="addSplitTodo">+</button>
-                </div>
-                <div class="split-panel-content">
-                  <draggable
-                    :model-value="splitTodos"
-                    item-key="id"
-                    class="split-draggable-list"
-                    group="split-items"
-                    ghost-class="ghost"
-                    @end="onSplitDragEnd($event, 'todo')"
-                  >
-                    <template #item="{ element: todo }">
-                      <div
-                        class="split-item"
-                        :class="{ selected: selectedTodo?.id === todo.id || selectedTodoIds.has(todo.id), completed: todo.completed }"
-                        :data-id="todo.id"
-                        @click="selectTodo(todo.id)"
-                      >
-                        <input type="checkbox" :checked="todo.completed" @click.stop="toggleComplete(todo)" />
-                        <span class="split-item-title">{{ todo.title }}</span>
-                        <span v-if="todo.project_name" class="split-item-project" :style="{ color: todo.project_color }">{{ todo.project_name }}</span>
-                        <span v-if="todo.end_date" class="split-item-deadline" :class="{ overdue: isOverdue(todo.end_date) }">{{ formatShortDate(todo.end_date) }}</span>
-                      </div>
-                    </template>
-                  </draggable>
-                  <div v-if="splitTodos.length === 0" class="split-empty">No todos</div>
-                </div>
-              </div>
-              <div class="split-divider"></div>
-              <!-- Notes panel (right) -->
-              <div
-                class="split-panel split-notes"
-                :class="{ 'drop-target': splitDropTarget === 'notes' }"
-                @dragover.prevent
-                @dragenter="onSplitDragEnter('notes')"
-                @dragleave="onSplitDragLeave"
-                @drop="onSplitDrop($event, 'note')"
-              >
-                <div class="split-panel-header">
-                  <div class="split-panel-title">
-                    <span>Notes</span>
-                    <span class="split-count">{{ splitNotes.length }}</span>
-                  </div>
-                  <div class="split-panel-controls">
-                    <select v-model="splitNotesView" class="split-view-select">
-                      <option value="list">List</option>
-                      <option value="cards">Cards</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="split-add-row">
-                  <input
-                    v-model="splitNoteTitle"
-                    class="split-add-input"
-                    placeholder="Add a new note..."
-                    @keyup.enter="addSplitNote"
-                  />
-                  <button class="split-add-btn" @click="addSplitNote">+</button>
-                </div>
-                <div class="split-panel-content" :class="{ 'cards-mode': splitNotesView === 'cards' }">
-                  <!-- Topic boxes when project has topics -->
-                  <template v-if="splitHasTopics">
-                    <div class="split-topic-boxes">
-                      <div
-                        v-for="group in splitNoteTopicGroups"
-                        :key="group.id ?? 'no-topic'"
-                        class="split-topic-box"
-                      >
-                        <div class="split-topic-header">
-                          <span class="split-topic-dot" :style="{ background: group.color }"></span>
-                          <span class="split-topic-name">{{ group.name }}</span>
-                          <span class="split-topic-count">{{ group.todos.length }}</span>
-                        </div>
-                        <draggable
-                          :model-value="group.todos"
-                          item-key="id"
-                          class="split-topic-items split-draggable-list"
-                          group="split-items"
-                          ghost-class="ghost"
-                          @end="onSplitTopicDragEnd($event, group.id)"
-                        >
-                          <template #item="{ element: note }">
-                            <div
-                              class="split-item"
-                              :class="{ selected: selectedTodo?.id === note.id || selectedTodoIds.has(note.id), completed: note.completed, card: splitNotesView === 'cards' }"
-                              :data-id="note.id"
-                              @click="selectTodo(note.id)"
-                            >
-                              <input type="checkbox" :checked="note.completed" @click.stop="toggleComplete(note)" />
-                              <span class="split-item-title">{{ note.title }}</span>
-                            </div>
-                          </template>
-                        </draggable>
-                      </div>
-                      <div class="split-topic-box add-topic-box" @click="addTopicFromSidebar">
-                        <span class="add-topic-label">+ Add Topic</span>
-                      </div>
-                    </div>
-                  </template>
-                  <!-- Simple list when no topics -->
-                  <draggable
-                    v-else
-                    :model-value="splitNotes"
-                    item-key="id"
-                    class="split-draggable-list"
-                    group="split-items"
-                    ghost-class="ghost"
-                    @end="onSplitDragEnd($event, 'note')"
-                  >
-                    <template #item="{ element: note }">
-                      <div
-                        class="split-item"
-                        :class="{ selected: selectedTodo?.id === note.id || selectedTodoIds.has(note.id), completed: note.completed, card: splitNotesView === 'cards' }"
-                        :data-id="note.id"
-                        @click="selectTodo(note.id)"
-                      >
-                        <input type="checkbox" :checked="note.completed" @click.stop="toggleComplete(note)" />
-                        <span class="split-item-title">{{ note.title }}</span>
-                        <span v-if="note.project_name" class="split-item-project" :style="{ color: note.project_color }">{{ note.project_name }}</span>
-                      </div>
-                    </template>
-                  </draggable>
-                  <div v-if="splitNotes.length === 0" class="split-empty">No notes</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <!-- Views Container -->
           <div v-else-if="activeTab !== 'stakeholders' && currentFilter !== 'persons'" class="views-container">
@@ -833,6 +660,7 @@
                   linking: graphLinkMode && graphLinkSource?.id === todo.id,
                   dragging: draggingNode?.id === todo.id
                 }"
+                :data-node-id="todo.id"
                 :transform="`translate(${getNodeX(todo.id)}, ${getNodeY(todo.id)})`"
                 @mousedown.stop="onNodeMouseDown($event, todo)"
                 @mouseenter="hoveredNode = todo"
@@ -942,12 +770,6 @@
           <span v-if="graphLinkMode" class="link-hint">{{ graphLinkSource ? `Link to "${graphLinkSource.title}"` : 'Select node' }}</span>
         </div>
         <div v-if="showGraphSettings" class="graph-settings">
-          <div class="setting-row type-filter-row">
-            <label class="type-label">Show:</label>
-            <label class="radio-label"><input type="radio" v-model="graphTypeFilter" value="notes" @change="onGraphTypeFilterChange" /> Notes</label>
-            <label class="radio-label"><input type="radio" v-model="graphTypeFilter" value="todos" @change="onGraphTypeFilterChange" /> Todos</label>
-            <label class="radio-label"><input type="radio" v-model="graphTypeFilter" value="all" @change="onGraphTypeFilterChange" /> Both</label>
-          </div>
           <div class="setting-row checkbox-row">
             <input id="show-persons" v-model="showPersonsInGraph" type="checkbox" @change="updateGraphData" />
             <label for="show-persons">Persons</label>
@@ -971,8 +793,8 @@
       </div>
           </div>
 
-          <div v-if="filteredTodos.length === 0 && activeTab !== 'stakeholders' && activeTab !== 'split' && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
-            <p>{{ activeTab === 'notes' ? 'No notes yet.' : 'No todos yet.' }} Add one above.</p>
+          <div v-if="filteredTodos.length === 0 && activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
+            <p>No items yet. Add one above.</p>
           </div>
         </div>
       </Transition>
@@ -1267,20 +1089,15 @@ export default {
       allTodos: [],
       currentFilter: null,
       tabViews: JSON.parse(localStorage.getItem('tab-views') || '{}'),
-      activeTab: localStorage.getItem('active-tab') || 'todos',
+      activeTab: (() => {
+        const saved = localStorage.getItem('active-tab')
+        if (saved === 'todos' || saved === 'notes' || saved === 'split') return 'items'
+        return saved || 'items'
+      })(),
       hideCompleted: localStorage.getItem('hide-completed') === 'true',
       kanbanGroupBy: 'status',
       newTodoTitle: '',
       newPersonName: '',
-      splitNoteTitle: '',
-      splitTodoTitle: '',
-      splitNotesView: localStorage.getItem('split-notes-view') || 'list',
-      splitTopicFilter: 'all',
-      splitDropTarget: null,
-      splitIsSelecting: false,
-      splitSelectionStart: { x: 0, y: 0 },
-      splitSelectionCurrent: { x: 0, y: 0 },
-      splitExpandedTodos: new Set(),
       newProjectName: '',
       newCategoryName: '',
       newStatusName: '',
@@ -1416,7 +1233,6 @@ export default {
       graphLayoutType: localStorage.getItem('graph-layout-type') || 'force',
       showGraphSettings: false,
       showPersonsInGraph: localStorage.getItem('show-persons-in-graph') === 'true',
-      graphTypeFilter: localStorage.getItem('graph-type-filter') || 'all',
       orthogonalEdges: localStorage.getItem('orthogonal-edges') === 'true',
       todoPersons: {},
       d3Simulation: null,
@@ -1501,12 +1317,12 @@ export default {
       return this.kanbanGroupBy
     },
     currentTitle() {
-      if (this.currentFilter === null) return 'Todos'
+      if (this.currentFilter === null) return 'Items'
       if (this.currentFilter === 'inbox') return 'Inbox'
       if (this.currentFilter === 'trash') return 'Trash'
       if (this.currentFilter === 'persons') return 'Persons'
       const project = this.projects.find(p => p.id === this.currentFilter)
-      const projectName = project ? project.name : 'Todos'
+      const projectName = project ? project.name : 'Items'
       // Add topic name to breadcrumb when filtered
       if (this.selectedTopicId !== null) {
         const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
@@ -1615,23 +1431,11 @@ export default {
       return counts
     },
     // Tab-related computed properties
-    notesCount() {
+    itemsCount() {
       const todos = this.isProjectSelected
         ? this.allTodos.filter(t => t.project_id === this.currentFilter)
         : this.allTodos
-      return todos.filter(t => t.type === 'note' && !t.deleted_at).length
-    },
-    todosCount() {
-      const todos = this.isProjectSelected
-        ? this.allTodos.filter(t => t.project_id === this.currentFilter)
-        : this.allTodos
-      return todos.filter(t => (t.type === 'todo' || t.type === 'milestone') && !t.deleted_at).length
-    },
-    milestonesCount() {
-      const todos = this.isProjectSelected
-        ? this.allTodos.filter(t => t.project_id === this.currentFilter)
-        : this.allTodos
-      return todos.filter(t => t.type === 'milestone' && !t.deleted_at).length
+      return todos.filter(t => !t.deleted_at).length
     },
     stakeholdersCount() {
       if (this.isProjectSelected) {
@@ -1640,13 +1444,10 @@ export default {
       return this.persons.length
     },
     availableViews() {
-      const views = {
-        notes: ['cards', 'graph'],
-        todos: ['cards', 'table', 'kanban', 'timeline'],
-        split: ['cards'],
-        stakeholders: ['cards', 'table']
+      if (this.activeTab === 'stakeholders') {
+        return ['cards', 'table']
       }
-      return views[this.activeTab] || ['cards']
+      return ['cards', 'table', 'kanban', 'timeline', 'graph']
     },
     currentViewIndex() {
       return this.availableViews.indexOf(this.currentView)
@@ -1769,13 +1570,6 @@ export default {
       if (this.selectedTopicId !== null) {
         todos = todos.filter(t => t.topic_id === this.selectedTopicId)
       }
-      // Filter by active tab
-      if (this.activeTab === 'notes') {
-        todos = todos.filter(t => t.type === 'note')
-        console.log('After notes filter:', todos.length)
-      } else if (this.activeTab === 'todos') {
-        todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
-      }
       // Apply importance filter
       if (this.importanceFilterOp !== 'none') {
         const val = this.importanceFilterValue
@@ -1803,62 +1597,6 @@ export default {
           const bDate = b.start_date || b.end_date || b.created_at
           return new Date(aDate) - new Date(bDate)
         })
-    },
-    // Split view computed properties
-    splitNotes() {
-      let todos = this.currentFilter === null ? this.allTodos : this.todos
-      todos = todos.filter(t => t.type === 'note')
-      if (this.hideCompleted) {
-        todos = todos.filter(t => !t.completed)
-      }
-      if (this.splitTopicFilter === 'none') {
-        todos = todos.filter(t => !t.topic_id)
-      } else if (this.splitTopicFilter !== 'all') {
-        todos = todos.filter(t => t.topic_id === this.splitTopicFilter)
-      }
-      return todos
-    },
-    splitTodos() {
-      let todos = this.currentFilter === null ? this.allTodos : this.todos
-      todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
-      if (this.hideCompleted) {
-        todos = todos.filter(t => !t.completed)
-      }
-      if (this.splitTopicFilter === 'none') {
-        todos = todos.filter(t => !t.topic_id)
-      } else if (this.splitTopicFilter !== 'all') {
-        todos = todos.filter(t => t.topic_id === this.splitTopicFilter)
-      }
-      return todos
-    },
-    splitNoteTopicGroups() {
-      if (!this.isProjectSelected || this.projectTopics.length === 0) return []
-      const notes = this.splitNotes
-      const groups = []
-      // No topic group first
-      const noTopic = notes.filter(n => !n.topic_id)
-      groups.push({ id: null, name: 'No Topic', color: '#666', todos: noTopic })
-      // Topic groups
-      for (const topic of this.projectTopics) {
-        const topicNotes = notes.filter(n => n.topic_id === topic.id)
-        groups.push({ id: topic.id, name: topic.name, color: topic.color, todos: topicNotes })
-      }
-      return groups
-    },
-    splitHasTopics() {
-      return this.isProjectSelected && this.projectTopics.length > 0
-    },
-    splitSelectionBoxStyle() {
-      const left = Math.min(this.splitSelectionStart.x, this.splitSelectionCurrent.x)
-      const top = Math.min(this.splitSelectionStart.y, this.splitSelectionCurrent.y)
-      const width = Math.abs(this.splitSelectionCurrent.x - this.splitSelectionStart.x)
-      const height = Math.abs(this.splitSelectionCurrent.y - this.splitSelectionStart.y)
-      return {
-        left: left + 'px',
-        top: top + 'px',
-        width: width + 'px',
-        height: height + 'px'
-      }
     },
     timelineRange() {
       const now = new Date()
@@ -1966,16 +1704,7 @@ export default {
       return 14                                    // Every 2 weeks
     },
     graphNodes() {
-      // Use allTodos filtered by graphTypeFilter instead of tab-based filtering
       let todos = [...this.allTodos]
-
-      // Apply type filter from graph settings
-      if (this.graphTypeFilter === 'notes') {
-        todos = todos.filter(t => t.type === 'note')
-      } else if (this.graphTypeFilter === 'todos') {
-        todos = todos.filter(t => t.type === 'todo' || t.type === 'milestone')
-      }
-      // 'all' shows both notes and todos
 
       // Apply project filter
       if (this.currentFilter === null || this.currentFilter === 'inbox') {
@@ -2022,8 +1751,9 @@ export default {
     },
     tooltipStyle() {
       return {
-        left: this.mousePos.x + 15 + 'px',
-        top: this.mousePos.y + 15 + 'px'
+        right: '16px',
+        top: '80px',
+        left: 'auto'
       }
     },
     graphLinks() {
@@ -2219,7 +1949,7 @@ export default {
     },
     activeTab(val, oldVal) {
       // Determine tab transition direction
-      const tabOrder = ['todos', 'notes', 'stakeholders']
+      const tabOrder = ['items', 'stakeholders']
       const oldIndex = tabOrder.indexOf(oldVal)
       const newIndex = tabOrder.indexOf(val)
       this.tabTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
@@ -2281,9 +2011,6 @@ export default {
     },
     cardColumns(val) {
       localStorage.setItem('card-columns', val)
-    },
-    splitNotesView(val) {
-      localStorage.setItem('split-notes-view', val)
     },
     isProjectSelected(val) {
       if (val && this.groupByProject) {
@@ -2595,7 +2322,7 @@ export default {
     },
     async addTodoToTopic(topicId) {
       const projectId = this.isProjectSelected ? this.currentFilter : null
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
       const todo = await window.api.createTodo('Untitled', projectId, type)
       if (todo && topicId !== null && topicId !== undefined) {
         await window.api.updateTodo({ ...todo, topic_id: topicId })
@@ -2756,7 +2483,7 @@ export default {
         ? this.currentFilter
         : null
       // Type is determined by the active tab: notes = note, todos = todo
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
       const todo = await window.api.createTodo(this.newTodoTitle.trim(), projectId, type)
       // If a topic is selected, assign the new todo to that topic
       if (todo && this.selectedTopicId !== null) {
@@ -2779,208 +2506,12 @@ export default {
         console.error('Failed to create milestone:', e)
       }
     },
-    async addSplitNote() {
-      if (!this.splitNoteTitle.trim()) return
-      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
-        ? this.currentFilter
-        : null
-      await window.api.createTodo(this.splitNoteTitle.trim(), projectId, 'note')
-      this.splitNoteTitle = ''
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async addSplitTodo() {
-      if (!this.splitTodoTitle.trim()) return
-      const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
-        ? this.currentFilter
-        : null
-      await window.api.createTodo(this.splitTodoTitle.trim(), projectId, 'todo')
-      this.splitTodoTitle = ''
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    toggleSplitExpand(todoId) {
-      if (this.splitExpandedTodos.has(todoId)) {
-        this.splitExpandedTodos.delete(todoId)
-      } else {
-        this.splitExpandedTodos.add(todoId)
-        this.loadSubtasksForTodo(todoId)
-      }
-      this.splitExpandedTodos = new Set(this.splitExpandedTodos)
-    },
-    getSplitSubtasks(todoId) {
-      return this.subtasksMap[todoId] || []
-    },
-    // Split view drag-drop handlers
-    onSplitItemDragStart(event, item) {
-      event.dataTransfer.setData('text/plain', JSON.stringify([item.id]))
-      event.dataTransfer.effectAllowed = 'move'
-    },
-    onSplitDragEnter(target) {
-      this.splitDropTarget = target
-    },
-    onSplitDragLeave(event) {
-      // Only clear if leaving the panel entirely
-      if (!event.currentTarget.contains(event.relatedTarget)) {
-        this.splitDropTarget = null
-      }
-    },
-    async onSplitDrop(event, targetType) {
-      this.splitDropTarget = null
-      try {
-        const data = event.dataTransfer.getData('text/plain')
-        const ids = JSON.parse(data)
-        for (const id of ids) {
-          const todo = this.allTodos.find(t => t.id === id)
-          if (todo && todo.type !== targetType) {
-            await window.api.updateTodo({ ...todo, type: targetType })
-          }
-        }
-        await this.loadAllTodos()
-        await this.loadTodos()
-      } catch (e) {
-        console.error('Split drop error:', e)
-      }
-    },
-    async onSplitDragEnd(event, targetType) {
-      const { from, to } = event
-      // If moved between lists (from notes to todos or vice versa), change type
-      if (from !== to) {
-        // Get the dragged item from vuedraggable's context
-        const draggedItem = event.item?.__draggable_context?.element
-        if (draggedItem && draggedItem.type !== targetType) {
-          await window.api.updateTodo({ ...draggedItem, type: targetType })
-          await this.loadAllTodos()
-          await this.loadTodos()
-        }
-      }
-    },
-    async onSplitTopicDragEnd(event, targetTopicId) {
-      const { from, to } = event
-      const draggedItem = event.item?.__draggable_context?.element
-      if (!draggedItem) return
-
-      // If moved to a different list (different topic or to todos panel)
-      if (from !== to) {
-        // Check if it was moved to the todos panel (type conversion)
-        const toParent = to.parentElement?.closest('.split-todos')
-        if (toParent) {
-          // Converting note to todo
-          await window.api.updateTodo({ ...draggedItem, type: 'todo', topic_id: null })
-        } else {
-          // Moving between topics - update topic_id
-          await window.api.updateTodo({ ...draggedItem, topic_id: targetTopicId })
-        }
-        await this.loadAllTodos()
-        await this.loadTodos()
-      }
-    },
-    // Split view lasso selection
-    onSplitMouseDown(event) {
-      const target = event.target
-      const isInteractive = target.closest('.split-item, button, input, select, a, .split-add-row')
-      if (isInteractive) return
-
-      const container = this.$refs.splitPanelsRef
-      if (!container) return
-      const rect = container.getBoundingClientRect()
-      const x = event.clientX - rect.left + container.scrollLeft
-      const y = event.clientY - rect.top + container.scrollTop
-
-      this.splitIsSelecting = true
-      this.splitSelectionStart = { x, y }
-      this.splitSelectionCurrent = { x, y }
-      event.preventDefault()
-    },
-    onSplitMouseMove(event) {
-      if (!this.splitIsSelecting) return
-
-      const container = this.$refs.splitPanelsRef
-      if (!container) return
-      const rect = container.getBoundingClientRect()
-      const x = event.clientX - rect.left + container.scrollLeft
-      const y = event.clientY - rect.top + container.scrollTop
-
-      this.splitSelectionCurrent = { x, y }
-      this.updateSplitSelectionFromBox()
-    },
-    onSplitMouseUp() {
-      if (!this.splitIsSelecting) return
-      this.updateSplitSelectionFromBox()
-      this.splitIsSelecting = false
-    },
-    updateSplitSelectionFromBox() {
-      const container = this.$refs.splitPanelsRef
-      if (!container) return
-
-      const boxLeft = Math.min(this.splitSelectionStart.x, this.splitSelectionCurrent.x)
-      const boxTop = Math.min(this.splitSelectionStart.y, this.splitSelectionCurrent.y)
-      const boxRight = Math.max(this.splitSelectionStart.x, this.splitSelectionCurrent.x)
-      const boxBottom = Math.max(this.splitSelectionStart.y, this.splitSelectionCurrent.y)
-
-      // Skip if selection is too small
-      if (boxRight - boxLeft < 10 && boxBottom - boxTop < 10) return
-
-      const items = container.querySelectorAll('.split-item')
-      const containerRect = container.getBoundingClientRect()
-      const selectedIds = []
-
-      items.forEach(item => {
-        const itemRect = item.getBoundingClientRect()
-        const itemLeft = itemRect.left - containerRect.left + container.scrollLeft
-        const itemTop = itemRect.top - containerRect.top + container.scrollTop
-        const itemRight = itemLeft + itemRect.width
-        const itemBottom = itemTop + itemRect.height
-
-        // Check if item intersects with selection box
-        const intersects = !(itemRight < boxLeft || itemLeft > boxRight ||
-                           itemBottom < boxTop || itemTop > boxBottom)
-        if (intersects) {
-          // Find the todo ID from the item's parent draggable context or data attribute
-          const todoEl = item.closest('[data-id]') || item
-          const todoId = parseInt(todoEl.dataset?.id)
-          if (!todoId) {
-            // Try to find ID from the click handler's todo reference
-            const parentDraggable = item.parentElement?.closest('.split-draggable-list')
-            if (parentDraggable) {
-              const index = Array.from(parentDraggable.children).indexOf(item.parentElement || item)
-              const allItems = [...this.splitTodos, ...this.splitNotes]
-              if (index >= 0 && index < allItems.length) {
-                // This is a rough approximation - proper implementation would need data-id
-              }
-            }
-          }
-          if (todoId) selectedIds.push(todoId)
-        }
-      })
-
-      if (selectedIds.length > 0) {
-        this.selectedTodoIds = new Set(selectedIds)
-      }
-    },
-    async onSplitTopicDrop(event, topicId) {
-      this.splitDropTarget = null
-      try {
-        const data = event.dataTransfer.getData('text/plain')
-        const ids = JSON.parse(data)
-        for (const id of ids) {
-          const todo = this.allTodos.find(t => t.id === id)
-          if (todo) {
-            await window.api.updateTodo({ ...todo, topic_id: topicId })
-          }
-        }
-        await this.loadAllTodos()
-        await this.loadTodos()
-      } catch (e) {
-        console.error('Split topic drop error:', e)
-      }
-    },
     async createTodoOnDate(dateKey) {
       const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
         ? this.currentFilter
         : null
       try {
-        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const type = 'todo'
         const todo = await window.api.createTodo('New Task', projectId, type)
         if (todo && todo.id) {
           await window.api.updateTodo({ id: todo.id, start_date: dateKey, end_date: dateKey })
@@ -2994,7 +2525,7 @@ export default {
     },
     async addTodoToProject(projectId) {
       try {
-        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const type = 'todo'
         const todo = await window.api.createTodo('Untitled', projectId, type)
         await this.loadAllTodos()
         await this.loadTodos()
@@ -3026,7 +2557,7 @@ export default {
         : null
 
       // Create todo and update with start date
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
       const todo = await window.api.createTodo('New Todo', projectId, type)
       todo.start_date = dateStr
       const todoData = this.toPlainTodo(todo)
@@ -3038,7 +2569,7 @@ export default {
     async addTodoToCategory(categoryId) {
       try {
         const projectId = this.isProjectSelected ? this.currentFilter : null
-        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const type = 'todo'
         const todo = await window.api.createTodo('Untitled', projectId, type)
         if (categoryId !== null) {
           const todoData = this.toPlainTodo(todo)
@@ -3055,7 +2586,7 @@ export default {
     async addTodoToStatus(statusId) {
       try {
         const projectId = this.isProjectSelected ? this.currentFilter : null
-        const type = this.activeTab === 'notes' ? 'note' : 'todo'
+        const type = 'todo'
         const todo = await window.api.createTodo('Untitled', projectId, type)
         if (statusId !== null) {
           const todoData = this.toPlainTodo(todo)
@@ -4386,39 +3917,51 @@ export default {
       // Default color
       return '#0f4c75'
     },
-    getEdgePath(link, index) {
-      const x1 = this.getNodeX(link.source)
-      const y1 = this.getNodeY(link.source)
-      const x2 = this.getNodeX(link.target)
-      const y2 = this.getNodeY(link.target)
+    getNodeHalfWidth(nodeId) {
+      const node = this.graphNodes.find(n => n.id === nodeId)
+      if (node?.type === 'person') return 80
+      const el = this.$el?.querySelector(`[data-node-id="${nodeId}"] .node-content-wrapper`)
+      if (el) return el.offsetWidth / 2
+      return 70
+    },
+    getEdgePath(link) {
+      const cx1 = this.getNodeX(link.source)
+      const cy1 = this.getNodeY(link.source)
+      const cx2 = this.getNodeX(link.target)
+      const cy2 = this.getNodeY(link.target)
 
       if (!this.orthogonalEdges) {
-        return `M ${x1} ${y1} L ${x2} ${y2}`
+        return `M ${cx1} ${cy1} L ${cx2} ${cy2}`
       }
 
-      // Check if this is a person link
-      const isPersonLink = link.type === 'person-todo'
+      const hw1 = this.getNodeHalfWidth(link.source)
+      const hw2 = this.getNodeHalfWidth(link.target)
+      const key = `${link.source}-${link.target}`
+      const channel = this._edgeChannels?.[key] || { offset: 0, portY1: 0, portY2: 0 }
 
-      // Calculate offset to avoid overlapping edges
-      const linkIndex = this.graphLinks.indexOf(link)
-      const offset = (linkIndex % 7) * 6 - 18
-
-      if (isPersonLink) {
-        // Person links: source is person (right), target is todo (left)
-        // Route: person -> left -> up/down -> todo
-        const midX = x2 + (x1 - x2) * 0.7 + offset
+      if (cx2 > cx1) {
+        // Left to right
+        const x1 = cx1 + hw1
+        const y1 = cy1 + channel.portY1
+        const x2 = cx2 - hw2
+        const y2 = cy2 + channel.portY2
+        const midX = x1 + (x2 - x1) * 0.5 + channel.offset
         return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
-      }
-
-      // Regular tree links: source is parent (left), target is child (right)
-      if (x2 > x1) {
-        // Parent -> Child (left to right)
-        const midX = x1 + (x2 - x1) * 0.5 + offset
+      } else if (cx1 > cx2) {
+        // Right to left
+        const x1 = cx1 - hw1
+        const y1 = cy1 + channel.portY1
+        const x2 = cx2 + hw2
+        const y2 = cy2 + channel.portY2
+        const midX = Math.min(x1, x2) - 20 + channel.offset
         return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
       } else {
-        // Child -> Parent or same level connection
-        const midX = Math.max(x1, x2) + 40 + Math.abs(offset)
-        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
+        // Vertically aligned: route around the side
+        const side = cy2 > cy1 ? 1 : -1
+        const x1 = cx1 + hw1 + channel.offset
+        const x2 = cx2 + hw2 + channel.offset
+        const midX = Math.max(x1, x2) + 20
+        return `M ${cx1 + hw1} ${cy1} L ${midX} ${cy1} L ${midX} ${cy2} L ${cx2 + hw2} ${cy2}`
       }
     },
     saveOrthogonalSetting() {
@@ -4473,17 +4016,15 @@ export default {
       if (!this.graphHeight) this.graphHeight = 1200
     },
     screenToSvgCoords(event) {
-      const svg = this.$refs.graphContainer.querySelector('svg')
-      const svgRect = svg.getBoundingClientRect()
-      // Calculate scale factor between SVG viewBox and rendered size
-      const scaleX = this.graphWidth / svgRect.width
-      const scaleY = this.graphHeight / svgRect.height
-      // Convert screen coords to viewBox coords
-      const viewBoxX = (event.clientX - svgRect.left) * scaleX
-      const viewBoxY = (event.clientY - svgRect.top) * scaleY
+      const svg = this.$refs.graphSvg
+      // Use native SVG coordinate transform (handles preserveAspectRatio correctly)
+      const point = svg.createSVGPoint()
+      point.x = event.clientX
+      point.y = event.clientY
+      const viewBoxPoint = point.matrixTransform(svg.getScreenCTM().inverse())
       // Then apply inverse of pan and zoom transforms
-      const x = (viewBoxX - this.graphPan.x) / this.graphZoom
-      const y = (viewBoxY - this.graphPan.y) / this.graphZoom
+      const x = (viewBoxPoint.x - this.graphPan.x) / this.graphZoom
+      const y = (viewBoxPoint.y - this.graphPan.y) / this.graphZoom
       return { x, y }
     },
     onNodeContentMouseDown(event, todo) {
@@ -4607,13 +4148,11 @@ export default {
           }
         }
       } else if (this.isPanning) {
-        const svg = this.$refs.graphContainer.querySelector('svg')
-        const svgRect = svg.getBoundingClientRect()
-        // Scale pan movement by viewBox ratio
-        const scaleX = this.graphWidth / svgRect.width
-        const scaleY = this.graphHeight / svgRect.height
-        const dx = (event.clientX - this.lastMousePos.x) * scaleX
-        const dy = (event.clientY - this.lastMousePos.y) * scaleY
+        const svg = this.$refs.graphSvg
+        const ctm = svg.getScreenCTM()
+        // Convert screen pixel deltas to viewBox coordinate deltas
+        const dx = (event.clientX - this.lastMousePos.x) / ctm.a
+        const dy = (event.clientY - this.lastMousePos.y) / ctm.d
         this.graphPan.x += dx
         this.graphPan.y += dy
         this.lastMousePos = { x: event.clientX, y: event.clientY }
@@ -4846,7 +4385,7 @@ export default {
 
       // Use the same project as the parent todo
       const projectId = parentTodo.project_id
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
 
       try {
         const todo = await window.api.createTodo('Untitled', projectId, type)
@@ -4953,7 +4492,7 @@ export default {
 
       // Determine project ID - use current filter if it's a project
       const projectId = this.isProjectSelected ? this.currentFilter : null
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
 
       // Remember selected node to link to
       const linkToNodeId = this.selectedTodo?.id
@@ -4990,13 +4529,13 @@ export default {
       const newZoom = Math.max(0.2, Math.min(4, this.graphZoom * zoomFactor))
 
       // Zoom towards mouse position in viewBox coordinates
-      const svg = this.$refs.graphContainer.querySelector('svg')
-      const svgRect = svg.getBoundingClientRect()
-      // Convert screen coords to viewBox coords
-      const scaleX = this.graphWidth / svgRect.width
-      const scaleY = this.graphHeight / svgRect.height
-      const mouseX = (event.clientX - svgRect.left) * scaleX
-      const mouseY = (event.clientY - svgRect.top) * scaleY
+      const svg = this.$refs.graphSvg
+      const point = svg.createSVGPoint()
+      point.x = event.clientX
+      point.y = event.clientY
+      const vbPoint = point.matrixTransform(svg.getScreenCTM().inverse())
+      const mouseX = vbPoint.x
+      const mouseY = vbPoint.y
 
       const zoomRatio = newZoom / this.graphZoom
       this.graphPan.x = mouseX - (mouseX - this.graphPan.x) * zoomRatio
@@ -5122,7 +4661,7 @@ export default {
 
       // Use project from source node
       const projectId = sourceNode?.project_id || null
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
 
       try {
         // Create new node
@@ -5163,7 +4702,7 @@ export default {
 
       // Use project from source node
       const projectId = sourceNode?.project_id || null
-      const type = this.activeTab === 'notes' ? 'note' : 'todo'
+      const type = 'todo'
 
       try {
         // Create new node
@@ -5625,10 +5164,6 @@ export default {
       this.graphEdgeLength = 100
       this.onGraphSettingChange()
     },
-    onGraphTypeFilterChange() {
-      localStorage.setItem('graph-type-filter', this.graphTypeFilter)
-      this.updateGraphData()
-    },
     // Keyboard shortcuts
     handleKeyDown(e) {
       // Ignore if typing in input/textarea
@@ -5757,12 +5292,10 @@ export default {
       const todo = this.allTodos.find(t => t.id === todoId)
       if (todo) {
         // Switch to correct tab based on type
-        if (todo.type === 'note') {
-          this.setTab('notes')
-        } else if (todo.type === 'person') {
+        if (todo.type === 'person') {
           this.setTab('stakeholders')
         } else {
-          this.setTab('todos')
+          this.setTab('items')
         }
         // Navigate to correct project
         if (todo.project_id) {
@@ -5789,8 +5322,8 @@ export default {
       this.pendingPersonEdit = person
     },
     async onGlobalSearchSelectProject(project) {
-      // Switch to todos tab and navigate to project
-      this.setTab('todos')
+      // Switch to items tab and navigate to project
+      this.setTab('items')
       await this.setFilter(project.id)
     },
     // Resize methods

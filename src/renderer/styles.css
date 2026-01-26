@@ -2189,562 +2189,6 @@ body {
   opacity: 1;
 }
 
-/* Split View */
-.main-content:has(.split-view) {
-  overflow: hidden;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.main-content:has(.split-view) .main-header {
-  padding: 6px 16px;
-  margin: 0;
-}
-
-.split-view {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.split-panels {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.split-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-  transition: background-color 0.15s ease;
-}
-
-.split-panel.drop-target {
-  background-color: rgba(59, 130, 246, 0.1);
-  outline: 2px dashed #3b82f6;
-  outline-offset: -2px;
-}
-
-.split-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #0a0e17;
-  border-bottom: 1px solid #222;
-}
-
-.split-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #aaa;
-}
-
-.split-panel-controls {
-  display: flex;
-  gap: 6px;
-}
-
-.split-view-select {
-  padding: 4px 8px;
-  background: #1a1a1a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #ccc;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.split-add-row {
-  display: flex;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #0d0d0d;
-  border-bottom: 1px solid #1a1a1a;
-}
-
-.split-add-input {
-  flex: 1;
-  padding: 6px 10px;
-  background: #1a1a1a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #eee;
-  font-size: 12px;
-}
-
-.split-add-input:focus {
-  outline: none;
-  border-color: #1a6fab;
-}
-
-.split-add-btn {
-  padding: 6px 12px;
-  background: #1a6fab;
-  border: none;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.split-add-btn:hover {
-  background: #1a6faa;
-}
-
-.split-count {
-  font-size: 11px;
-  color: #999;
-  background: #1a1a1a;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.split-panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.split-divider {
-  width: 1px;
-  background: #333;
-  cursor: col-resize;
-}
-
-.split-divider:hover {
-  background: #1a6fab;
-}
-
-.split-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: #0d0d0d;
-  border-radius: 4px;
-  margin-bottom: 2px;
-  cursor: grab;
-  border-left: 3px solid transparent;
-  transition: all 0.15s;
-}
-
-.split-item:active {
-  cursor: grabbing;
-}
-
-.split-item:hover {
-  background: #151515;
-}
-
-.split-item.selected {
-  background: rgba(26, 111, 171, 0.15);
-  box-shadow: 0 0 10px rgba(26, 111, 171, 0.4);
-  border-left-color: #1a6fab;
-}
-
-.split-item.completed {
-  opacity: 0.5;
-}
-
-.split-item.completed .split-item-title {
-  text-decoration: line-through;
-}
-
-.split-item input[type="checkbox"] {
-  flex-shrink: 0;
-}
-
-.split-item-title {
-  flex: 1;
-  font-size: 13px;
-  color: #eee;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.split-item-project {
-  font-size: 11px;
-  padding: 2px 6px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.split-item-deadline {
-  font-size: 11px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.split-item-deadline.overdue {
-  color: #e74c3c;
-}
-
-/* Cards mode for split view */
-.split-panel-content.cards-mode {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  grid-auto-rows: min-content;
-  gap: 6px 8px;
-  align-items: start;
-  align-content: start;
-}
-
-.split-item.card {
-  flex-direction: column;
-  align-items: flex-start;
-  background: #0d0d0d;
-  border-radius: 6px;
-  padding: 8px 10px;
-  border-left: 3px solid #1a6fab;
-  gap: 4px;
-  min-height: auto;
-  margin-bottom: 0;
-}
-
-.split-item.card:hover {
-  background: #111;
-}
-
-.split-item.card .split-item-title {
-  white-space: normal;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.split-item.card .split-item-preview {
-  font-size: 11px;
-  color: #999;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Split topic boxes */
-.split-topic-boxes {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 8px;
-}
-
-.split-topic-box {
-  background: #1a1a1a;
-  border-radius: 8px;
-  border: 1px solid #333;
-  overflow: hidden;
-  transition: all 0.15s ease;
-}
-
-.split-topic-box.drop-target {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: #3b82f6;
-}
-
-.split-topic-box.add-topic-box {
-  background: transparent;
-  border: 2px dashed #444;
-  min-height: 60px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-}
-
-.split-topic-box.add-topic-box:hover {
-  border-color: #666;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.add-topic-label {
-  color: #666;
-  font-size: 13px;
-}
-
-.split-topic-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: #222;
-  border-bottom: 1px solid #333;
-}
-
-.split-topic-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.split-topic-name {
-  flex: 1;
-  font-weight: 500;
-  color: #eee;
-  font-size: 13px;
-}
-
-.split-topic-count {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  color: #888;
-}
-
-.split-topic-items {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.split-topic-items .split-item {
-  margin-bottom: 0;
-}
-
-.split-draggable-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 50px;
-}
-
-.split-draggable-list .ghost {
-  opacity: 0.5;
-  background: #2a2a2a;
-}
-
-.split-panels {
-  position: relative;
-}
-
-.split-panels .selection-box {
-  position: absolute;
-  border: 2px solid rgba(26, 111, 171, 0.8);
-  background: rgba(26, 111, 171, 0.15);
-  pointer-events: none;
-  z-index: 100;
-  border-radius: 2px;
-}
-
-/* Split tree view */
-.split-tree {
-  padding: 4px 0;
-}
-
-.split-tree-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  cursor: pointer;
-  border-left: 3px solid transparent;
-  transition: background 0.15s;
-}
-
-.split-tree-item:hover {
-  background: #151515;
-}
-
-.split-tree-item.selected {
-  background: rgba(26, 111, 171, 0.15);
-  box-shadow: 0 0 10px rgba(26, 111, 171, 0.4);
-  border-left-color: #1a6fab;
-}
-
-.split-tree-item.completed {
-  opacity: 0.5;
-}
-
-.split-tree-item.completed .split-tree-title {
-  text-decoration: line-through;
-}
-
-.split-expand-btn {
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: #999;
-  font-size: 10px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.split-expand-btn:hover {
-  color: #aaa;
-}
-
-.split-expand-spacer {
-  width: 18px;
-  flex-shrink: 0;
-}
-
-.split-tree-title {
-  flex: 1;
-  font-size: 13px;
-  color: #eee;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.split-subtask-count {
-  font-size: 11px;
-  color: #999;
-  background: #1a1a1a;
-  padding: 2px 6px;
-  border-radius: 8px;
-}
-
-.split-tree-deadline {
-  font-size: 11px;
-  color: #999;
-}
-
-.split-tree-deadline.overdue {
-  color: #e74c3c;
-}
-
-.split-subtask-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 6px 44px;
-  background: #0a0a0a;
-  border-left: 3px solid #1a1a1a;
-}
-
-.split-subtask-item.completed {
-  opacity: 0.5;
-}
-
-.split-subtask-item.completed .split-subtask-title {
-  text-decoration: line-through;
-}
-
-.split-subtask-title {
-  font-size: 12px;
-  color: #ccc;
-}
-
-/* Split table for todos */
-.split-table-wrapper {
-  padding: 0;
-}
-
-.split-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.split-table thead {
-  position: sticky;
-  top: 0;
-  background: #111;
-  z-index: 1;
-}
-
-.split-table th {
-  padding: 8px 12px;
-  text-align: left;
-  font-weight: 500;
-  color: #999;
-  border-bottom: 1px solid #222;
-}
-
-.split-table-row {
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.split-table-row:hover {
-  background: #151515;
-}
-
-.split-table-row.selected {
-  background: rgba(26, 111, 171, 0.15);
-  box-shadow: 0 0 10px rgba(26, 111, 171, 0.4);
-}
-
-.split-table-row.completed {
-  opacity: 0.5;
-}
-
-.split-table-row.completed .col-title {
-  text-decoration: line-through;
-}
-
-.split-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #1a1a1a;
-  color: #eee;
-}
-
-.split-table .col-check {
-  width: 30px;
-}
-
-.split-table .col-title {
-  max-width: 300px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.split-table .col-project {
-  width: 100px;
-}
-
-.split-table .col-deadline {
-  width: 80px;
-  color: #999;
-}
-
-.split-table .col-deadline.overdue {
-  color: #e74c3c;
-}
-
-.split-table .col-importance {
-  width: 50px;
-}
-
-.split-table .project-badge {
-  font-size: 11px;
-}
-
-.split-table .importance-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #fff;
-}
-
-.split-empty {
-  text-align: center;
-  color: #999;
-  padding: 40px 20px;
-  font-size: 13px;
-}
-
 /* Cards View */
 .cards-view {
   padding: 16px;
@@ -5447,28 +4891,36 @@ body {
 
 /* Graph View Styles */
 .graph-view {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: #0d0d0d;
-  z-index: 102;
 }
 
-/* Make main-content position relative for graph absolute positioning */
+/* Use flex column layout so graph sits below header */
 .main-content:has(.graph-view) {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   padding: 0;
 }
 
-/* Fix header margins when in graph view mode (parent padding is 0) */
+/* Header takes its natural space, no overlap */
 .main-content:has(.graph-view) .main-header {
+  flex-shrink: 0;
   margin: 0;
-  padding: 6px 20px 10px 20px;
-  z-index: 200;
+  padding: 6px 20px 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Intermediate containers must flex to fill remaining space */
+.main-content:has(.graph-view) .project-content,
+.main-content:has(.graph-view) .views-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* When graph view is active, main-wrapper becomes the positioning context */
@@ -5476,7 +4928,7 @@ body {
   position: relative;
 }
 
-/* Detail panel overlays graph view instead of shrinking it */
+/* Detail panel overlays graph view instead of shrinking it (side layout only) */
 .main-wrapper:has(.graph-view) .detail-panel {
   position: absolute;
   right: 0;
@@ -5484,6 +4936,16 @@ body {
   height: 100%;
   z-index: 250;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* In vertical layout, detail panel flows below the graph normally */
+.vertical-layout .main-wrapper:has(.graph-view) .detail-panel {
+  position: relative;
+  right: auto;
+  top: auto;
+  height: var(--detail-height, 50%);
+  z-index: auto;
+  box-shadow: none;
 }
 
 /* Ensure main-content takes full width when graph is shown */
@@ -6022,34 +5484,6 @@ body {
   cursor: pointer;
 }
 
-.graph-settings .setting-row.type-filter-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #333;
-  margin-bottom: 4px;
-}
-
-.graph-settings .setting-row.type-filter-row .type-label {
-  color: #888;
-  font-size: 11px;
-  flex: none;
-}
-
-.graph-settings .setting-row.type-filter-row .radio-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  color: #ccc;
-  font-size: 11px;
-}
-
-.graph-settings .setting-row.type-filter-row input[type="radio"] {
-  margin: 0;
-  cursor: pointer;
-}
 
 .graph-settings .setting-row label {
   flex: 0 0 55px;
@@ -6271,7 +5705,7 @@ body {
   border-radius: 8px;
   padding: 12px 16px;
   pointer-events: none;
-  z-index: 100;
+  z-index: 300;
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
