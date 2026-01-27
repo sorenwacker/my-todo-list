@@ -240,7 +240,6 @@
             @keyup.enter="addTodo"
           />
           <button @click="addTodo">Add</button>
-          <button class="add-milestone-btn" @click="addMilestone" title="Add Milestone">+ Milestone</button>
         </div>
         <div v-if="activeTab === 'stakeholders'" class="add-todo stakeholder-add-wrapper">
           <input
@@ -764,7 +763,7 @@
             <button :class="{ active: isSimulating }" @click="runLayout">{{ isSimulating ? 'Stop' : 'Run' }}</button>
           </div>
           <div class="control-group">
-            <button :class="{ active: graphLinkMode }" @click="toggleGraphLinkMode">{{ graphLinkMode ? 'Cancel' : 'Link' }}</button>
+            <button :class="{ active: graphLinkMode || altKeyHeld }" @click="toggleGraphLinkMode">{{ graphLinkMode ? 'Cancel' : 'Link' }}</button>
             <button :class="{ active: showGraphSettings }" @click="showGraphSettings = !showGraphSettings" title="Settings">Cfg</button>
           </div>
           <span v-if="graphLinkMode" class="link-hint">{{ graphLinkSource ? `Link to "${graphLinkSource.title}"` : 'Select node' }}</span>
@@ -1170,6 +1169,7 @@ export default {
       creatingNodeFromId: null,
       linkingNodeId: null,
       altClickSourceId: null,
+      altKeyHeld: false,
       dragOffset: { x: 0, y: 0 },
       selectedNodeIds: [],
       isPanning: false,
@@ -2110,6 +2110,7 @@ export default {
 
     // Keyboard shortcuts
     window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
 
     // Listen for history state changes (undo/redo)
     this.historyState = await window.api.getHistoryState()
@@ -2154,6 +2155,7 @@ export default {
     window.removeEventListener('resize', this.checkLayout)
     window.removeEventListener('resize', this.updateGraphSize)
     window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
     this.stopForceLayout()
     if (this.cardResizeObserver) {
       this.cardResizeObserver.disconnect()
@@ -4419,14 +4421,18 @@ export default {
     },
     optimizeNewNodePosition(newNodeId) {
       // Run a quick force simulation to find optimal position for new node
-      const nodes = this.graphNodes.map(n => ({
-        id: n.id,
-        x: this.nodePositions[n.id]?.x || this.graphWidth / 2,
-        y: this.nodePositions[n.id]?.y || this.graphHeight / 2,
-        // Fix all nodes except the new one
-        fx: n.id === newNodeId ? null : this.nodePositions[n.id]?.x,
-        fy: n.id === newNodeId ? null : this.nodePositions[n.id]?.y
-      }))
+      const nodes = this.graphNodes.map(n => {
+        const x = this.nodePositions[n.id]?.x ?? this.getNodeX(n.id)
+        const y = this.nodePositions[n.id]?.y ?? this.getNodeY(n.id)
+        return {
+          id: n.id,
+          x,
+          y,
+          // Fix all nodes except the new one
+          fx: n.id === newNodeId ? null : x,
+          fy: n.id === newNodeId ? null : y
+        }
+      })
 
       const links = this.graphLinks.map(l => ({
         source: l.source,
@@ -5165,7 +5171,11 @@ export default {
       this.onGraphSettingChange()
     },
     // Keyboard shortcuts
+    handleKeyUp(e) {
+      if (e.key === 'Alt') this.altKeyHeld = false
+    },
     handleKeyDown(e) {
+      if (e.key === 'Alt') this.altKeyHeld = true
       // Ignore if typing in input/textarea
       const target = e.target
       const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
