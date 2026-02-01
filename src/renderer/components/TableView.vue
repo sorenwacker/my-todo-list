@@ -1,5 +1,5 @@
 <template>
-  <div class="table-view compact">
+  <div class="table-view compact" @dragover="onDragOver" @dragend="onDragEnd" @dragleave="onDragEnd" @drop="onDragEnd">
     <table>
       <thead>
         <tr>
@@ -252,7 +252,9 @@ export default {
       editingSubtaskId: null,
       editingSubtaskTitle: '',
       addingSubtaskForTodo: null,
-      newSubtaskTitle: ''
+      newSubtaskTitle: '',
+      scrollDirection: 0,
+      scrollAnimationId: null
     }
   },
   methods: {
@@ -313,6 +315,52 @@ export default {
     cancelAddSubtask() {
       this.addingSubtaskForTodo = null
       this.newSubtaskTitle = ''
+    },
+    onDragOver(event) {
+      const tableView = this.$el
+      if (!tableView) return
+
+      const rect = tableView.getBoundingClientRect()
+      const y = event.clientY
+      const edgeSize = 80
+
+      let newDirection = 0
+      if (y < rect.top + edgeSize) {
+        newDirection = -1
+      } else if (y > rect.bottom - edgeSize) {
+        newDirection = 1
+      }
+
+      if (newDirection !== this.scrollDirection) {
+        this.scrollDirection = newDirection
+        if (newDirection !== 0) {
+          this.startAutoScroll()
+        } else {
+          this.stopAutoScroll()
+        }
+      }
+    },
+    startAutoScroll() {
+      if (this.scrollAnimationId) return
+      const scrollSpeed = 8
+      const scroll = () => {
+        const tableView = this.$el
+        if (tableView && this.scrollDirection !== 0) {
+          tableView.scrollTop += this.scrollDirection * scrollSpeed
+          this.scrollAnimationId = requestAnimationFrame(scroll)
+        }
+      }
+      this.scrollAnimationId = requestAnimationFrame(scroll)
+    },
+    stopAutoScroll() {
+      if (this.scrollAnimationId) {
+        cancelAnimationFrame(this.scrollAnimationId)
+        this.scrollAnimationId = null
+      }
+      this.scrollDirection = 0
+    },
+    onDragEnd() {
+      this.stopAutoScroll()
     }
   }
 }

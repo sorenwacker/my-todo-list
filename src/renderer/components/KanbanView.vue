@@ -1,5 +1,5 @@
 <template>
-  <div class="kanban-view-wrapper">
+  <div class="kanban-view-wrapper" @dragover="onDragOver" @dragend="onDragEnd" @dragleave="onDragEnd" @drop="onDragEnd">
     <div class="kanban-group-toggle">
       <button v-if="!isProjectSelected" :class="{ active: kanbanGroupBy === 'project' }" @click="$emit('update:kanban-group-by', 'project')">By Project</button>
       <button :class="{ active: kanbanGroupBy === 'category' }" @click="$emit('update:kanban-group-by', 'category')">By Category</button>
@@ -33,6 +33,7 @@
                 class="kanban-cards"
                 group="kanban"
                 ghost-class="ghost"
+                
                 @end="onStackedKanbanDrop($event, group.id, status.id)"
               >
                 <template #item="{ element }">
@@ -59,6 +60,7 @@
                 class="kanban-cards"
                 group="kanban"
                 ghost-class="ghost"
+                
                 @end="onStackedKanbanDrop($event, group.id, null)"
               >
                 <template #item="{ element }">
@@ -78,10 +80,10 @@
       </div>
     </template>
 
-    <div v-else class="kanban-view">
+    <div v-else ref="kanbanView" class="kanban-view">
       <!-- Project-based Kanban -->
       <template v-if="effectiveKanbanGroupBy === 'project'">
-        <div class="kanban-column inbox-column">
+        <div class="kanban-column inbox-column" data-project-id="">
           <div class="column-header">
             <span class="column-dot" style="background: #666"></span>
             <h3>Inbox</h3>
@@ -93,7 +95,10 @@
             class="kanban-cards"
             group="kanban"
             ghost-class="ghost"
-            @end="onKanbanDrop($event, null)"
+            :scroll="true"
+            :scroll-sensitivity="100"
+            :scroll-speed="10"
+            @end="onKanbanDropProject"
           >
             <template #item="{ element }">
               <KanbanCard
@@ -113,6 +118,7 @@
           v-for="project in projects"
           :key="project.id"
           class="kanban-column"
+          :data-project-id="project.id"
           :style="{ borderTopColor: project.color }"
         >
           <div class="column-header">
@@ -126,8 +132,11 @@
             class="kanban-cards"
             group="kanban"
             ghost-class="ghost"
+            :scroll="true"
+            :scroll-sensitivity="100"
+            :scroll-speed="10"
             @update:model-value="$emit('update-project-todos', project.id, $event)"
-            @end="onKanbanDrop($event, project.id)"
+            @end="onKanbanDropProject"
           >
             <template #item="{ element }">
               <KanbanCard
@@ -159,6 +168,7 @@
             group="kanban-category"
             ghost-class="ghost"
             data-category-id=""
+            
             @update:model-value="$emit('update-category-todos', null, $event)"
             @end="onKanbanDropCategory"
           >
@@ -197,6 +207,7 @@
             group="kanban-category"
             ghost-class="ghost"
             :data-category-id="category.id"
+            
             @update:model-value="$emit('update-category-todos', category.id, $event)"
             @end="onKanbanDropCategory"
           >
@@ -231,6 +242,7 @@
             group="kanban-status"
             ghost-class="ghost"
             data-status-id=""
+            
             @update:model-value="$emit('update-status-todos', null, $event)"
             @end="onKanbanDropStatus"
           >
@@ -267,6 +279,7 @@
             group="kanban-status"
             ghost-class="ghost"
             :data-status-id="status.id"
+            
             @update:model-value="$emit('update-status-todos', status.id, $event)"
             @end="onKanbanDropStatus"
           >
@@ -385,8 +398,15 @@ export default {
     'kanban-drop',
     'kanban-drop-category',
     'kanban-drop-status',
+    'kanban-project-change',
     'stacked-kanban-drop'
   ],
+  data() {
+    return {
+      scrollDirection: 0,
+      scrollAnimationId: null
+    }
+  },
   computed: {
     localInboxTodos: {
       get() {
@@ -418,8 +438,22 @@ export default {
         return projectMatch && statusMatch && !t.deleted
       })
     },
-    onKanbanDrop(event, projectId) {
-      this.$emit('kanban-drop', event, projectId)
+    onKanbanDropProject(event) {
+      // Find the target project from the column element
+      const targetColumn = event.to?.closest('.kanban-column')
+      const targetProjectId = targetColumn?.dataset?.projectId
+      const parsedProjectId = targetProjectId === '' ? null : (targetProjectId ? parseInt(targetProjectId) : undefined)
+
+      const todoId = event.item?.__draggable_context?.element?.id
+
+      console.log('onKanbanDropProject:', { todoId, targetProjectId, parsedProjectId })
+
+      if (todoId && parsedProjectId !== undefined) {
+        this.$emit('kanban-project-change', todoId, parsedProjectId)
+      }
+    },
+    onKanbanDrop(event) {
+      this.$emit('kanban-drop', event)
     },
     onKanbanDropCategory(event) {
       this.$emit('kanban-drop-category', event)
@@ -429,6 +463,52 @@ export default {
     },
     onStackedKanbanDrop(event, projectId, statusId) {
       this.$emit('stacked-kanban-drop', event, projectId, statusId)
+    },
+    onDragOver(event) {
+      const kanbanView = this.$refs.kanbanView
+      if (!kanbanView) return
+
+      const rect = kanbanView.getBoundingClientRect()
+      const x = event.clientX
+      const edgeSize = 100
+
+      let newDirection = 0
+      if (x < rect.left + edgeSize) {
+        newDirection = -1
+      } else if (x > rect.right - edgeSize) {
+        newDirection = 1
+      }
+
+      if (newDirection !== this.scrollDirection) {
+        this.scrollDirection = newDirection
+        if (newDirection !== 0) {
+          this.startAutoScroll()
+        } else {
+          this.stopAutoScroll()
+        }
+      }
+    },
+    startAutoScroll() {
+      if (this.scrollAnimationId) return
+      const scrollSpeed = 8
+      const scroll = () => {
+        const kanbanView = this.$refs.kanbanView
+        if (kanbanView && this.scrollDirection !== 0) {
+          kanbanView.scrollLeft += this.scrollDirection * scrollSpeed
+          this.scrollAnimationId = requestAnimationFrame(scroll)
+        }
+      }
+      this.scrollAnimationId = requestAnimationFrame(scroll)
+    },
+    stopAutoScroll() {
+      if (this.scrollAnimationId) {
+        cancelAnimationFrame(this.scrollAnimationId)
+        this.scrollAnimationId = null
+      }
+      this.scrollDirection = 0
+    },
+    onDragEnd() {
+      this.stopAutoScroll()
     }
   }
 }

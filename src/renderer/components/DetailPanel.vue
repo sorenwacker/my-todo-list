@@ -7,6 +7,11 @@
       @mousedown="$emit('resize-start', $event)"
     ></div>
     <div class="detail-panel-header">
+      <div class="breadcrumb" v-if="todo.project_name">
+        <span class="breadcrumb-item clickable" @click.stop="$emit('navigate-project', todo.project_id)">{{ todo.project_name }}</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item current">{{ todo.title || 'Untitled' }}</span>
+      </div>
       <div class="header-actions">
         <button class="fullscreen-btn" :title="fullscreen ? 'Exit fullscreen' : 'Fullscreen'" @click="$emit('toggle-fullscreen')">
           <svg v-if="!fullscreen" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -74,12 +79,8 @@
         </div>
       </div>
 
-      <div class="collapsible-sections" :class="{ 'all-collapsed': notesCollapsed && tasksCollapsed && metadataCollapsed }">
-      <div class="notes-section" :class="{ collapsed: notesCollapsed }">
-        <div class="section-header" @click="notesCollapsed = !notesCollapsed">
-          <span class="section-title">Notes</span>
-        </div>
-        <div v-show="!notesCollapsed" class="section-content">
+      <div class="collapsible-sections" :class="{ 'all-collapsed': bothCollapsed }" :style="collapsibleStyle">
+      <div class="notes-section" :style="notesStyle">
         <div class="tabs-row">
           <div class="tabs">
             <button
@@ -101,15 +102,13 @@
           </label>
         </div>
 
-        <textarea
+        <NotesEditor
           v-if="activeTab === 'edit'"
-          :value="todo.notes"
-          placeholder="Add notes (Markdown supported)..."
+          :model-value="todo.notes"
           class="notes-editor"
-          :style="{ borderColor: todo.project_color || '#333' }"
-          @input="$emit('update:notes', $event.target.value)"
-          @keydown.escape="$emit('close')"
-        ></textarea>
+          @update:model-value="$emit('update:notes', $event)"
+          @escape="$emit('close')"
+        />
 
         <div
           v-else-if="activeTab === 'preview'"
@@ -125,15 +124,13 @@
         </div>
 
         <div v-else class="notes-split">
-          <textarea
+          <NotesEditor
             ref="splitEditor"
-            :value="todo.notes"
-            placeholder="Add notes (Markdown supported)..."
+            :model-value="todo.notes"
             class="notes-editor split-editor"
-            @input="$emit('update:notes', $event.target.value)"
-            @keydown.escape="$emit('close')"
-            @scroll="syncScroll('editor')"
-          ></textarea>
+            @update:model-value="$emit('update:notes', $event)"
+            @escape="$emit('close')"
+          />
           <div
             ref="splitPreview"
             class="notes-preview markdown-body split-preview"
@@ -147,10 +144,16 @@
             <div v-else @click="$emit('markdown-click', $event)" v-html="renderedNotes"></div>
           </div>
         </div>
-        </div>
       </div>
 
-      <div class="bottom-sections" :class="{ 'both-collapsed': tasksCollapsed && metadataCollapsed }">
+      <div v-if="bothCollapsed" class="collapsed-bar" :style="collapsedBarStyle">
+        <span class="collapsed-chip" @click="tasksCollapsed = false">
+          Tasks
+          <span v-if="subtasks.length" class="chip-count">{{ completedSubtasksCount }}/{{ subtasks.length }}</span>
+        </span>
+        <span class="collapsed-chip" @click="metadataCollapsed = false">Metadata</span>
+      </div>
+      <div v-else class="bottom-sections" :class="{ 'metadata-expanded': !metadataCollapsed }" :style="bottomSectionsStyle">
         <div class="subtasks-section" :class="{ collapsed: tasksCollapsed }">
           <div class="section-header" @click="tasksCollapsed = !tasksCollapsed">
             <span class="section-title">Tasks</span>
@@ -358,11 +361,12 @@
 <script>
 import { renderMarkdown } from '../utils/markdown.js'
 import PersonAvatar from './PersonAvatar.vue'
+import NotesEditor from './NotesEditor.vue'
 import draggable from 'vuedraggable'
 
 export default {
   name: 'DetailPanel',
-  components: { PersonAvatar, draggable },
+  components: { PersonAvatar, NotesEditor, draggable },
   props: {
     todo: { type: Object, default: null },
     projects: { type: Array, default: () => [] },
@@ -406,7 +410,7 @@ export default {
     'assign-person', 'unassign-person', 'toggle-person-picker', 'open-settings', 'open-person', 'create-person',
     'reveal-notes', 'markdown-click',
     'update-milestone-date', 'clear-milestone-date', 'select-child',
-    'add-tag', 'remove-tag'
+    'add-tag', 'remove-tag', 'navigate-project'
   ],
   computed: {
     displayTitle() {
@@ -469,6 +473,63 @@ export default {
         case 'yearly': return plural ? 'years' : 'year'
         default: return ''
       }
+    },
+    bothCollapsed() {
+      return this.tasksCollapsed && this.metadataCollapsed
+    },
+    collapsibleStyle() {
+      if (!this.isVerticalLayout) return {}
+      // When metadata is expanded in vertical mode, use 2 rows to give it full width
+      if (!this.metadataCollapsed) {
+        return {
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gridTemplateRows: '1fr auto',
+          gap: '8px 12px'
+        }
+      }
+      return {
+        display: 'grid',
+        gridTemplateColumns: this.bothCollapsed ? '1fr' : '1fr 1fr',
+        gridTemplateRows: this.bothCollapsed ? '1fr auto' : '1fr',
+        gap: '8px 12px'
+      }
+    },
+    notesStyle() {
+      if (!this.isVerticalLayout) return {}
+      return { gridColumn: '1', gridRow: '1' }
+    },
+    collapsedBarStyle() {
+      const style = {
+        display: 'flex',
+        flexDirection: 'row',
+        gap: '16px',
+        alignItems: 'center',
+        flex: '0 0 auto'
+      }
+      if (this.isVerticalLayout) {
+        style.gridColumn = '1 / -1'
+        style.gridRow = '2'
+      }
+      return style
+    },
+    bottomSectionsStyle() {
+      if (!this.isVerticalLayout) return {}
+      // When metadata is expanded, let children participate in parent grid
+      if (!this.metadataCollapsed) {
+        return {
+          display: 'contents'
+        }
+      }
+      return {
+        gridColumn: '2',
+        gridRow: '1',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        minHeight: '0',
+        overflowY: 'auto'
+      }
     }
   },
   data() {
@@ -476,9 +537,8 @@ export default {
       localSubtasks: [],
       newPersonName: '',
       newTagInput: '',
-      notesCollapsed: false,
-      tasksCollapsed: false,
-      metadataCollapsed: false,
+      tasksCollapsed: true,
+      metadataCollapsed: true,
       isSyncingScroll: false
     }
   },
@@ -497,10 +557,7 @@ export default {
       immediate: true,
       handler(newTodo, oldTodo) {
         if (newTodo && (!oldTodo || newTodo.id !== oldTodo.id)) {
-          // Expand notes if todo has notes content, collapse if empty
-          this.notesCollapsed = !newTodo.notes
-          // Keep tasks expanded by default
-          this.tasksCollapsed = false
+          this.metadataCollapsed = true
         }
       }
     }
@@ -581,12 +638,47 @@ export default {
   padding: 4px 8px;
   border-bottom: 1px solid var(--border-color, #3a3f4b);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+  overflow: hidden;
+}
+
+.breadcrumb-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breadcrumb-item.clickable {
+  cursor: pointer;
+  color: #4fc3f7;
+}
+
+.breadcrumb-item.clickable:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-item.current {
+  color: #ccc;
+  max-width: 200px;
+}
+
+.breadcrumb-separator {
+  color: #555;
 }
 
 .header-actions {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .header-actions button {
@@ -699,11 +791,6 @@ export default {
   user-select: none;
 }
 
-.notes-section .section-header {
-  padding: 0;
-  margin-bottom: 2px;
-}
-
 .section-header:hover {
   color: var(--accent-color, #0f4c75);
 }
@@ -728,13 +815,11 @@ export default {
   transition: margin 0.2s;
 }
 
-.notes-section.collapsed,
 .subtasks-section.collapsed,
 .meta-section.collapsed {
   margin-bottom: 4px;
 }
 
-.notes-section.collapsed .section-header,
 .subtasks-section.collapsed .section-header,
 .meta-section.collapsed .section-header {
   margin-bottom: 0;
@@ -743,26 +828,40 @@ export default {
 /* Bottom sections container */
 .bottom-sections {
   flex-shrink: 0;
+  width: 100%;
 }
 
-.bottom-sections.both-collapsed {
-  display: flex;
-  gap: 16px;
+/* Collapsed bar - shown when both tasks and metadata are collapsed */
+.collapsed-bar {
+  user-select: none;
+}
+
+.collapsed-chip {
+  display: inline-flex;
   align-items: center;
-}
-
-.bottom-sections.both-collapsed .subtasks-section,
-.bottom-sections.both-collapsed .meta-section {
-  margin-bottom: 0;
+  gap: 4px;
   padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary, #e0e0e0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
 }
 
-.bottom-sections.both-collapsed .section-header {
-  padding: 0;
-  margin-bottom: 0;
+.collapsed-chip:hover {
+  color: var(--accent-color, #0f4c75);
+  background: rgba(255, 255, 255, 0.06);
 }
 
-/* All three sections collapsed */
+.chip-count {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+/* All sections collapsed */
 .collapsible-sections {
   display: flex;
   flex-direction: column;
@@ -770,48 +869,9 @@ export default {
   min-height: 0;
 }
 
-.collapsible-sections.all-collapsed {
-  flex: 0 0 auto;
-  flex-direction: row;
-  gap: 8px;
-  align-items: center;
-}
-
-.collapsible-sections.all-collapsed .notes-section,
-.collapsible-sections.all-collapsed .bottom-sections {
-  flex: 0 0 auto;
-  margin-bottom: 0;
-}
-
-.collapsible-sections.all-collapsed .bottom-sections {
-  display: flex;
-  gap: 8px;
-}
-
-.collapsible-sections.all-collapsed .notes-section.collapsed,
-.collapsible-sections.all-collapsed .subtasks-section.collapsed,
-.collapsible-sections.all-collapsed .meta-section.collapsed {
-  margin-bottom: 0;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 4px;
-}
-
-.collapsible-sections.all-collapsed .section-header {
-  padding: 0;
-  margin-bottom: 0;
-}
-
 .section-content {
   width: 100%;
-}
-
-.notes-section .section-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  height: 100%;
+  box-sizing: border-box;
 }
 
 .notes-section {
@@ -824,28 +884,6 @@ export default {
   border-radius: 6px;
 }
 
-.notes-section.collapsed {
-  flex: 0 0 auto;
-  margin-bottom: 4px;
-  min-height: 0;
-}
-
-/* When notes collapsed, let tasks expand */
-.notes-section.collapsed ~ .bottom-sections .subtasks-section {
-  flex: 1;
-}
-
-.notes-section.collapsed ~ .bottom-sections .subtasks-section .section-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.notes-section.collapsed ~ .bottom-sections {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
 
 .tabs-row {
   display: flex;
@@ -1072,6 +1110,8 @@ export default {
   background: var(--bg-primary, #1a1f2e);
   border-radius: 6px;
   flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .meta-grid {
@@ -1079,6 +1119,7 @@ export default {
   flex-wrap: wrap;
   gap: 4px 10px;
   align-items: center;
+  width: 100%;
 }
 
 .meta-item {
@@ -1498,32 +1539,20 @@ export default {
   color: var(--text-secondary, #a0a0a0);
 }
 
-/* Vertical/bottom mode - side by side layout */
-.detail-panel.vertical-mode .collapsible-sections {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr auto;
-  gap: 8px 12px;
-}
-
+/* Vertical/bottom mode - grid and flex layout handled by inline styles */
 .detail-panel.vertical-mode .notes-section {
-  grid-column: 1;
-  grid-row: 1;
   min-height: 0;
-}
-
-.detail-panel.vertical-mode .bottom-sections {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  display: contents;
 }
 
 .detail-panel.vertical-mode .subtasks-section {
-  grid-column: 2;
-  grid-row: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  flex: 1;
+}
+
+.detail-panel.vertical-mode .subtasks-section.collapsed {
+  flex: 0 0 auto;
 }
 
 .detail-panel.vertical-mode .subtasks-section .section-content {
@@ -1532,14 +1561,38 @@ export default {
 }
 
 .detail-panel.vertical-mode .meta-section {
+  flex-shrink: 0;
+}
+
+.detail-panel.vertical-mode .meta-section.collapsed {
+  flex: 0 0 auto;
+}
+
+/* Vertical mode with expanded metadata - restructure layout */
+.detail-panel.vertical-mode .bottom-sections.metadata-expanded .subtasks-section {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-panel.vertical-mode .bottom-sections.metadata-expanded .subtasks-section .section-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.detail-panel.vertical-mode .bottom-sections.metadata-expanded .meta-section {
   grid-column: 1 / -1;
   grid-row: 2;
 }
 
-/* When all collapsed in vertical mode */
-.detail-panel.vertical-mode .collapsible-sections.all-collapsed {
-  display: flex;
-  flex-direction: row;
+/* Full width metadata grid in vertical mode when expanded */
+.detail-panel.vertical-mode .bottom-sections.metadata-expanded .meta-section .meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 12px;
+  width: 100%;
 }
 
 /* Narrower vertical panels fall back to stacked */
