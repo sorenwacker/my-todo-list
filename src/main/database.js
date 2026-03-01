@@ -1,4 +1,4 @@
-import BetterSqlite3 from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
@@ -13,7 +13,7 @@ export class Database {
       dbPath = join(userDataPath, 'todos.db')
     }
 
-    this.db = new BetterSqlite3(dbPath)
+    this.db = new DatabaseSync(dbPath)
     this.init()
   }
 
@@ -530,12 +530,16 @@ export class Database {
 
   reorderPersons(ids) {
     const stmt = this.db.prepare('UPDATE persons SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
+    this.db.exec('BEGIN')
+    try {
       ids.forEach((id, index) => {
         stmt.run(index, id)
       })
-    })
-    transaction(ids)
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
@@ -793,45 +797,61 @@ export class Database {
 
   reorderTodos(ids) {
     const stmt = this.db.prepare('UPDATE todos SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
+    this.db.exec('BEGIN')
+    try {
       ids.forEach((id, index) => {
         stmt.run(index, id)
       })
-    })
-    transaction(ids)
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
   reorderProjects(ids) {
     const stmt = this.db.prepare('UPDATE projects SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
+    this.db.exec('BEGIN')
+    try {
       ids.forEach((id, index) => {
         stmt.run(index, id)
       })
-    })
-    transaction(ids)
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
   reorderCategories(ids) {
     const stmt = this.db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
+    this.db.exec('BEGIN')
+    try {
       ids.forEach((id, index) => {
         stmt.run(index, id)
       })
-    })
-    transaction(ids)
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
   reorderStatuses(ids) {
     const stmt = this.db.prepare('UPDATE statuses SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
+    this.db.exec('BEGIN')
+    try {
       ids.forEach((id, index) => {
         stmt.run(index, id)
       })
-    })
-    transaction(ids)
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
@@ -1046,12 +1066,16 @@ export class Database {
 
   reorderSubtasks(ids) {
     const stmt = this.db.prepare('UPDATE subtasks SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
+    this.db.exec('BEGIN')
+    try {
       ids.forEach((id, index) => {
         stmt.run(index, id)
       })
-    })
-    transaction(ids)
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
@@ -1445,18 +1469,19 @@ export class Database {
     const { projects, categories, statuses, todos, todoLinks, subtasks, persons, todoPersons, projectPersons } = importData.data
 
     // Create a transaction for atomic import
-    const transaction = this.db.transaction(() => {
+    this.db.exec('BEGIN')
+    try {
       // If replace mode, clear existing data
       if (mode === 'replace') {
-        this.db.prepare('DELETE FROM project_persons').run()
-        this.db.prepare('DELETE FROM todo_persons').run()
-        this.db.prepare('DELETE FROM subtasks').run()
-        this.db.prepare('DELETE FROM todo_links').run()
-        this.db.prepare('DELETE FROM todos').run()
-        this.db.prepare('DELETE FROM persons').run()
-        this.db.prepare('DELETE FROM statuses').run()
-        this.db.prepare('DELETE FROM categories').run()
-        this.db.prepare('DELETE FROM projects').run()
+        this.db.exec('DELETE FROM project_persons')
+        this.db.exec('DELETE FROM todo_persons')
+        this.db.exec('DELETE FROM subtasks')
+        this.db.exec('DELETE FROM todo_links')
+        this.db.exec('DELETE FROM todos')
+        this.db.exec('DELETE FROM persons')
+        this.db.exec('DELETE FROM statuses')
+        this.db.exec('DELETE FROM categories')
+        this.db.exec('DELETE FROM projects')
       }
 
       // Maps to track old ID to new ID mappings
@@ -1615,9 +1640,12 @@ export class Database {
           }
         })
       }
-    })
 
-    transaction()
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
     return true
   }
 
