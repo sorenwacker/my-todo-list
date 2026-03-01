@@ -188,7 +188,6 @@
       <!-- Create Topic button for projects without topics -->
       <div v-if="isProjectView && !showTopicInput" class="create-topic-bar">
         <button
-          class="create-topic-btn"
           class="create-topic-btn-inner"
           @click="showTopicInput = true"
         >
