@@ -61,13 +61,13 @@
     <template v-else-if="hasTopics && isTopicFiltered">
       <div class="filtered-topic-view">
         <!-- Topic chips for drag-drop targets -->
-        <div class="topic-chips-bar" style="display: flex; gap: 8px; padding: 8px 16px; background: #1a1a1a; border-bottom: 1px solid #333; flex-wrap: wrap;">
+        <div class="topic-chips-bar">
           <div
             v-for="topic in topics"
             :key="topic.id"
             class="topic-chip"
             :class="{ active: selectedTopicId === topic.id, 'drag-over': dragOverTopicId === topic.id }"
-            :style="{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: selectedTopicId === topic.id ? topic.color : '#2a2a2a', borderRadius: '12px', fontSize: '12px', color: selectedTopicId === topic.id ? '#fff' : '#ccc', cursor: 'pointer', border: dragOverTopicId === topic.id ? '2px solid ' + topic.color : '1px solid transparent' }"
+            :style="{ background: selectedTopicId === topic.id ? topic.color : 'var(--bg-tertiary)', color: selectedTopicId === topic.id ? '#fff' : 'var(--text-secondary)', border: dragOverTopicId === topic.id ? '2px solid ' + topic.color : '1px solid transparent' }"
             @click="$emit('select-topic', topic.id)"
             @dragover.prevent
             @dragenter="onTopicDragEnter(topic.id)"
@@ -80,7 +80,7 @@
           <div
             class="topic-chip"
             :class="{ 'drag-over': dragOverTopicId === null }"
-            :style="{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#2a2a2a', borderRadius: '12px', fontSize: '12px', color: '#888', cursor: 'pointer', border: dragOverTopicId === null ? '2px solid #666' : '1px solid transparent' }"
+            :style="{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)', border: dragOverTopicId === null ? '2px solid var(--border-color)' : '1px solid transparent' }"
             @dragover.prevent
             @dragenter="onTopicDragEnter(null)"
             @dragleave="onTopicDragLeave"
@@ -124,28 +124,25 @@
     </template>
     <!-- Topic Groups (when viewing a project with topics) -->
     <template v-else-if="hasTopics">
-      <div class="topic-boxes-container" :style="{ display: 'grid', gridTemplateColumns: `repeat(${cardColumns}, 1fr)`, gap: '16px', padding: '16px', alignItems: 'start' }">
+      <div class="topic-boxes-container" :style="{ gridTemplateColumns: `repeat(${cardColumns}, 1fr)` }">
         <div
           v-for="group in topicGroups"
           :key="group.id ?? 'no-topic'"
           class="topic-box"
           :class="{ 'drag-over': dragOverTopicId === group.id }"
-          :style="{ '--topic-color': group.color, background: '#1a1a1a', borderRadius: '8px', border: '1px solid #333', display: 'flex', flexDirection: 'column', minHeight: '150px' }"
+          :style="{ '--topic-color': group.color }"
           @dragover.prevent
           @dragenter="onTopicDragEnter(group.id)"
           @dragleave="onTopicDragLeave"
           @drop.stop="onTopicDrop($event, group.id)"
         >
-          <div class="topic-box-header" style="display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #222; border-radius: 8px 8px 0 0; border-bottom: 1px solid #333; cursor: pointer;" @dblclick="$emit('select-topic', group.id)" @contextmenu.prevent="showTopicContextMenu($event, group)">
+          <div class="topic-box-header" @dblclick="$emit('select-topic', group.id)" @contextmenu.prevent="showTopicContextMenu($event, group)">
             <span class="topic-dot" :style="{ background: group.color, width: '10px', height: '10px', borderRadius: '50%' }"></span>
-            <span class="topic-name" style="flex: 1; font-weight: 500; color: #eee;">{{ group.name }}</span>
-            <span class="topic-count" style="background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #888;">{{ group.todos.length }}</span>
-            <button class="topic-add-btn" style="padding: 2px 8px; background: transparent; border: 1px solid #444; border-radius: 4px; color: #888; font-size: 12px; cursor: pointer;" @click.stop="$emit('add-todo-to-topic', group.id)">+</button>
+            <span class="topic-name">{{ group.name }}</span>
+            <span class="topic-count">{{ group.todos.length }}</span>
+            <button class="topic-add-btn" @click.stop="$emit('add-todo-to-topic', group.id)">+</button>
           </div>
-          <div
-            class="topic-box-cards"
-            style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #000; border-radius: 0 0 8px 8px;"
-          >
+          <div class="topic-box-cards">
             <CardItem
               v-for="todo in group.todos"
               :key="todo.id"
@@ -171,15 +168,15 @@
           </div>
         </div>
         <!-- Add Topic Button -->
-        <div class="topic-box add-topic-box" style="min-height: 100px; background: transparent; border: 2px dashed #444; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer;" v-if="!showTopicInput" @click="showTopicInput = true">
-          <span class="add-topic-label" style="color: #666; font-size: 14px;">+ Add Topic</span>
+        <div class="topic-box add-topic-box" v-if="!showTopicInput" @click="showTopicInput = true">
+          <span class="add-topic-label">+ Add Topic</span>
         </div>
-        <div class="topic-box add-topic-box" style="min-height: 100px; background: transparent; border: 2px dashed #444; border-radius: 8px; display: flex; justify-content: center; align-items: center;" v-else>
+        <div class="topic-box add-topic-box" v-else>
           <input
             ref="topicInput"
             v-model="newTopicName"
             class="topic-input"
-            style="width: calc(100% - 32px); padding: 10px 14px; background: #2a2a2a; border: 1px solid #555; border-radius: 6px; font-size: 14px; color: #fff; outline: none;"
+            class="topic-name-input"
             placeholder="Topic name..."
             @keyup.enter="addTopic"
             @keyup.esc="showTopicInput = false; newTopicName = ''"
@@ -190,20 +187,20 @@
     </template>
     <template v-else>
       <!-- Create Topic button for projects without topics -->
-      <div v-if="isProjectView && !showTopicInput" class="create-topic-bar" style="padding: 12px 16px; border-bottom: 1px solid #333;">
+      <div v-if="isProjectView && !showTopicInput" class="create-topic-bar">
         <button
           class="create-topic-btn"
-          style="padding: 6px 12px; background: #2a2a2a; border: 1px dashed #555; border-radius: 6px; color: #888; cursor: pointer; font-size: 13px;"
+          class="create-topic-btn-inner"
           @click="showTopicInput = true"
         >
           + Create Topic
         </button>
       </div>
-      <div v-if="isProjectView && showTopicInput" class="create-topic-bar" style="padding: 12px 16px; border-bottom: 1px solid #333; display: flex; gap: 8px;">
+      <div v-if="isProjectView && showTopicInput" class="create-topic-bar create-topic-bar-input">
         <input
           ref="topicInput"
           v-model="newTopicName"
-          style="padding: 6px 12px; background: #2a2a2a; border: 1px solid #555; border-radius: 6px; color: #fff; font-size: 13px; flex: 1; max-width: 200px;"
+          class="create-topic-input"
           placeholder="Topic name..."
           @keyup.enter="addTopic"
           @keyup.esc="showTopicInput = false; newTopicName = ''"
@@ -592,11 +589,166 @@ export default {
   border-radius: 2px;
 }
 
+/* Topic chips bar */
+.topic-chips-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.topic-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Topic boxes container */
+.topic-boxes-container {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  align-items: start;
+}
+
+.topic-box {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+}
+
+.topic-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.topic-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.topic-count {
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.topic-add-btn {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.topic-add-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.topic-box-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-primary);
+  border-radius: 0 0 8px 8px;
+}
+
+/* Add topic box */
+.add-topic-box {
+  min-height: 100px;
+  background: transparent;
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.add-topic-label {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.topic-name-input {
+  width: calc(100% - 32px);
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Create topic bar */
+.create-topic-bar {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.create-topic-bar-input {
+  display: flex;
+  gap: 8px;
+}
+
+.create-topic-btn-inner {
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.create-topic-btn-inner:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.create-topic-input {
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  flex: 1;
+  max-width: 200px;
+  outline: none;
+}
+
+/* Context menu */
 .topic-context-menu {
   position: fixed;
   z-index: 1000;
-  background: #2a2a2a;
-  border: 1px solid #444;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   min-width: 120px;
@@ -606,12 +758,12 @@ export default {
 .context-menu-item {
   padding: 8px 16px;
   cursor: pointer;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
 .context-menu-item:hover {
-  background: #3a3a3a;
+  background: var(--hover-bg);
 }
 
 .context-menu-item.danger {
