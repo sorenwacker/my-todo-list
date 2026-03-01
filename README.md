@@ -1,5 +1,7 @@
 # Todo
 
+[![CI](https://github.com/sorenwacker/my-todo-list/actions/workflows/ci.yml/badge.svg)](https://github.com/sorenwacker/my-todo-list/actions/workflows/ci.yml)
+
 A feature-rich desktop todo application built with Electron and Vue 3. Designed for project management with support for hierarchical organization, markdown notes, and visual data representation.
 
 ## Features
