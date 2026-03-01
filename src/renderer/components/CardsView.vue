@@ -175,7 +175,6 @@
           <input
             ref="topicInput"
             v-model="newTopicName"
-            class="topic-input"
             class="topic-name-input"
             placeholder="Topic name..."
             @keyup.enter="addTopic"
