@@ -3191,6 +3191,27 @@ body {
   color: #ff6b6b;
 }
 
+.kanban-card .archive-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.kanban-card:hover .archive-btn {
+  opacity: 1;
+}
+
+.kanban-card .archive-btn:hover {
+  color: #ffc107;
+}
+
 .card-dates {
   margin-top: 10px;
   display: flex;
