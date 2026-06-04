@@ -2420,14 +2420,6 @@ body {
   max-height: none;
 }
 
-.cards-grid.masonry .todo-card.resizable.grid-locked {
-  resize: none;
-}
-
-.cards-grid.masonry .todo-card.resizable.grid-locked::after {
-  display: none;
-}
-
 .todo-card {
   background: #0d0d0d;
   border-radius: 8px;
@@ -2438,37 +2430,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.todo-card.resizable {
-  resize: none;
-  overflow: visible;
-  min-width: 200px;
-}
-
-.todo-card.resizable.grid-locked {
-  resize: none;
-  max-width: 100%;
-  position: relative;
-  height: auto;
-  min-height: auto;
-  max-height: none;
-  overflow: visible;
-}
-
-/* Visible resize handle */
-/* Vertical resize handle at bottom center for masonry cards */
-.cards-grid.masonry .todo-card.resizable::after {
-  content: '';
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 4px;
-  cursor: s-resize;
-  background: rgba(255,255,255,0.2);
-  border-radius: 2px;
 }
 
 .todo-card:hover {
@@ -4183,7 +4144,7 @@ body {
   color: #ccc;
 }
 
-.todo-card.resizable .card-notes-preview {
+.todo-card .card-notes-preview {
   flex: 1 1 auto;
   max-height: none;
   overflow-y: auto;
@@ -6552,10 +6513,6 @@ body {
 .light-theme .todo-card:hover {
   background: var(--hover-bg);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.light-theme .cards-grid.masonry .todo-card.resizable::after {
-  background: rgba(0,0,0,0.15);
 }
 
 .light-theme .todo-card .card-title {
