@@ -6216,7 +6216,9 @@ body {
 }
 
 .light-theme body,
-.light-theme {
+.light-theme,
+.light-theme #app,
+.light-theme .app {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -6358,6 +6360,10 @@ body {
 .light-theme .modal-actions button.primary:hover {
   background: #1b6ca8;
   border-color: #1b6ca8;
+}
+
+.light-theme .main-wrapper {
+  background: var(--bg-primary);
 }
 
 .light-theme .main-content {
@@ -7086,6 +7092,27 @@ body {
 
 .light-theme .inbox-item-date {
   color: var(--text-muted);
+}
+
+.light-theme .home-landing {
+  background: var(--bg-primary);
+}
+
+.light-theme .project-drop-target {
+  background: var(--bg-secondary);
+}
+
+.light-theme .project-drop-target:hover {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .project-drop-target .project-name {
+  color: var(--text-primary);
+}
+
+.light-theme .project-drop-target .project-count {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .light-theme .group-toggle {
