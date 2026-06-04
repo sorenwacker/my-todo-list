@@ -7058,6 +7058,16 @@ body {
   color: var(--text-primary);
 }
 
+.light-theme .search-input {
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.light-theme .search-input::placeholder {
+  color: var(--text-muted);
+}
+
 .light-theme .group-toggle {
   color: var(--text-secondary);
 }
