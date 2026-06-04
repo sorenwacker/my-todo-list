@@ -19,7 +19,7 @@
     "format": "prettier --write \"src/**/*.{js,vue}\" \"tests/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.{js,vue}\" \"tests/**/*.js\"",
     "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mac": "npm run build && electron-builder --mac && rm -rf dist/mac-arm64/*.app",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "release": "npm run build && electron-builder --publish always",
