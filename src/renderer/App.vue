@@ -1,5 +1,5 @@
 <template>
-  <div class="app" :class="{ 'light-theme': theme === 'light', 'sidebar-collapsed': !sidebarVisible, 'vertical-layout': isVerticalLayout }" :style="{ borderLeftColor: currentProjectColor }">
+  <div class="app" :class="{ 'light-theme': theme === 'light', 'sidebar-collapsed': !sidebarVisible }" :style="{ borderLeftColor: currentProjectColor }">
     <div
       v-if="!sidebarVisible"
       class="sidebar-hover-trigger"
@@ -8,32 +8,24 @@
     <AppSidebar
       :visible="sidebarVisible"
       :pinned="sidebarPinned"
+      :theme="theme"
       :on-mouse-leave="onSidebarMouseLeave"
       :on-mouse-enter="() => sidebarVisible = true"
       @toggle-pin="toggleSidebarPin"
       :current-filter="currentFilter"
       :projects="projects"
       :statuses="statuses"
-      :categories="categories"
       :all-count="allCount"
       :inbox-count="inboxCount"
       :trash-count="trashCount"
+      :archive-count="archiveCount"
       :project-counts="projectCounts"
       :status-counts="statusCounts"
-      :category-counts="categoryCounts"
-      :topics="projectTopics"
-      :selected-topic-id="selectedTopicId"
-      :topic-counts="topicCounts"
       :is-project-selected="isProjectSelected"
-      :open-todos-in-window="openTodosInWindow"
       :grid-lock="gridLock"
       :timezone="timezone"
       :database-path="databasePath"
       @set-filter="setFilter"
-      @select-topic="selectTopic"
-      @add-topic="addTopicFromSidebar"
-      @edit-topic="editTopic"
-      @delete-topic="deleteTopic"
       @update:projects="projects = $event"
       @projects-reorder="onProjectDragEnd"
       @add-project="addProjectFromSidebar"
@@ -42,11 +34,6 @@
       @statuses-reorder="onStatusDragEnd"
       @add-status="addStatusFromSidebar"
       @edit-status="editStatus"
-      @update:categories="categories = $event"
-      @categories-reorder="onCategoryDragEnd"
-      @add-category="addCategoryFromSidebar"
-      @edit-category="editCategory"
-      @update:open-todos-in-window="onOpenTodosInWindowChange"
       @update:grid-lock="onGridLockChange"
       @update:timezone="onTimezoneChange"
       @export="handleExport"
@@ -100,13 +87,6 @@
     </div>
 
     <!-- Modals -->
-    <CategoryModal
-      :category="editingCategory"
-      @save="saveCategoryFromModal"
-      @cancel="cancelEditCategory"
-      @delete="deleteCategoryConfirm"
-    />
-
     <StatusModal
       :status="editingStatus"
       :colors="statusColors"
@@ -118,37 +98,58 @@
     <ProjectModal
       :project="editingProject"
       :colors="projectColors"
-      :available-persons="persons"
-      :assigned-persons="currentProjectPersons"
       :project-tags="editingProjectTags"
       :all-tags="allTags"
       @save="saveProjectFromModal"
       @cancel="cancelEditProject"
       @delete="deleteProjectConfirm"
-      @assign-person="assignProjectPerson"
-      @unassign-person="unassignProjectPerson"
-      @open-register="openStakeholderRegister"
       @add-tag="addProjectTag"
       @remove-tag="removeProjectTag"
     />
 
-    <div class="main-wrapper" :class="{ 'detail-fullscreen': detailFullscreen && selectedTodo }">
-    <main class="main-content" :class="{ 'with-detail': selectedTodo }">
+    <div class="main-wrapper">
+    <main class="main-content">
       <header class="main-header">
         <div class="header-title-row">
           <h1 class="header-title">
-            <span>{{ currentTitle }}</span>
+            <span class="breadcrumb-link breadcrumb-home" @click="setFilter('inbox')" title="Home">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </span>
+            <template v-if="isProjectSelected">
+              <span class="breadcrumb-sep"> / </span>
+              <span>{{ currentProjectName }}</span>
+            </template>
+            <template v-else-if="currentFilter === 'inbox'">
+              <span class="breadcrumb-sep"> / </span>
+              <span>Inbox</span>
+            </template>
+            <template v-else-if="currentFilter === 'archive'">
+              <span class="breadcrumb-sep"> / </span>
+              <span>Archive</span>
+            </template>
+            <template v-else-if="currentFilter === 'trash'">
+              <span class="breadcrumb-sep"> / </span>
+              <span>Trash</span>
+            </template>
+            <template v-else-if="currentFilter === null && !showProjectsOverview">
+              <span class="breadcrumb-sep"> / </span>
+              <span>All</span>
+            </template>
           </h1>
-          <MainTabs
-            v-if="currentFilter !== 'trash'"
-            :active-tab="activeTab"
-            :items-count="itemsCount"
-            :stakeholders-count="stakeholdersCount"
-            :theme="theme"
-            :is-project-selected="isProjectSelected"
-            @change="setTab"
-          />
           <div class="header-actions">
+            <button
+              class="header-btn search-btn"
+              title="Search (press /)"
+              @click="showGlobalSearch = true"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
             <button
               class="header-btn"
               :class="{ disabled: !historyState.canUndo }"
@@ -188,36 +189,23 @@
             </button>
           </div>
         </div>
-        <div v-if="currentFilter !== 'persons'" class="header-controls">
+        <div class="header-controls">
           <div class="sort-controls">
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="search-input"
+              placeholder="Filter..."
+              @keyup.escape="searchQuery = ''"
+            />
             <select v-model="sortBy" class="sort-select">
               <option value="manual">Manual Order</option>
               <option value="created">By Created</option>
-              <option value="end_date">By End Date</option>
               <option value="alpha">Alphabetical</option>
             </select>
-            <div class="importance-filter">
-              <select v-model="importanceFilterOp" class="sort-select filter-op">
-                <option value="none">Importance</option>
-                <option value="gte">>=</option>
-                <option value="lte">&lt;=</option>
-                <option value="eq">=</option>
-              </select>
-              <select v-if="importanceFilterOp !== 'none'" v-model.number="importanceFilterValue" class="sort-select filter-val">
-                <option :value="1">1</option>
-                <option :value="2">2</option>
-                <option :value="3">3</option>
-                <option :value="4">4</option>
-                <option :value="5">5</option>
-              </select>
-            </div>
-            <label v-if="!isTrashView" class="hide-completed-toggle">
-              <input v-model="hideCompleted" type="checkbox" @change="toggleHideCompleted" />
-              <span>Hide completed</span>
-            </label>
-            <label v-if="!isProjectSelected" class="group-toggle">
-              <input v-model="groupByProject" type="checkbox" @change="onGroupByProjectChange" />
-              <span>Group by Project</span>
+            <label class="show-completed-toggle">
+              <input v-model="showCompleted" type="checkbox" />
+              <span>Show done</span>
             </label>
           </div>
           <div class="view-switcher">
@@ -225,13 +213,13 @@
               v-for="view in availableViews"
               :key="view"
               :class="{ active: currentView === view }"
-              :disabled="isTrashView && (view === 'kanban' || view === 'graph' || view === 'timeline')"
+              :disabled="isTrashView && view === 'kanban'"
               @click="setView(view)"
             >{{ view.charAt(0).toUpperCase() + view.slice(1) }}</button>
           </div>
           <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
         </div>
-        <div v-if="!isTrashView && activeTab !== 'stakeholders'" class="add-todo">
+        <div v-if="!isTrashView" class="add-todo">
           <input
             ref="newTodoInput"
             v-model="newTodoTitle"
@@ -241,81 +229,75 @@
           />
           <button @click="addTodo">Add</button>
         </div>
-        <div v-if="activeTab === 'stakeholders'" class="add-todo stakeholder-add-wrapper">
-          <input
-            ref="stakeholderSearchInput"
-            v-model="newPersonName"
-            placeholder="Add stakeholder..."
-            type="text"
-            @focus="showStakeholderPicker = true"
-            @blur="onStakeholderInputBlur"
-            @keyup.enter="addPersonFromHeader"
-            @keydown.esc="showStakeholderPicker = false"
-          />
-          <button @click="addPersonFromHeader">Add</button>
-          <div v-if="showStakeholderPicker && newPersonName.trim()" class="stakeholder-picker-dropdown">
-            <div v-if="filteredAvailableStakeholders.length > 0" class="picker-results">
-              <div
-                v-for="person in filteredAvailableStakeholders.slice(0, 10)"
-                :key="person.id"
-                class="picker-item"
-                @mousedown.prevent="assignStakeholderFromPicker(person)"
-              >
-                <div class="person-avatar-small" :style="{ background: person.color }">{{ getInitials(person.name) }}</div>
-                <span class="picker-item-name">{{ person.name }}</span>
-                <span v-if="person.role" class="picker-item-role">{{ person.role }}</span>
-              </div>
-            </div>
-            <div v-if="!hasExactStakeholderMatch && newPersonName.trim()" class="picker-create-hint" @mousedown.prevent="addPersonFromHeader">
-              Press Enter to create "{{ newPersonName.trim() }}"
-            </div>
-          </div>
-        </div>
       </header>
 
-      <!-- Project fade transition -->
-      <Transition name="fade" mode="out-in">
-        <div :key="currentFilter" class="project-content">
-          <!-- Stakeholders View (tab-based) -->
-          <PersonsView
-            v-if="activeTab === 'stakeholders'"
-            :persons="isProjectSelected ? selectedProjectStakeholders : persons"
-            :all-persons="persons"
-            :all-tags="allTags"
-            :theme="theme"
-            :project-id="isProjectSelected ? currentFilter : null"
-            :pending-edit="pendingPersonEdit"
-            :current-view="currentView"
-            @refresh="() => { loadProjectStakeholders(); loadAllTags() }"
-            @edit-opened="pendingPersonEdit = null"
-            @assign-person="assignStakeholder"
-            @unassign-person="unassignStakeholder"
-            @update-stakeholder="updateStakeholder"
-          />
+      <!-- Home Landing Page / Inbox View -->
+      <div v-if="showProjectsOverview || currentFilter === 'inbox'" class="home-landing">
+        <!-- Project Drop Targets -->
+        <div class="project-drop-targets">
+          <div
+            v-for="project in projects"
+            :key="project.id"
+            class="project-drop-target"
+            :class="{ 'drag-over': dragOverProjectId === project.id }"
+            :style="{ borderColor: project.color, '--project-color': project.color }"
+            @click="selectProjectFromOverview(project.id)"
+            @dragover.prevent="dragOverProjectId = project.id"
+            @dragleave="dragOverProjectId = null"
+            @drop.prevent="dropOnProject($event, project.id)"
+          >
+            <span class="project-name">{{ project.name }}</span>
+            <span class="project-count">{{ projectCounts[project.id] || 0 }}</span>
+          </div>
+        </div>
 
+        <!-- Inbox Items (draggable) -->
+        <div class="inbox-landing">
+          <h2 v-if="inboxTodos.length > 0">Inbox</h2>
+          <div class="inbox-items cards-grid">
+            <CardItem
+              v-for="todo in inboxTodos"
+              :key="todo.id"
+              :todo="todo"
+              :is-draggable="true"
+              :projects="projects"
+              :show-project="false"
+              @toggle-complete="toggleComplete(todo)"
+              @delete="deleteTodo(todo.id)"
+              @update-title="handleUpdateTitle(todo, $event)"
+              @update-notes="handleUpdateNotes(todo, $event)"
+              @archive="archiveTodo(todo.id)"
+              @move-to-project="moveToProject(todo, $event)"
+              @dragstart="onInboxDragStart($event, todo)"
+            />
+          </div>
+          <p v-if="inboxTodos.length === 0" class="empty-inbox">No items in inbox. Add one above or drag items here.</p>
+        </div>
+      </div>
+
+      <!-- Project fade transition -->
+      <Transition v-else-if="currentFilter !== 'inbox'" name="fade" mode="out-in">
+        <div :key="currentFilter" class="project-content">
           <!-- Views Container -->
-          <div v-else-if="activeTab !== 'stakeholders' && currentFilter !== 'persons'" class="views-container">
+          <div class="views-container">
           <!-- Cards View -->
           <CardsView
             v-if="currentView === 'cards'"
+            :theme="theme"
             :sorted-todos="sortedTodos"
             :grouped-todos="groupedTodos"
             :group-by-project="groupByProject"
-            :topics="isProjectSelected ? projectTopics : []"
-            :selected-topic-id="selectedTopicId"
             :is-project-view="isProjectSelected"
-            :selected-todo-id="selectedTodo?.id"
+            :selected-todo-id="null"
             :selected-todo-ids="selectedTodoIds"
             :focused-todo-id="focusedTodo?.id"
             :is-trash-view="isTrashView"
             :card-columns="cardColumns"
             :sort-by="sortBy"
             :current-filter="currentFilter"
-            :card-widths="cardWidths"
             :grid-lock="gridLock"
+            :projects="projects"
             @card-click="handleCardClick"
-            @card-mousedown="onCardMouseDown"
-            @card-resize="onCardResize"
             @toggle-complete="toggleComplete"
             @toggle-subtask="toggleSubtask"
             @delete-todo="deleteTodo"
@@ -326,480 +308,42 @@
             @update-group-todos="updateGroupTodos"
             @group-drag-end="onGroupDragEnd"
             @add-todo-to-project="addTodoToProject"
-            @drop-on-topic="handleDropOnTopic"
-            @add-topic="addTopicFromCards"
-            @select-topic="selectTopic"
-            @edit-topic="editTopic"
-            @delete-topic="deleteTopic"
-            @add-todo-to-topic="addTodoToTopic"
             @marquee-select="handleMarqueeSelect"
-          />
-
-          <!-- Table View -->
-          <TableView
-            v-else-if="currentView === 'table'"
-            key="table"
-            :sorted-todos="sortedTodos"
-            :grouped-todos="groupedTodos"
-            :group-by-project="groupByProject"
-            :selected-todo-id="selectedTodo?.id"
-            :selected-todo-ids="selectedTodoIds"
-            :focused-todo-id="focusedTodo?.id"
-            :is-trash-view="isTrashView"
-            :subtasks-map="allSubtasksMap"
-            @row-click="handleRowClick"
-            @toggle-complete="toggleComplete"
-            @toggle-subtask="toggleSubtask"
-            @delete-todo="deleteTodo"
-            @delete-subtask="deleteSubtaskFromTable"
-            @restore-todo="restoreTodo"
-            @permanent-delete-todo="permanentlyDeleteTodo"
-            @add-todo-to-project="addTodoToProject"
-            @add-subtask="addSubtaskFromTable"
-            @update-subtask="updateSubtaskFromTable"
-            @update-subtask-due-date="updateSubtaskDueDate"
+            @update-title="handleUpdateTitle"
+            @update-notes="handleUpdateNotes"
+            @archive-todo="archiveTodo"
+            @move-to-project="moveToProject"
           />
 
           <!-- Kanban View -->
           <KanbanView
             v-else-if="currentView === 'kanban'"
             key="kanban"
-            :kanban-group-by="kanbanGroupBy"
-            :effective-kanban-group-by="effectiveKanbanGroupBy"
-            :is-project-selected="isProjectSelected"
-            :group-by-project="groupByProject"
-            :grouped-todos="groupedTodos"
-            :projects="projects"
-            :categories="categories"
+            kanban-group-by="status"
+            effective-kanban-group-by="status"
             :statuses="statuses"
-            :inbox-todos="inboxTodos"
-            :uncategorized-todos="uncategorizedTodos"
             :no-status-todos="noStatusTodos"
-            :selected-todo-id="selectedTodo?.id"
+            :selected-todo-id="null"
             :selected-todo-ids="selectedTodoIds"
             :all-todos="filteredTodos"
-            @update:kanban-group-by="kanbanGroupBy = $event"
             @card-click="handleCardClick"
             @toggle-complete="toggleComplete"
             @delete-todo="deleteTodo"
-            @add-todo-to-project="addTodoToProject"
-            @add-todo-to-category="addTodoToCategory"
             @add-todo-to-status="addTodoToStatus"
-            @update-project-todos="updateProjectTodos"
-            @update-category-todos="updateCategoryTodos"
             @update-status-todos="updateStatusTodos"
-            @kanban-drop="onKanbanDrop"
-            @kanban-drop-category="onKanbanDropCategory"
             @kanban-drop-status="onKanbanDropStatus"
-            @stacked-kanban-drop="onStackedKanbanDrop"
+            @update-title="handleUpdateTitle"
           />
 
-          <!-- Gantt/Timeline View -->
-          <div v-else-if="currentView === 'timeline'" key="timeline" class="gantt-view">
-            <div class="gantt-controls">
-          <div class="timeline-mode-switcher">
-            <button :class="{ active: timelineMode === 'gantt' }" @click="timelineMode = 'gantt'">Gantt</button>
-            <button :class="{ active: timelineMode === 'month' }" @click="timelineMode = 'month'">Month</button>
-            <button :class="{ active: timelineMode === 'week' }" @click="timelineMode = 'week'">Week</button>
-            <button :class="{ active: timelineMode === 'day' }" @click="timelineMode = 'day'">Day</button>
-          </div>
-          <template v-if="timelineMode === 'gantt'">
-            <select v-model="ganttGroupBy" class="gantt-groupby">
-              <option value="project">By Project</option>
-              <option value="category">By Category</option>
-              <option value="importance">By Importance</option>
-              <option value="milestone">By Milestone</option>
-            </select>
-            <button @click="timelineOffset -= 200">&#8592;</button>
-            <button @click="timelineScale = Math.max(20, timelineScale - 20)">-</button>
-            <span class="timeline-scale-label">{{ timelineScale }}px/day</span>
-            <button @click="timelineScale = Math.min(500, timelineScale + 20)">+</button>
-            <button @click="timelineOffset += 200">&#8594;</button>
-            <button class="reset-btn" @click="timelineOffset = 0; timelineScale = 100">Reset</button>
-          </template>
-          <template v-else>
-            <button @click="navigateCalendar(-1)">&lt;</button>
-            <button class="today-btn" @click="goToToday">Today</button>
-            <button @click="navigateCalendar(1)">&gt;</button>
-            <span class="calendar-period">{{ calendarPeriodLabel }}</span>
-          </template>
-        </div>
-
-        <!-- Gantt Chart -->
-        <div v-if="timelineMode === 'gantt'" class="gantt-container">
-          <div class="gantt-sidebar">
-            <div class="gantt-header-cell">Task</div>
-            <div
-              v-for="row in ganttRows"
-              :key="row.id"
-              class="gantt-row-label"
-              :class="{ 'drop-target': dropTargetRowId === row.id, 'is-milestone-row': row.isMilestone }"
-              :style="{ borderLeftColor: row.color, height: getRowHeight(row) + 'px' }"
-            >
-              <div class="row-main">
-                <span class="row-name">{{ row.name }}</span>
-                <span class="row-count">{{ row.todos.length }}</span>
-              </div>
-              <div v-if="row.persons && row.persons.length" class="row-persons">
-                <span
-                  v-for="person in row.persons"
-                  :key="person.id"
-                  class="person-badge"
-                  :style="{ background: person.color || '#666' }"
-                  :title="person.role ? `${person.name} (${person.role})` : person.name"
-                >{{ person.name.charAt(0) }}</span>
-              </div>
-            </div>
-          </div>
-          <div ref="ganttChartArea" class="gantt-chart-area" @wheel.prevent="onTimelineWheel" @dblclick="onTimelineChartDblClick">
-            <div class="gantt-scroll" :style="{ transform: `translateX(${-timelineOffset}px)` }">
-              <div class="gantt-header" :style="{ width: timelineRange.days * timelineScale + 'px' }">
-                <div
-                  v-for="(date, i) in timelineDates"
-                  :key="i"
-                  class="gantt-date-header"
-                  :class="{ 'is-today': isToday(date), 'is-weekend': isWeekend(date), 'show-label': shouldShowDateLabel(i) }"
-                  :style="{ left: i * timelineScale + 'px', width: timelineScale + 'px' }"
-                >
-                  <template v-if="shouldShowDateLabel(i)">
-                    <span class="date-weekday">{{ getWeekdayName(date) }}</span>
-                    <span class="date-day">{{ formatTimelineDate(date) }}</span>
-                  </template>
-                </div>
-                <!-- Today marker -->
-                <div v-if="todayPosition >= 0" class="today-marker" :style="{ left: todayPosition + 'px' }"></div>
-              </div>
-              <div class="gantt-rows">
-                <div
-                  v-for="row in ganttRows"
-                  :key="row.id"
-                  class="gantt-row"
-                  :class="{ 'drop-target': dropTargetRowId === row.id }"
-                  :style="{ height: getRowHeight(row) + 'px' }"
-                >
-                  <div
-                    class="gantt-row-bg"
-                    :style="{ width: timelineRange.days * timelineScale + 'px', height: getRowHeight(row) + 'px' }"
-                    @dblclick="createTodoFromTimeline($event, row)"
-                  >
-                    <div
-                      v-for="(date, i) in timelineDates"
-                      :key="i"
-                      class="gantt-grid-line"
-                      :style="{ left: i * timelineScale + 'px' }"
-                    ></div>
-                  </div>
-                  <div
-                    v-for="todo in row.todos"
-                    :key="todo.id"
-                    class="gantt-bar"
-                    :class="{ completed: todo.completed, selected: selectedTodo?.id === todo.id, dragging: draggingBarId === todo.id, resizing: draggingBarId === todo.id && barDragMode !== 'move', milestone: todo.type === 'milestone' }"
-                    :style="getGanttBarStyle(todo, row)"
-                    :title="todo.title"
-                    @click="selectTodo(todo.id)"
-                    @mousedown.stop="startBarDrag($event, todo, 'move')"
-                  >
-                    <div class="gantt-bar-handle left" @mousedown.stop="startBarDrag($event, todo, 'resize-start')"></div>
-                    <span class="gantt-bar-title">{{ todo.title }}</span>
-                    <div class="gantt-bar-handle right" @mousedown.stop="startBarDrag($event, todo, 'resize-end')"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Month Calendar -->
-        <div v-if="timelineMode === 'month'" class="calendar-month">
-          <div class="weekday-headers">
-            <div v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day" class="weekday-header">{{ day }}</div>
-          </div>
-          <div class="month-grid">
-            <div
-              v-for="(day, index) in calendarMonthDays"
-              :key="index"
-              class="month-cell"
-              :class="{ 'other-month': !day.isCurrentMonth, 'is-today': day.isToday, 'is-weekend': day.isWeekend }"
-              @dblclick="createTodoOnDate(day.date)"
-            >
-              <div class="cell-date">{{ day.dayNumber }}</div>
-              <div class="cell-events">
-                <div
-                  v-for="todo in getTodosForCalendarDate(day.date)"
-                  :key="todo.id"
-                  class="cal-event"
-                  :class="{ completed: todo.completed, milestone: todo.type === 'milestone' }"
-                  :style="{ borderLeftColor: todo.project_color || '#666' }"
-                  @click.stop="selectTodo(todo.id)"
-                >{{ todo.title }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Week Calendar -->
-        <div v-if="timelineMode === 'week'" class="calendar-week">
-          <div class="week-header">
-            <div class="time-gutter-header"></div>
-            <div v-for="day in calendarWeekDays" :key="day.date" class="week-day-header" :class="{ 'is-today': day.isToday }">
-              <span class="day-name">{{ day.dayName }}</span>
-              <span class="day-number" :class="{ 'today-circle': day.isToday }">{{ day.dayNumber }}</span>
-            </div>
-          </div>
-          <div class="week-body">
-            <div class="time-gutter">
-              <div v-for="hour in 24" :key="hour" class="hour-label">{{ hour === 1 ? '12 AM' : hour < 13 ? (hour-1) + ' AM' : hour === 13 ? '12 PM' : (hour-13) + ' PM' }}</div>
-            </div>
-            <div class="week-columns">
-              <div v-for="day in calendarWeekDays" :key="day.date" class="week-column" :class="{ 'is-today': day.isToday, 'is-weekend': day.isWeekend }">
-                <div class="hour-slots">
-                  <div v-for="hour in 24" :key="hour" class="hour-slot" @dblclick="createTodoOnDate(day.date)"></div>
-                </div>
-                <div class="day-events">
-                  <div
-                    v-for="todo in getTodosForCalendarDate(day.date)"
-                    :key="todo.id"
-                    class="week-event"
-                    :class="{ completed: todo.completed, milestone: todo.type === 'milestone' }"
-                    :style="{ borderLeftColor: todo.project_color || '#666' }"
-                    @click.stop="selectTodo(todo.id)"
-                  >{{ todo.title }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Day Calendar -->
-        <div v-if="timelineMode === 'day'" class="calendar-day">
-          <div class="day-body">
-            <div class="time-gutter">
-              <div v-for="hour in 24" :key="hour" class="hour-label">{{ hour === 1 ? '12 AM' : hour < 13 ? (hour-1) + ' AM' : hour === 13 ? '12 PM' : (hour-13) + ' PM' }}</div>
-            </div>
-            <div class="day-column">
-              <div class="hour-slots">
-                <div v-for="hour in 24" :key="hour" class="hour-slot" @dblclick="createTodoOnDate(formatDateKey(calendarDate))"></div>
-              </div>
-              <div class="day-events-list">
-                <div
-                  v-for="todo in calendarDayTodos"
-                  :key="todo.id"
-                  class="day-event"
-                  :class="{ completed: todo.completed, milestone: todo.type === 'milestone' }"
-                  :style="{ borderLeftColor: todo.project_color || '#666' }"
-                  @click.stop="selectTodo(todo.id)"
-                >
-                  <div class="event-title">{{ todo.title }}</div>
-                  <div v-if="todo.project_name" class="event-project">{{ todo.project_name }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-          <!-- Graph View -->
-          <div
-            v-else-if="currentView === 'graph'" key="graph" ref="graphContainer" class="graph-view" :class="{ dragging: draggingNode, panning: isPanning }"
-        @wheel.prevent="onGraphWheel"
-        @mousedown="onGraphMouseDown"
-        @mousemove="onGraphMouseMove"
-        @mouseup="onGraphMouseUp"
-        @mouseleave="onGraphMouseUp"
-      >
-        <svg ref="graphSvg" class="graph-svg" :viewBox="`0 0 ${graphWidth} ${graphHeight}`" preserveAspectRatio="xMidYMid meet" @dblclick="onGraphDblClick" @click="onGraphCanvasClick">
-          <g :transform="`translate(${graphPan.x}, ${graphPan.y}) scale(${graphZoom})`">
-            <!-- Connection lines -->
-            <g class="graph-links">
-              <g v-for="link in graphLinks" :key="`${link.source}-${link.target}`">
-                <!-- Invisible wider path for hover detection -->
-                <path
-                  :d="getEdgePath(link)"
-                  class="graph-link-hover"
-                  @mouseenter="hoveredLink = link"
-                  @mouseleave="hoveredLink = null"
-                  @click="onLinkClick($event, link)"
-                  @contextmenu.prevent="onLinkRightClick($event, link)"
-                />
-                <!-- Visible path -->
-                <path
-                  :d="getEdgePath(link)"
-                  class="graph-link"
-                  :class="{ hovered: hoveredLink === link, 'person-link': isPersonLink(link) }"
-                  :style="{ stroke: getLinkColor(link) }"
-                />
-                <!-- Buttons in middle of selected link -->
-                <g
-                  v-if="selectedLink === link"
-                  :transform="`translate(${(getNodeX(link.source) + getNodeX(link.target)) / 2}, ${(getNodeY(link.source) + getNodeY(link.target)) / 2})`"
-                >
-                  <!-- Add node button -->
-                  <g class="link-add-btn" transform="translate(-16, 0)" @click.stop="insertNodeInLinkDirect(link); selectedLink = null">
-                    <circle r="12" class="link-add-circle" />
-                    <text class="link-add-icon" text-anchor="middle" dominant-baseline="central">+</text>
-                  </g>
-                  <!-- Remove link button -->
-                  <g class="link-remove-btn" transform="translate(16, 0)" @click.stop="removeLink(link); selectedLink = null">
-                    <circle r="12" class="link-remove-circle" />
-                    <text class="link-remove-icon" text-anchor="middle" dominant-baseline="central">×</text>
-                  </g>
-                </g>
-              </g>
-            </g>
-            <!-- Nodes -->
-            <g class="graph-nodes">
-              <g
-                v-for="todo in graphNodes"
-                :key="todo.id"
-                class="graph-node"
-                :class="{
-                  person: todo.type === 'person',
-                  completed: todo.completed,
-                  selected: selectedTodo?.id === todo.id || selectedNodeIds.includes(todo.id),
-                  linking: graphLinkMode && graphLinkSource?.id === todo.id,
-                  dragging: draggingNode?.id === todo.id
-                }"
-                :data-node-id="todo.id"
-                :transform="`translate(${getNodeX(todo.id)}, ${getNodeY(todo.id)})`"
-                @mousedown.stop="onNodeMouseDown($event, todo)"
-                @mouseenter="hoveredNode = todo"
-                @mouseleave="hoveredNode = null"
-              >
-                <!-- Person node (pill shape) -->
-                <template v-if="todo.type === 'person'">
-                  <foreignObject x="-80" y="-25" width="160" height="50" class="node-foreign" overflow="visible">
-                    <div
-                      xmlns="http://www.w3.org/1999/xhtml"
-                      class="person-node-wrapper"
-                      :style="{ borderColor: todo.color || '#8e44ad' }"
-                    >
-                      <button class="person-node-remove" @mousedown.stop.prevent="removePersonFromGraph(todo)" title="Remove from graph">×</button>
-                      {{ todo.title }}
-                    </div>
-                  </foreignObject>
-                </template>
-                <!-- Todo node (auto-sizing with foreignObject) -->
-                <template v-else>
-                  <foreignObject x="-150" y="-200" width="300" height="400" class="node-foreign" overflow="visible">
-                    <div
-                      xmlns="http://www.w3.org/1999/xhtml"
-                      class="node-content-wrapper"
-                      :style="{ borderColor: todo.project_color || '#0f4c75' }"
-                      @mousedown="onNodeContentMouseDown($event, todo)"
-                      @click.stop="startEditingNode($event, todo)"
-                      @dblclick.stop="selectTodo(todo.id)"
-                    >
-                      <button class="node-delete-btn" @mousedown.stop.prevent="deleteTodoFromGraph(todo.id)" title="Delete">×</button>
-                      <div v-if="todo.category_symbol" class="node-category-symbol" :title="todo.category_name">
-                        <component :is="getIconComponent(todo.category_symbol)" v-if="getIconComponent(todo.category_symbol)" :size="14" />
-                        <span v-else>{{ todo.category_symbol }}</span>
-                      </div>
-                      <template v-if="editingNodeId === todo.id">
-                        <input
-                          class="node-title-editor"
-                          v-model="editingNodeTitle"
-                          @keydown.enter.prevent="focusNotesEditor"
-                          @keydown.escape="closeEverything"
-                          @blur="onNodeTitleBlur($event, todo)"
-                          @input="debouncedSaveNode"
-                          @mousedown.stop
-                          @click.stop
-                          placeholder="Title..."
-                        />
-                      </template>
-                      <div v-else-if="todo.title && todo.title !== 'Untitled' && todo.title !== 'New Node'" class="node-title-text">{{ todo.title }}</div>
-                      <template v-if="editingNodeId === todo.id">
-                        <textarea
-                          ref="nodeNotesEditor"
-                          class="node-notes-editor"
-                          v-model="editingNodeNotes"
-                          @blur="onNodeNotesBlur($event, todo)"
-                          @keydown.escape="closeEverything"
-                          @keydown.ctrl.enter.stop="saveAndCloseNode(todo)"
-                          @keydown.meta.enter.stop="saveAndCloseNode(todo)"
-                          @input="autoResizeNodeEditor"
-                          @mousedown.stop
-                          @click.stop
-                          placeholder="Write notes here... (Markdown supported)"
-                        ></textarea>
-                      </template>
-                      <template v-else>
-                        <div v-if="todo.notes && !todo.notes_sensitive" class="node-notes" v-html="renderCardMarkdown(todo.notes)" @click="onNotesClick"></div>
-                        <div v-else-if="todo.notes_sensitive" class="node-notes sensitive">Sensitive content</div>
-                      </template>
-                    </div>
-                  </foreignObject>
-                </template>
-              </g>
-            </g>
-          </g>
-        </svg>
-        <!-- Tooltip -->
-        <div v-if="hoveredNode && !draggingNode" class="graph-tooltip" :style="tooltipStyle">
-          <div class="tooltip-title">{{ hoveredNode.title }}</div>
-          <div v-if="hoveredNode.project_name" class="tooltip-project">{{ hoveredNode.project_name }}</div>
-          <div v-if="hoveredNode.end_date" class="tooltip-deadline">Due: {{ formatDeadline(hoveredNode.end_date) }}</div>
-          <div v-if="hoveredNode.notes" class="tooltip-notes markdown-body" v-html="renderCardMarkdown(hoveredNode.notes)"></div>
-        </div>
-        <!-- Link Context Menu -->
-        <div v-if="linkContextMenu" class="link-context-menu" :style="{ left: linkContextMenu.x + 'px', top: linkContextMenu.y + 'px' }" @click.stop>
-          <button @click="insertNodeInLink">Insert Node</button>
-          <button @click="removeLinkFromMenu">Remove Link</button>
-          <button @click="linkContextMenu = null">Cancel</button>
-        </div>
-        <div class="graph-controls">
-          <div class="control-group zoom-group">
-            <button class="icon-btn" @click="graphZoom = Math.max(0.3, graphZoom - 0.1)" title="Zoom out">-</button>
-            <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
-            <button class="icon-btn" @click="graphZoom = Math.min(3, graphZoom + 0.1)" title="Zoom in">+</button>
-            <button class="icon-btn" @click="resetGraphView" title="Center view">O</button>
-          </div>
-          <div class="control-group layout-group">
-            <select v-model="graphLayoutType" class="layout-select" @change="onLayoutTypeChange">
-              <option value="force">Force</option>
-              <option value="tree">Tree</option>
-              <option value="grid">Grid</option>
-            </select>
-            <button :class="{ active: isSimulating }" @click="runLayout">{{ isSimulating ? 'Stop' : 'Run' }}</button>
-          </div>
-          <div class="control-group">
-            <button :class="{ active: graphLinkMode || altKeyHeld }" @click="toggleGraphLinkMode">{{ graphLinkMode ? 'Cancel' : 'Link' }}</button>
-            <button :class="{ active: showGraphSettings }" @click="showGraphSettings = !showGraphSettings" title="Settings">Cfg</button>
-          </div>
-          <span v-if="graphLinkMode" class="link-hint">{{ graphLinkSource ? `Link to "${graphLinkSource.title}"` : 'Select node' }}</span>
-        </div>
-        <div v-if="showGraphSettings" class="graph-settings">
-          <div class="setting-row checkbox-row">
-            <input id="show-persons" v-model="showPersonsInGraph" type="checkbox" @change="updateGraphData" />
-            <label for="show-persons">Persons</label>
-          </div>
-          <div class="setting-row checkbox-row">
-            <input id="orthogonal-edges" v-model="orthogonalEdges" type="checkbox" @change="saveOrthogonalSetting" />
-            <label for="orthogonal-edges">Orthogonal</label>
-          </div>
-          <div v-if="graphLayoutType === 'force'" class="setting-row">
-            <label>Repel</label>
-            <input v-model.number="graphRepulsion" type="range" min="-1000" max="-50" step="50" @input="onGraphSettingChange" />
-            <span>{{ Math.abs(graphRepulsion) }}</span>
-          </div>
-          <div class="setting-row">
-            <label>Distance</label>
-            <input v-model.number="graphEdgeLength" type="range" min="10" max="300" step="5" @input="onGraphSettingChange" />
-            <span>{{ graphEdgeLength }}</span>
-          </div>
-          <button class="reset-settings-btn" @click="resetGraphSettings">Reset</button>
-        </div>
-      </div>
-          </div>
-
-          <div v-if="filteredTodos.length === 0 && activeTab !== 'stakeholders' && currentFilter !== 'persons' && currentView !== 'kanban' && currentView !== 'timeline' && currentView !== 'graph'" class="empty-state">
+          <div v-if="filteredTodos.length === 0 && currentView !== 'kanban'" class="empty-state">
             <p>No items yet. Add one above.</p>
+          </div>
           </div>
         </div>
       </Transition>
 
       <!-- Bottom Bar with Card Size Slider - outside transition -->
-      <div v-if="!selectedTodo && currentView === 'cards' && activeTab !== 'stakeholders'" class="bottom-bar">
+      <div v-if="currentView === 'cards'" class="bottom-bar">
         <div class="card-size-control">
           <label class="card-size-label">
             <span>Columns: {{ cardColumns }}</span>
@@ -815,108 +359,26 @@
         </div>
       </div>
     </main>
-
-    <!-- Detail Panel -->
-    <DetailPanel
-      :todo="selectedTodo"
-      :projects="projects"
-      :categories="categories"
-      :statuses="statuses"
-      :topics="selectedTodoTopics"
-      :persons="persons"
-      :subtasks="subtasks"
-      :linked-todos="linkedTodos"
-      :child-todos="childTodos"
-      :assigned-persons="assignedPersons"
-      :tags="todoTags"
-      :all-tags="allTags"
-      :active-tab="detailTab"
-      :new-subtask-title="newSubtaskTitle"
-      :link-query="linkQuery"
-      :link-results="linkResults"
-      :show-link-search="showLinkSearch"
-      :show-person-picker="showPersonPicker"
-      :notes-revealed="notesRevealed"
-      :is-resizing="isResizing"
-      :layout-preference="detailLayoutPreference"
-      :is-vertical-layout="isVerticalLayout"
-      :detail-width="detailWidth"
-      :detail-height="detailHeight"
-      :fullscreen="detailFullscreen"
-      @close="closeDetail"
-      @toggle-fullscreen="toggleDetailFullscreen"
-      @detach="detachDetail"
-      @toggle-layout="toggleDetailLayout"
-      @resize-start="startResize"
-      @toggle-complete="toggleSelectedComplete"
-      @save="saveSelectedTodo"
-      @update:title="updateSelectedField('title', $event)"
-      @update:notes="updateSelectedField('notes', $event)"
-      @update:notes-sensitive="updateSelectedField('notes_sensitive', $event)"
-      @update:active-tab="detailTab = $event"
-      @project-change="handleProjectChange"
-      @category-change="handleCategoryChange"
-      @status-change="handleStatusChange"
-      @topic-change="handleTopicChange"
-      @set-importance="setImportance"
-      @update-start-date="updateStartDateFromPanel"
-      @clear-start-date="clearStartDate"
-      @update-end-date="updateEndDateFromPanel"
-      @clear-end-date="clearEndDate"
-      @update-due-date="updateDueDateFromPanel"
-      @clear-due-date="clearDueDate"
-      @update-recurrence-type="handleRecurrenceTypeChange"
-      @update-recurrence-interval="handleRecurrenceIntervalChange"
-      @update-recurrence-end-date="updateRecurrenceEndDateFromPanel"
-      @clear-recurrence-end-date="clearRecurrenceEndDate"
-      @toggle-subtask="toggleSubtask"
-      @delete-subtask="deleteSubtask"
-      @add-subtask="addSubtask"
-      @reorder-subtasks="reorderSubtasks"
-      @update-subtask-due-date="updateSubtaskDueDate"
-      @update:new-subtask-title="newSubtaskTitle = $event"
-      @select-linked="selectTodo"
-      @unlink="unlinkFrom"
-      @toggle-link-search="showLinkSearch = !showLinkSearch"
-      @update:link-query="linkQuery = $event; searchForLinks()"
-      @link-to="linkTo"
-      @assign-person="assignPerson"
-      @unassign-person="unassignPerson"
-      @create-person="createAndAssignPerson"
-      @toggle-person-picker="showPersonPicker = !showPersonPicker"
-      @open-settings="openSettings"
-      @open-person="openPersonDetails"
-      @reveal-notes="revealNotes"
-      @markdown-click="handleMarkdownClick"
-      @update-milestone-date="updateMilestoneDate"
-      @clear-milestone-date="clearMilestoneDate"
-      @select-child="selectTodo"
-      @add-tag="addTodoTag"
-      @remove-tag="removeTodoTag"
-    />
     </div>
 
     <!-- Global Search -->
     <GlobalSearch
       :visible="showGlobalSearch"
+      :recent-items="recentItems"
       @close="showGlobalSearch = false"
       @select-todo="onGlobalSearchSelectTodo"
-      @select-person="onGlobalSearchSelectPerson"
       @select-project="onGlobalSearchSelectProject"
     />
-  </div>
+
+      </div>
 </template>
 
 <script>
 import { renderMarkdown, renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
-import * as d3Force from 'd3-force'
 import draggable from 'vuedraggable'
-import PersonsView from './PersonsView.vue'
-import CalendarView from './components/CalendarView.vue'
 import GlobalSearch from './components/GlobalSearch.vue'
-import MainTabs from './components/MainTabs.vue'
-import { AppSidebar, CardsView, CategoryModal, DetailPanel, KanbanView, StatusModal, ProjectModal, TableView } from './components/index.js'
+import { AppSidebar, CardsView, CardItem, KanbanView, StatusModal, ProjectModal } from './components/index.js'
 import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
@@ -938,10 +400,9 @@ function validateLocalStorage() {
     const _storedVersion = parseInt(localStorage.getItem('settings-version') || '0')
 
     // Define valid values for enum-like settings
-    const validViews = ['cards', 'table', 'kanban', 'timeline', 'calendar', 'graph', 'persons']
-    const validSorts = ['manual', 'created', 'end_date', 'alpha', 'importance']
+    const validViews = ['cards', 'kanban', 'calendar']
+    const validSorts = ['manual', 'created', 'alpha']
     const validThemes = ['dark', 'light']
-    const validLayouts = ['auto', 'horizontal', 'vertical']
 
     // Validate current-view
     const currentView = localStorage.getItem('current-view')
@@ -1065,18 +526,13 @@ export default {
   name: 'App',
   components: {
     draggable,
-    PersonsView,
-    CalendarView,
-    MainTabs,
     AppSidebar,
     CardsView,
-    CategoryModal,
-    DetailPanel,
+    CardItem,
     GlobalSearch,
     KanbanView,
     StatusModal,
     ProjectModal,
-    TableView,
     ...categoryIcons
   },
   data() {
@@ -1093,7 +549,7 @@ export default {
         if (saved === 'todos' || saved === 'notes' || saved === 'split') return 'items'
         return saved || 'items'
       })(),
-      hideCompleted: localStorage.getItem('hide-completed') === 'true',
+      showCompleted: localStorage.getItem('show-completed') === 'true',
       kanbanGroupBy: 'status',
       newTodoTitle: '',
       newPersonName: '',
@@ -1107,32 +563,18 @@ export default {
       editingProjectTags: [],
       editingCategory: null,
       editingStatus: null,
-      selectedTodo: null,
       selectedTodoIds: new Set(),
-      detailFullscreen: localStorage.getItem('detail-fullscreen') === 'true',
-      linkedTodos: [],
-      childTodos: [],
       subtasks: [],
       milestoneRelations: {}, // { milestoneId: { todos: [], persons: [] } }
       allSubtasksMap: {},
-      newSubtaskTitle: '',
-      detailTab: 'edit',
-      showLinkSearch: false,
-      linkQuery: '',
-      linkResults: [],
-      assignedPersons: [],
-      todoTags: [],
       allTags: [],
-      showPersonPicker: false,
       showStakeholderPicker: false,
       saveTimeout: null,
       sortBy: localStorage.getItem('sort-by') || 'manual',
+      searchQuery: '',
       groupByProject: localStorage.getItem('group-by-project') === 'true',
       cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
       cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
-      cardWidths: JSON.parse(localStorage.getItem('card-widths') || '{}'),
-      justResizedCard: false,
-      cardMouseDownHeight: null,
       gridLock: localStorage.getItem('grid-lock') === 'true',
       timezone: localStorage.getItem('timezone') || 'auto',
       gridSize: 100,
@@ -1153,6 +595,8 @@ export default {
       barDragOriginalDates: null,
       lastDeltaDays: 0,
       dropTargetRowId: null,
+      dragOverProjectId: null,
+      draggingInboxTodo: null,
       graphLinkMode: false,
       graphLinkSource: null,
       editingNodeId: null,
@@ -1220,12 +664,6 @@ export default {
         // Neutrals
         '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
       ],
-      // Resize state
-      isResizing: false,
-      detailWidth: 600,
-      detailHeight: 50,
-      isVerticalLayout: false,
-      detailLayoutPreference: localStorage.getItem('detail-layout') || 'auto', // 'auto', 'horizontal', 'vertical'
       // Graph layout parameters
       // d3-force parameters
       graphRepulsion: parseInt(localStorage.getItem('graph-repulsion')) || -800,
@@ -1238,8 +676,6 @@ export default {
       d3Simulation: null,
       // Theme
       theme: localStorage.getItem('todo-theme') || 'dark',
-      openTodosInWindow: localStorage.getItem('todo-open-mode') === 'window',
-      notesRevealed: false,
       // Sidebar visibility
       sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
       sidebarPinned: localStorage.getItem('sidebar-pinned') === 'true',
@@ -1247,12 +683,15 @@ export default {
       statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
       personsCollapsed: localStorage.getItem('persons-collapsed') !== 'false',
       settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
-      // Trash
+      // Trash & Archive
       trashCount: 0,
+      archiveCount: 0,
       // Keyboard navigation
       focusedTodoIndex: -1,
       // Global search
       showGlobalSearch: false,
+      showProjectsOverview: false,
+      recentItems: JSON.parse(localStorage.getItem('recent-items') || '[]'),
       // Type filter
       typeFilter: localStorage.getItem('type-filter') || 'all',
       // Export/Import
@@ -1332,6 +771,16 @@ export default {
       }
       return projectName
     },
+    currentProjectName() {
+      if (!this.isProjectSelected) return ''
+      const project = this.projects.find(p => p.id === this.currentFilter)
+      return project ? project.name : ''
+    },
+    currentTopicName() {
+      if (this.selectedTopicId === null) return ''
+      const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
+      return topic ? topic.name : ''
+    },
     isTrashView() {
       return this.currentFilter === 'trash'
     },
@@ -1344,21 +793,6 @@ export default {
       if (this.selectedTopicId === null) return ''
       const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
       return topic ? topic.name : ''
-    },
-    completedSubtasksCount() {
-      return this.subtasks.filter(s => s.completed).length
-    },
-    recurrenceUnit() {
-      if (!this.selectedTodo) return ''
-      const interval = this.selectedTodo.recurrence_interval || 1
-      const plural = interval > 1
-      switch (this.selectedTodo.recurrence_type) {
-        case 'daily': return plural ? 'days' : 'day'
-        case 'weekly': return plural ? 'weeks' : 'week'
-        case 'monthly': return plural ? 'months' : 'month'
-        case 'yearly': return plural ? 'years' : 'year'
-        default: return ''
-      }
     },
     currentProjectPersons() {
       if (!this.editingProject || !this.editingProject.id) return []
@@ -1385,16 +819,6 @@ export default {
       if (!this.newPersonName.trim()) return false
       const query = this.newPersonName.toLowerCase().trim()
       return this.persons.some(p => p.name.toLowerCase() === query)
-    },
-    selectedTodoTopics() {
-      // Return topics for the selected todo's project
-      if (!this.selectedTodo?.project_id) return []
-      // If viewing the same project, use cached topics
-      if (this.selectedTodo.project_id === this.currentFilter) {
-        return this.projectTopics
-      }
-      // Otherwise return empty - we'd need async load for different project
-      return this.projectTopics
     },
     allCount() {
       return this.allTodos.length
@@ -1444,10 +868,7 @@ export default {
       return this.persons.length
     },
     availableViews() {
-      if (this.activeTab === 'stakeholders') {
-        return ['cards', 'table']
-      }
-      return ['cards', 'table', 'kanban', 'timeline', 'graph']
+      return ['cards', 'kanban']
     },
     currentViewIndex() {
       return this.availableViews.indexOf(this.currentView)
@@ -1474,52 +895,17 @@ export default {
     noStatusTodos() {
       return this.filteredTodos.filter(t => !t.status_id)
     },
-    selectedTodoEndDate() {
-      if (!this.selectedTodo?.end_date) return ''
-      return this.selectedTodo.end_date.split('T')[0]
-    },
     focusedTodo() {
       if (this.focusedTodoIndex >= 0 && this.focusedTodoIndex < this.todos.length) {
         return this.todos[this.focusedTodoIndex]
       }
       return null
     },
-    selectedTodoStartDate() {
-      if (!this.selectedTodo?.start_date) return ''
-      return this.selectedTodo.start_date.split('T')[0]
-    },
-    renderedNotes() {
-      if (!this.selectedTodo?.notes) return '<p class="placeholder">No notes yet</p>'
-      return renderMarkdown(this.selectedTodo.notes)
-    },
-    layoutButtonTitle() {
-      if (this.detailLayoutPreference === 'auto') return 'Layout: Auto (click to change)'
-      if (this.detailLayoutPreference === 'horizontal') return 'Layout: Side-by-side (click to change)'
-      return 'Layout: Stacked (click to change)'
-    },
-    detailPanelStyle() {
-      const style = {
-        borderLeftColor: this.selectedTodo?.project_color || '#333'
-      }
-      if (this.isVerticalLayout) {
-        style['--detail-height'] = `${this.detailHeight}%`
-      } else {
-        style['--detail-width'] = `${this.detailWidth}px`
-      }
-      return style
-    },
     sortedTodos() {
       let sorted = [...this.filteredTodos]
       if (this.sortBy === 'created') {
         sorted.sort((a, b) => {
           return new Date(b.created_at) - new Date(a.created_at)
-        })
-      } else if (this.sortBy === 'end_date') {
-        sorted.sort((a, b) => {
-          if (!a.end_date && !b.end_date) return 0
-          if (!a.end_date) return 1
-          if (!b.end_date) return -1
-          return new Date(a.end_date) - new Date(b.end_date)
         })
       } else if (this.sortBy === 'alpha') {
         sorted.sort((a, b) => a.title.localeCompare(b.title))
@@ -1558,31 +944,19 @@ export default {
     },
     filteredTodos() {
       let todos = this.currentFilter === null ? this.allTodos : this.todos
-      console.log('filteredTodos - activeTab:', this.activeTab, 'currentFilter:', this.currentFilter, 'allTodos count:', this.allTodos.length, 'todos count:', this.todos.length)
-      console.log('Types in allTodos:', [...new Set(this.allTodos.map(t => t.type))])
       if (this.filterProjectId !== null) {
         todos = todos.filter(t => t.project_id === this.filterProjectId)
       }
-      if (this.filterCategoryId !== null) {
-        todos = todos.filter(t => t.category_id === this.filterCategoryId)
+      // Apply search query filter
+      if (this.searchQuery.trim()) {
+        const query = this.searchQuery.toLowerCase().trim()
+        todos = todos.filter(t =>
+          (t.title && t.title.toLowerCase().includes(query)) ||
+          (t.notes && t.notes.toLowerCase().includes(query))
+        )
       }
-      // Filter by selected topic
-      if (this.selectedTopicId !== null) {
-        todos = todos.filter(t => t.topic_id === this.selectedTopicId)
-      }
-      // Apply importance filter
-      if (this.importanceFilterOp !== 'none') {
-        const val = this.importanceFilterValue
-        if (this.importanceFilterOp === 'gte') {
-          todos = todos.filter(t => (t.importance || 0) >= val)
-        } else if (this.importanceFilterOp === 'lte') {
-          todos = todos.filter(t => (t.importance || 0) <= val)
-        } else if (this.importanceFilterOp === 'eq') {
-          todos = todos.filter(t => (t.importance || 0) === val)
-        }
-      }
-      // Hide completed items if enabled
-      if (this.hideCompleted) {
+      // Hide completed items if not showing them
+      if (!this.showCompleted) {
         todos = todos.filter(t => !t.completed)
       }
       return todos
@@ -1713,8 +1087,8 @@ export default {
         todos = todos.filter(t => t.project_id === this.currentFilter)
       }
 
-      // Apply hideCompleted filter
-      if (this.hideCompleted) {
+      // Apply showCompleted filter
+      if (!this.showCompleted) {
         todos = todos.filter(t => !t.completed)
       }
 
@@ -2082,30 +1456,12 @@ export default {
       this.loadAllTodos()
       this.loadTodos()
       this.loadAllLinks()
-      if (this.selectedTodo) {
-        this.loadSelectedTodo(this.selectedTodo.id)
-      }
       // Reapply masonry layout when todos are refreshed (e.g., after editing notes)
       if (this.currentView === 'cards') {
         this.applyMasonryLayout()
       }
     })
 
-    // Close sidebar detail when opened in detached window
-    window.api.onDetailOpenedInWindow((todoId) => {
-      if (this.selectedTodo && this.selectedTodo.id === todoId) {
-        this.selectedTodo = null
-      }
-    })
-
-    // Open todo in embedded view when requested from detached window
-    window.api.onEmbedTodo(async (todoId) => {
-      await this.selectTodo(todoId)
-    })
-
-    // Check layout on mount and resize
-    this.checkLayout()
-    window.addEventListener('resize', this.checkLayout)
     window.addEventListener('resize', this.updateGraphSize)
 
     // Keyboard shortcuts
@@ -2152,7 +1508,6 @@ export default {
     })
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.checkLayout)
     window.removeEventListener('resize', this.updateGraphSize)
     window.removeEventListener('keydown', this.handleKeyDown)
     window.removeEventListener('keyup', this.handleKeyUp)
@@ -2175,11 +1530,6 @@ export default {
         })
       }
     },
-    revealNotes() {
-      if (confirm('Are you sure you want to reveal the sensitive content?')) {
-        this.notesRevealed = true
-      }
-    },
     isIconName(symbol) {
       return symbol && this.categorySymbols.includes(symbol)
     },
@@ -2194,8 +1544,8 @@ export default {
       }
       return parts[0][0] + parts[parts.length - 1][0]
     },
-    toggleHideCompleted() {
-      localStorage.setItem('hide-completed', this.hideCompleted.toString())
+    toggleShowCompleted() {
+      localStorage.setItem('show-completed', this.showCompleted.toString())
     },
     toggleGridLock() {
       localStorage.setItem('grid-lock', this.gridLock.toString())
@@ -2341,6 +1691,7 @@ export default {
         console.log('Found', sensitiveTodos.length, 'sensitive todos:', sensitiveTodos.map(t => ({ id: t.id, title: t.title, notes_sensitive: t.notes_sensitive })))
       }
       this.trashCount = await window.api.getTrashCount()
+      this.archiveCount = await window.api.getArchiveCount()
       await this.loadAllSubtasks()
     },
     async loadAllSubtasks() {
@@ -2460,6 +1811,7 @@ export default {
     },
     async setFilter(filter) {
       this.currentFilter = filter
+      this.showProjectsOverview = false
       // Save current filter to localStorage
       if (filter === null) {
         localStorage.removeItem('current-filter')
@@ -2487,9 +1839,13 @@ export default {
       // Type is determined by the active tab: notes = note, todos = todo
       const type = 'todo'
       const todo = await window.api.createTodo(this.newTodoTitle.trim(), projectId, type)
-      // If a topic is selected, assign the new todo to that topic
-      if (todo && this.selectedTopicId !== null) {
-        await window.api.updateTodo({ ...todo, topic_id: this.selectedTopicId })
+      // Set default start_date to today and assign topic if selected
+      if (todo) {
+        const updates = { ...todo, start_date: new Date().toISOString().split('T')[0] }
+        if (this.selectedTopicId !== null) {
+          updates.topic_id = this.selectedTopicId
+        }
+        await window.api.updateTodo(updates)
       }
       this.newTodoTitle = ''
       await this.loadAllTodos()
@@ -2535,6 +1891,27 @@ export default {
       } catch (e) {
         console.error('Failed to create todo:', e)
       }
+    },
+    onInboxDragStart(event, todo) {
+      this.draggingInboxTodo = todo
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', todo.id)
+    },
+    onInboxDragEnd() {
+      this.draggingInboxTodo = null
+      this.dragOverProjectId = null
+    },
+    async dropOnProject(event, projectId) {
+      this.dragOverProjectId = null
+      if (!this.draggingInboxTodo) return
+
+      const todo = this.draggingInboxTodo
+      todo.project_id = projectId
+      const todoData = this.toPlainTodo(todo)
+      await window.api.updateTodo(todoData)
+      await this.loadAllTodos()
+      await this.loadTodos()
+      this.draggingInboxTodo = null
     },
     onTimelineChartDblClick(event) {
       // Only handle if clicked on empty area (not on a bar or row)
@@ -2606,6 +1983,10 @@ export default {
       const todoData = this.toPlainTodo(todo)
       const isCompleting = !todo.completed
       todoData.completed = isCompleting
+      // Auto-set end_date when completing if empty
+      if (isCompleting && !todoData.end_date) {
+        todoData.end_date = new Date().toISOString().split('T')[0]
+      }
       await window.api.updateTodo(todoData)
 
       // If completing a recurring task, create the next occurrence
@@ -2615,20 +1996,35 @@ export default {
 
       await this.loadAllTodos()
       await this.loadTodos()
-      if (this.selectedTodo?.id === todo.id) {
-        this.selectedTodo.completed = isCompleting
-      }
     },
-    async toggleSelectedComplete() {
-      if (this.selectedTodo) {
-        await this.toggleComplete(this.selectedTodo)
-      }
+    async handleUpdateTitle(todo, newTitle) {
+      const todoData = this.toPlainTodo(todo)
+      todoData.title = newTitle
+      await window.api.updateTodo(todoData)
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async handleUpdateNotes(todo, newNotes) {
+      const todoData = this.toPlainTodo(todo)
+      todoData.notes = newNotes
+      await window.api.updateTodo(todoData)
+      await this.loadAllTodos()
+      await this.loadTodos()
     },
     async deleteTodo(id) {
       await window.api.deleteTodo(id)
-      if (this.selectedTodo?.id === id) {
-        this.selectedTodo = null
-      }
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async archiveTodo(id) {
+      await window.api.archiveTodo(id)
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async moveToProject(todo, projectId) {
+      const todoData = this.toPlainTodo(todo)
+      todoData.project_id = projectId
+      await window.api.updateTodo(todoData)
       await this.loadAllTodos()
       await this.loadTodos()
     },
@@ -2694,9 +2090,6 @@ export default {
         delete this.nodePositions[id]
         this.saveNodePositions()
       }
-      if (this.selectedTodo?.id === id) {
-        this.selectedTodo = null
-      }
       await this.loadAllTodos()
       await this.loadTodos()
     },
@@ -2751,26 +2144,31 @@ export default {
       const ids = this.statuses.map(s => s.id)
       await window.api.reorderStatuses(ids)
     },
-    async onKanbanDrop(event, targetProjectId) {
-      const todoId = parseInt(event.item.dataset.todoId)
+    async onKanbanProjectChange(todoId, targetProjectId) {
+      console.log('onKanbanProjectChange called:', todoId, targetProjectId)
       if (!todoId) return
 
       const todo = this.allTodos.find(t => t.id === todoId)
+      console.log('Found todo:', todo, 'current project_id:', todo?.project_id)
       if (todo && todo.project_id !== targetProjectId) {
+        console.log('Updating project_id from', todo.project_id, 'to', targetProjectId)
         const todoData = this.toPlainTodo(todo)
         todoData.project_id = targetProjectId
         await window.api.updateTodo(todoData)
+        console.log('Update complete, reloading...')
         await this.loadAllTodos()
         await this.loadTodos()
+        console.log('Reload complete')
+      } else {
+        console.log('No update needed - same project or todo not found')
       }
     },
+    async onKanbanDrop(event) {
+      // Legacy handler - kept for compatibility but project moves now use onKanbanProjectChange
+      const todoId = event.item?.__draggable_context?.element?.id || parseInt(event.item?.dataset?.todoId)
+      if (!todoId) return
+    },
     handleCardClick(event, id) {
-      // Don't open detail if we just resized the card
-      if (this.justResizedCard) {
-        this.justResizedCard = false
-        return
-      }
-
       // Check if the click was on a link
       const link = event.target.closest('a')
       if (link && link.href) {
@@ -2781,20 +2179,6 @@ export default {
         } else {
           console.error('window.api.openExternal is not available')
         }
-        return
-      }
-
-      const card = event.currentTarget
-      const rect = card.getBoundingClientRect()
-      const clickX = event.clientX - rect.left
-      const clickY = event.clientY - rect.top
-
-      // Check if click was on resize handle (bottom 20px or bottom-right 20x20px corner)
-      const isBottomEdge = clickY > rect.height - 20
-      const isRightEdge = clickX > rect.width - 20
-
-      // Don't open detail if clicking on resize handle area
-      if (isBottomEdge || (isBottomEdge && isRightEdge)) {
         return
       }
 
@@ -2838,94 +2222,8 @@ export default {
       this.selectedTodoIds = new Set(ids)
     },
     async selectTodo(id) {
-      const openInWindow = localStorage.getItem('todo-open-mode') === 'window'
-      if (openInWindow) {
-        await window.api.openDetail(id)
-      } else {
-        await this.loadSelectedTodo(id)
-      }
-    },
-    async loadSelectedTodo(id) {
-      // Flush any pending saves before loading a new todo (skip history to avoid undo/redo issues)
-      if (this.saveTimeout && this.selectedTodo) {
-        clearTimeout(this.saveTimeout)
-        const todoData = this.toPlainTodo(this.selectedTodo)
-        await window.api.updateTodo(todoData, { skipHistory: true })
-      }
-
-      // Close any detached window for this todo
-      await window.api.closeDetailWindow(id)
-
-      this.selectedTodo = await window.api.getTodo(id)
-      console.log('Loaded selectedTodo:', this.selectedTodo.id, 'type:', this.selectedTodo.type)
-      this.linkedTodos = await window.api.getLinkedTodos(id)
-      this.subtasks = await window.api.getSubtasks(id)
-      this.assignedPersons = await window.api.getTodoPersons(id)
-      this.todoTags = await window.api.getTodoTags(id)
-      // Load child todos if this is a milestone
-      if (this.selectedTodo.type === 'milestone') {
-        this.childTodos = await window.api.getChildTodos(id)
-      } else {
-        this.childTodos = []
-      }
-      this.newSubtaskTitle = ''
-      this.showLinkSearch = false
-      this.showPersonPicker = false
-      this.linkQuery = ''
-      this.linkResults = []
-      // Show preview if todo has notes, otherwise edit
-      this.detailTab = this.selectedTodo.notes && this.selectedTodo.notes.trim() ? 'preview' : 'edit'
-    },
-    async closeDetail() {
-      // Flush any pending saves before closing
-      if (this.saveTimeout && this.selectedTodo) {
-        clearTimeout(this.saveTimeout)
-        const todoData = this.toPlainTodo(this.selectedTodo)
-        await window.api.updateTodo(todoData, { skipHistory: true })
-      }
-
-      this.selectedTodo = null
-      this.linkedTodos = []
-      this.childTodos = []
-      this.subtasks = []
-      this.assignedPersons = []
-      this.newSubtaskTitle = ''
-      this.showPersonPicker = false
-    },
-    async detachDetail() {
-      const todoId = this.selectedTodo.id
-      await window.api.openDetail(todoId)
-      this.selectedTodo = null
-      this.linkedTodos = []
-    },
-    toggleDetailFullscreen() {
-      this.detailFullscreen = !this.detailFullscreen
-      localStorage.setItem('detail-fullscreen', this.detailFullscreen)
-    },
-    updateSelectedField(field, value) {
-      if (!this.selectedTodo) return
-      // Update selectedTodo
-      this.selectedTodo[field] = value
-      // Also update the item in todos/allTodos arrays for immediate UI sync
-      const todoInList = this.todos.find(t => t.id === this.selectedTodo.id)
-      if (todoInList) todoInList[field] = value
-      const todoInAll = this.allTodos.find(t => t.id === this.selectedTodo.id)
-      if (todoInAll) todoInAll[field] = value
-      // Trigger save
-      this.saveSelectedTodo()
-    },
-    async saveSelectedTodo() {
-      if (this.saveTimeout) {
-        clearTimeout(this.saveTimeout)
-      }
-
-      this.saveTimeout = setTimeout(async () => {
-        const todoData = this.toPlainTodo(this.selectedTodo)
-        console.log('Saving todo with type:', todoData.type, 'id:', todoData.id)
-        await window.api.updateTodo(todoData, { skipHistory: true })
-        await this.loadAllTodos()
-        await this.loadTodos()
-      }, 300)
+      // TODO: Will be implemented with popover editor
+      console.log('selectTodo called with id:', id)
     },
     toPlainTodo(todo) {
       return {
@@ -2947,152 +2245,8 @@ export default {
         topic_id: todo.topic_id
       }
     },
-    async saveProjectChange() {
-      // Save immediately for project changes
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async saveCategoryChange() {
-      // Save immediately for category changes
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateEndDate(event) {
-      const value = event.target.value
-      this.selectedTodo.end_date = value || null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async clearEndDate() {
-      this.selectedTodo.end_date = null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateStartDate(event) {
-      const value = event.target.value
-      this.selectedTodo.start_date = value || null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async clearStartDate() {
-      this.selectedTodo.start_date = null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async searchForLinks() {
-      if (!this.linkQuery.trim()) {
-        this.linkResults = []
-        return
-      }
-      this.linkResults = await window.api.searchTodos(this.linkQuery, this.selectedTodo.id)
-      const linkedIds = this.linkedTodos.map(t => t.id)
-      this.linkResults = this.linkResults.filter(r => !linkedIds.includes(r.id))
-    },
-    async linkTo(target) {
-      await window.api.linkTodos(this.selectedTodo.id, target.id)
-      this.linkedTodos = await window.api.getLinkedTodos(this.selectedTodo.id)
-      this.linkQuery = ''
-      this.linkResults = []
-      this.showLinkSearch = false
-    },
-    async unlinkFrom(linked) {
-      await window.api.unlinkTodos(this.selectedTodo.id, linked.id)
-      this.linkedTodos = await window.api.getLinkedTodos(this.selectedTodo.id)
-    },
-    async assignPerson(person) {
-      if (!this.selectedTodo) return
-      // Check if already assigned
-      if (this.assignedPersons.some(p => p.id === person.id)) {
-        this.showPersonPicker = false
-        return
-      }
-      await window.api.linkTodoPerson(this.selectedTodo.id, person.id)
-      this.assignedPersons = await window.api.getTodoPersons(this.selectedTodo.id)
-      this.showPersonPicker = false
-      // Update graph data if persons are shown in graph
-      if (this.showPersonsInGraph) {
-        await this.updateGraphData()
-      }
-    },
-    async unassignPerson(person) {
-      if (!this.selectedTodo) return
-      await window.api.unlinkTodoPerson(this.selectedTodo.id, person.id)
-      this.assignedPersons = await window.api.getTodoPersons(this.selectedTodo.id)
-      // Update graph data if persons are shown in graph
-      if (this.showPersonsInGraph) {
-        await this.updateGraphData()
-      }
-    },
     async loadAllTags() {
       this.allTags = await window.api.getAllTags()
-    },
-    async loadTodoTags() {
-      if (this.selectedTodo) {
-        this.todoTags = await window.api.getTodoTags(this.selectedTodo.id)
-      } else {
-        this.todoTags = []
-      }
-    },
-    async addTodoTag(tagName) {
-      if (!this.selectedTodo || !tagName.trim()) return
-      await window.api.addTodoTag(this.selectedTodo.id, tagName.trim())
-      await this.loadTodoTags()
-      await this.loadAllTags()
-    },
-    async removeTodoTag(tagId) {
-      if (!this.selectedTodo) return
-      await window.api.removeTodoTag(this.selectedTodo.id, tagId)
-      await this.loadTodoTags()
-    },
-    async createAndAssignPerson(name) {
-      if (!this.selectedTodo || !name.trim()) return
-      try {
-        // Create the new person
-        const person = await window.api.createPerson({
-          name: name.trim(),
-          color: this.getRandomPersonColor()
-        })
-        await this.loadPersons()
-        // Assign to current todo
-        await window.api.linkTodoPerson(this.selectedTodo.id, person.id)
-        this.assignedPersons = await window.api.getTodoPersons(this.selectedTodo.id)
-        this.showPersonPicker = false
-      } catch (error) {
-        console.error('Failed to create and assign person:', error)
-      }
-    },
-    async loadSubtasks() {
-      if (this.selectedTodo) {
-        this.subtasks = await window.api.getSubtasks(this.selectedTodo.id)
-      } else {
-        this.subtasks = []
-      }
-    },
-    async addSubtask() {
-      if (!this.newSubtaskTitle.trim() || !this.selectedTodo) return
-      await window.api.createSubtask(this.selectedTodo.id, this.newSubtaskTitle.trim())
-      this.newSubtaskTitle = ''
-      await this.loadSubtasks()
-      await this.loadAllTodos()
-      await this.loadTodos()
     },
     async toggleSubtask(subtask) {
       await window.api.updateSubtask({
@@ -3100,20 +2254,17 @@ export default {
         title: subtask.title,
         completed: !subtask.completed
       })
-      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
     async deleteSubtask(id) {
       await window.api.deleteSubtask(id)
-      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
     async deleteSubtaskFromTable(id) {
       await window.api.deleteSubtask(id)
       await this.loadAllSubtasks()
-      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
@@ -3127,35 +2278,12 @@ export default {
     async updateSubtaskFromTable({ id, title }) {
       await window.api.updateSubtask({ id, title })
       await this.loadAllSubtasks()
-      await this.loadSubtasks()
       await this.loadAllTodos()
       await this.loadTodos()
     },
-    async reorderSubtasks(ids) {
-      await window.api.reorderSubtasks(ids)
-      await this.loadSubtasks()
-    },
     async updateSubtaskDueDate({ id, due_date }) {
       await window.api.updateSubtask({ id, due_date })
-      await this.loadSubtasks()
       await this.loadAllSubtasks()
-    },
-    async saveRecurrence() {
-      if (!this.selectedTodo) return
-      if (!this.selectedTodo.recurrence_interval) {
-        this.selectedTodo.recurrence_interval = 1
-      }
-      await this.saveSelectedTodo()
-    },
-    updateRecurrenceEndDate(event) {
-      if (!this.selectedTodo) return
-      this.selectedTodo.recurrence_end_date = event.target.value || null
-      this.saveSelectedTodo()
-    },
-    clearRecurrenceEndDate() {
-      if (!this.selectedTodo) return
-      this.selectedTodo.recurrence_end_date = null
-      this.saveSelectedTodo()
     },
     formatDeadline(deadline) {
       if (!deadline) return ''
@@ -3387,111 +2515,6 @@ export default {
         await this.loadTodos()
       }
     },
-    async saveStatusChange() {
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    // DetailPanel wrapper methods
-    async handleProjectChange(projectId) {
-      this.selectedTodo.project_id = projectId
-      await this.saveProjectChange()
-    },
-    async handleCategoryChange(categoryId) {
-      this.selectedTodo.category_id = categoryId
-      await this.saveCategoryChange()
-    },
-    async handleStatusChange(statusId) {
-      this.selectedTodo.status_id = statusId
-      await this.saveStatusChange()
-    },
-    async handleTopicChange(topicId) {
-      this.selectedTodo.topic_id = topicId
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateStartDateFromPanel(value) {
-      this.selectedTodo.start_date = value || null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateEndDateFromPanel(value) {
-      this.selectedTodo.end_date = value || null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateDueDateFromPanel(value) {
-      this.selectedTodo.due_date = value || null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async clearDueDate() {
-      this.selectedTodo.due_date = null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateMilestoneDate(value) {
-      this.selectedTodo.milestone_date = value || null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async clearMilestoneDate() {
-      this.selectedTodo.milestone_date = null
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    handleRecurrenceTypeChange(type) {
-      this.selectedTodo.recurrence_type = type
-      if (!this.selectedTodo.recurrence_interval) {
-        this.selectedTodo.recurrence_interval = 1
-      }
-      this.saveSelectedTodo()
-    },
-    handleRecurrenceIntervalChange(interval) {
-      this.selectedTodo.recurrence_interval = interval
-      this.saveSelectedTodo()
-    },
-    updateRecurrenceEndDateFromPanel(value) {
-      this.selectedTodo.recurrence_end_date = value || null
-      this.saveSelectedTodo()
-    },
-    // Importance method
-    async setImportance(level) {
-      // Toggle off if clicking the same level
-      if (this.selectedTodo.importance == level) {
-        this.selectedTodo.importance = 0
-      } else {
-        this.selectedTodo.importance = level
-      }
-      const todoData = this.toPlainTodo(this.selectedTodo)
-      const updated = await window.api.updateTodo(todoData)
-      this.selectedTodo = updated
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
     formatCreatedDate(createdAt) {
       if (!createdAt) return ''
       const date = new Date(createdAt)
@@ -3652,56 +2675,6 @@ export default {
             this.observeCards()
           }, 200)
         }, 150)
-      })
-    },
-    onCardMouseDown(event, _todoId) {
-      // Store the initial height when mouse goes down
-      const card = event.currentTarget
-      if (card) {
-        this.cardMouseDownHeight = card.offsetHeight
-      }
-    },
-    onCardResize(event, todoId) {
-      const card = event.currentTarget
-      if (!card) return
-
-      const currentHeight = card.offsetHeight
-
-      // Check if size changed compared to mousedown height
-      if (this.cardMouseDownHeight !== null && Math.abs(currentHeight - this.cardMouseDownHeight) > 5) {
-        // Size changed - this was a resize, set flag immediately before click fires
-        this.justResizedCard = true
-        setTimeout(() => {
-          this.justResizedCard = false
-        }, 300)
-      }
-
-      // Use requestAnimationFrame to ensure browser has updated the height after resize
-      requestAnimationFrame(() => {
-        let height = card.offsetHeight
-
-        // Snap to grid if grid lock is enabled
-        if (this.gridLock) {
-          height = Math.round(height / this.gridSize) * this.gridSize
-        }
-
-        const defaultMinHeight = Math.round(this.cardSize * 0.6)
-
-        // Only save if height differs from default min-height
-        if (height > defaultMinHeight + 10) {
-          this.cardSizes[todoId] = { height }
-          this.saveCardSizes()
-          // Reapply masonry layout after resize
-          this.applyMasonryLayout()
-        } else {
-          // Card was made smaller than threshold, remove custom size
-          delete this.cardSizes[todoId]
-          this.saveCardSizes()
-          this.applyMasonryLayout()
-        }
-
-        // Reset mousedown height
-        this.cardMouseDownHeight = null
       })
     },
     saveCardSizes() {
@@ -4289,8 +3262,15 @@ export default {
           title: this.editingNodeTitle || 'Untitled'
         }
         await window.api.updateTodo(updatedTodo)
-        await this.loadAllTodos()
-        await this.loadTodos()
+        // Update in-place to avoid full reload and graph reset
+        const idx = this.allTodos.findIndex(t => t.id === todo.id)
+        if (idx !== -1) {
+          this.allTodos[idx] = { ...this.allTodos[idx], notes: updatedTodo.notes, title: updatedTodo.title }
+        }
+        const todosIdx = this.todos.findIndex(t => t.id === todo.id)
+        if (todosIdx !== -1) {
+          this.todos[todosIdx] = { ...this.todos[todosIdx], notes: updatedTodo.notes, title: updatedTodo.title }
+        }
       }
     },
     async saveAndCloseNode(todo) {
@@ -4325,10 +3305,6 @@ export default {
       this.editingNodeId = null
       this.editingNodeNotes = ''
       this.editingNodeTitle = ''
-      // Also close detail view if open
-      if (this.selectedTodo) {
-        this.closeDetail()
-      }
     },
     async closeEverything() {
       // Save any pending edits before closing
@@ -4355,15 +3331,7 @@ export default {
       this.editingNodeId = null
       this.editingNodeNotes = ''
       this.editingNodeTitle = ''
-      if (this.detailFullscreen) {
-        this.detailFullscreen = false
-        localStorage.setItem('detail-fullscreen', 'false')
-      }
-      if (this.selectedTodo) {
-        this.closeDetail()
-      }
       this.focusedTodoIndex = -1
-      window.api.closeAllDetailWindows()
     },
     onGraphCanvasClick(event) {
       // Clear selected link when clicking on canvas
@@ -4500,9 +3468,6 @@ export default {
       const projectId = this.isProjectSelected ? this.currentFilter : null
       const type = 'todo'
 
-      // Remember selected node to link to
-      const linkToNodeId = this.selectedTodo?.id
-
       try {
         const todo = await window.api.createTodo('Untitled', projectId, type)
         await this.loadAllTodos()
@@ -4513,12 +3478,6 @@ export default {
           this.nodePositions[todo.id] = { x: coords.x, y: coords.y }
           this.nodePositions = { ...this.nodePositions }
           this.saveNodePositions()
-
-          // Link to previously selected node if one existed
-          if (linkToNodeId) {
-            await window.api.linkTodos(linkToNodeId, todo.id)
-            await this.loadAllLinks()
-          }
 
           // Start editing the new node
           const newTodo = this.todos.find(t => t.id === todo.id)
@@ -4687,9 +3646,6 @@ export default {
         // Reload data
         await this.loadTodos()
         await this.loadAllLinks()
-
-        // Select the new node for editing
-        this.selectedTodo = this.todos.find(t => t.id === todo.id)
       } catch (e) {
         console.error('Failed to insert node:', e)
       }
@@ -5187,6 +4143,30 @@ export default {
         return
       }
 
+      // Cmd+Arrow navigation
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'ArrowUp') {
+          // Previous item in list
+          e.preventDefault()
+          const todoCount = this.todos.length
+          if (todoCount > 0 && this.focusedTodoIndex > 0) {
+            this.focusedTodoIndex--
+            this.selectTodo(this.todos[this.focusedTodoIndex].id)
+          }
+          return
+        }
+        if (e.key === 'ArrowDown') {
+          // Next item in list
+          e.preventDefault()
+          const todoCount = this.todos.length
+          if (todoCount > 0 && this.focusedTodoIndex < todoCount - 1) {
+            this.focusedTodoIndex++
+            this.selectTodo(this.todos[this.focusedTodoIndex].id)
+          }
+          return
+        }
+      }
+
       // Escape closes everything: search, inline editing, fullscreen, detail panel, detached windows
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -5202,17 +4182,7 @@ export default {
           this.editingNodeNotes = ''
           this.editingNodeTitle = ''
         }
-        // Close detail view (also exits fullscreen)
-        if (this.selectedTodo) {
-          if (this.detailFullscreen) {
-            this.detailFullscreen = false
-            localStorage.setItem('detail-fullscreen', 'false')
-          }
-          this.closeDetail()
-          this.focusedTodoIndex = -1
-        }
-        // Also close any detached detail windows
-        window.api.closeAllDetailWindows()
+        this.focusedTodoIndex = -1
         return
       }
 
@@ -5336,66 +4306,35 @@ export default {
       this.setTab('items')
       await this.setFilter(project.id)
     },
-    // Resize methods
-    checkLayout() {
-      if (this.detailLayoutPreference === 'auto') {
-        // Improved auto layout: consider aspect ratio and available content width
-        const width = window.innerWidth
-        const height = window.innerHeight
-        const aspectRatio = width / height
-        const sidebarWidth = this.sidebarVisible ? 240 : 0
-        const availableWidth = width - sidebarWidth
-
-        // Switch to vertical if:
-        // - Window is narrow (< 1000px available content area)
-        // - Or aspect ratio is portrait-ish (< 1.2) and window isn't super wide
-        const isNarrow = availableWidth < 1000
-        const isPortraitish = aspectRatio < 1.2 && width < 1400
-
-        this.isVerticalLayout = isNarrow || isPortraitish
-      } else {
-        this.isVerticalLayout = this.detailLayoutPreference === 'vertical'
+    addToRecentItems(todo) {
+      if (!todo) return
+      // Remove if already exists
+      this.recentItems = this.recentItems.filter(t => t.id !== todo.id)
+      // Add to front
+      this.recentItems.unshift({
+        id: todo.id,
+        title: todo.title,
+        project_name: todo.project_name,
+        project_id: todo.project_id,
+        type: todo.type
+      })
+      // Keep only last 10
+      this.recentItems = this.recentItems.slice(0, 10)
+      // Persist
+      localStorage.setItem('recent-items', JSON.stringify(this.recentItems))
+    },
+    async navigateToProject(projectId) {
+      if (projectId) {
+        await this.setFilter(projectId)
       }
     },
-    toggleDetailLayout() {
-      // Cycle through: auto -> horizontal -> vertical -> auto
-      if (this.detailLayoutPreference === 'auto') {
-        this.detailLayoutPreference = 'horizontal'
-      } else if (this.detailLayoutPreference === 'horizontal') {
-        this.detailLayoutPreference = 'vertical'
+    async selectProjectFromOverview(projectId) {
+      this.showProjectsOverview = false
+      if (projectId === 'inbox') {
+        await this.setFilter('inbox')
       } else {
-        this.detailLayoutPreference = 'auto'
+        await this.setFilter(projectId)
       }
-      localStorage.setItem('detail-layout', this.detailLayoutPreference)
-      this.checkLayout()
-    },
-    startResize(e) {
-      this.isResizing = true
-      document.addEventListener('mousemove', this.onResize)
-      document.addEventListener('mouseup', this.stopResize)
-      e.preventDefault()
-    },
-    onResize(e) {
-      if (!this.isResizing) return
-
-      if (this.isVerticalLayout) {
-        // Vertical resize (top/bottom split)
-        const container = this.$refs.detailPanel?.parentElement
-        if (container) {
-          const containerRect = container.getBoundingClientRect()
-          const percentage = ((containerRect.bottom - e.clientY) / containerRect.height) * 100
-          this.detailHeight = Math.min(Math.max(percentage, 20), 70)
-        }
-      } else {
-        // Horizontal resize (left/right split)
-        const newWidth = window.innerWidth - e.clientX
-        this.detailWidth = Math.min(Math.max(newWidth, 300), 1200)
-      }
-    },
-    stopResize() {
-      this.isResizing = false
-      document.removeEventListener('mousemove', this.onResize)
-      document.removeEventListener('mouseup', this.stopResize)
     },
     toggleTheme() {
       this.theme = this.theme === 'dark' ? 'light' : 'dark'

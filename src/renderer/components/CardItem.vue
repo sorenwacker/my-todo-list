@@ -1,15 +1,38 @@
 <template>
   <div
-    class="todo-card resizable"
+    class="todo-card"
     :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused, 'grid-locked': gridLock }"
     :style="cardStyle"
     :data-todo-id="todo.id"
     :draggable="isDraggable ? 'true' : 'false'"
-    @click="$emit('click', $event)"
-    @mousedown="$emit('mousedown', $event)"
-    @mouseup="$emit('mouseup', $event)"
+    @click="handleClick($event)"
+    @dblclick="$emit('edit', $event)"
     @dragstart="onDragStart"
+    @contextmenu.prevent="showContextMenu($event)"
   >
+    <!-- Context Menu -->
+    <div v-if="contextMenuVisible" class="card-context-menu" :style="contextMenuStyle" @click.stop>
+      <div class="context-menu-item" @click="$emit('archive'); hideContextMenu()">Archive</div>
+      <div class="context-menu-divider"></div>
+      <div class="context-menu-label">Move to:</div>
+      <div
+        v-for="project in projects"
+        :key="project.id"
+        class="context-menu-item"
+        :class="{ active: todo.project_id === project.id }"
+        @click="$emit('move-to-project', project.id); hideContextMenu()"
+      >
+        <span class="project-dot" :style="{ background: project.color }"></span>
+        {{ project.name }}
+      </div>
+      <div
+        class="context-menu-item"
+        :class="{ active: !todo.project_id }"
+        @click="$emit('move-to-project', null); hideContextMenu()"
+      >
+        Inbox
+      </div>
+    </div>
     <div class="card-header">
       <input
         v-if="!isTrashView"
@@ -17,16 +40,25 @@
         :checked="todo.completed"
         @click.stop="$emit('toggle-complete')"
       />
-      <span class="card-title">{{ todo.title }}</span>
+      <input
+        v-if="isEditing"
+        ref="titleInput"
+        v-model="editingTitle"
+        class="card-title-input"
+        @keydown.enter.prevent="saveTitle"
+        @keydown.escape.prevent="cancelEdit"
+        @blur="saveTitle"
+        @click.stop
+      />
+      <span v-else class="card-title" @dblclick.stop="startEdit">{{ todo.title }}</span>
       <template v-if="isTrashView">
         <button class="restore-btn" title="Restore" @click.stop="$emit('restore')">R</button>
         <button class="delete-btn permanent" title="Delete permanently" @click.stop="$emit('permanent-delete')">x</button>
       </template>
-      <button v-else class="delete-btn" @click.stop="$emit('delete')">x</button>
-      <span v-if="todo.category_symbol" class="card-category-symbol" :title="todo.category_name">
-        <component :is="getIconComponent(todo.category_symbol)" v-if="getIconComponent(todo.category_symbol)" :size="14" />
-        <span v-else>{{ todo.category_symbol }}</span>
-      </span>
+      <template v-else>
+        <button class="archive-btn" title="Archive" @click.stop="$emit('archive')">A</button>
+        <button class="delete-btn" title="Delete" @click.stop="$emit('delete')">x</button>
+      </template>
     </div>
     <div v-if="todo.project_name && showProject" class="card-meta">
       <span
@@ -36,58 +68,58 @@
         {{ todo.project_name }}
       </span>
     </div>
-    <div v-if="todo.subtask_count > 0" class="card-subtasks">
-      <div class="subtask-header">
-        <div class="subtask-progress">
-          <div class="subtask-bar" :style="{ width: subtaskProgress + '%' }"></div>
-        </div>
-        <span class="subtask-count">{{ todo.subtask_completed }}/{{ todo.subtask_count }}</span>
-      </div>
-      <ul v-if="subtasks.length > 0" class="subtask-list">
-        <li v-for="subtask in subtasks" :key="subtask.id" :class="{ completed: subtask.completed }" @click.stop="$emit('toggle-subtask', subtask)">
-          <span class="subtask-check">{{ subtask.completed ? '&#10003;' : '&#9675;' }}</span>
-          <span class="subtask-text">{{ subtask.title }}</span>
-        </li>
-      </ul>
-    </div>
-    <div v-if="todo.start_date || todo.end_date || todo.importance" class="card-footer">
-      <span v-if="todo.start_date" class="card-start">Start: {{ formatDeadline(todo.start_date) }}</span>
-      <span v-if="todo.end_date" class="card-deadline" :class="{ overdue: isOverdue(todo.end_date) }">
+    <div v-if="todo.end_date" class="card-footer">
+      <span class="card-deadline" :class="{ overdue: isOverdue(todo.end_date) }">
         Due: {{ formatDeadline(todo.end_date) }}
       </span>
-      <span v-if="todo.importance" class="card-importance" :style="{ backgroundColor: getImportanceColor(todo.importance) }">{{ todo.importance }}</span>
     </div>
-    <div v-if="parsedTags.length > 0" class="card-tags">
-      <span v-for="tag in parsedTags" :key="tag.id" class="card-tag">#{{ tag.name }}</span>
+    <div v-if="!isCollapsed" class="card-dates-info">
+      <span v-if="todo.created_at">Created: {{ formatCreatedDate(todo.created_at) }}</span>
+      <span v-if="todo.completed_at">Done: {{ formatCreatedDate(todo.completed_at) }}</span>
     </div>
-    <div v-if="todo.notes" :key="'notes-' + todo.id + '-' + (todo.notes?.length || 0)" class="card-notes-preview markdown-body">
-      <div v-if="todo.notes_sensitive" class="sensitive-notes-card">
-        <span class="sensitive-icon-small">L</span>
-        <span class="sensitive-text">Sensitive content hidden</span>
+    <div v-if="!todo.notes && !isEditingNotes && !isCollapsed" class="add-notes-link" @click.stop="startNotesEdit">
+      + Add notes
+    </div>
+    <div v-if="(todo.notes || isEditingNotes) && !isCollapsed" class="card-notes-preview">
+      <div v-if="isEditingNotes" @click.stop @mousedown.stop>
+        <NotesEditor
+          ref="notesEditor"
+          :model-value="editingNotes"
+          @update:model-value="editingNotes = $event"
+          @blur="saveNotes"
+        />
       </div>
-      <div v-else v-html="renderCardNotes(todo.notes)"></div>
+      <div v-else class="markdown-body" @click.stop="startNotesEdit">
+        <div v-if="todo.notes_sensitive" class="sensitive-notes-card">
+          <span class="sensitive-icon-small">L</span>
+          <span class="sensitive-text">Sensitive content hidden</span>
+        </div>
+        <div v-else v-html="renderCardNotes(todo.notes)"></div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import { renderCardMarkdown } from '../utils/markdown.js'
-import {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
-} from 'lucide-vue-next'
-
-const iconMap = {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
-}
+import NotesEditor from './NotesEditor.vue'
 
 export default {
   name: 'CardItem',
+  components: {
+    NotesEditor
+  },
+  data() {
+    return {
+      isEditing: false,
+      editingTitle: '',
+      isCollapsed: true,
+      isEditingNotes: false,
+      editingNotes: '',
+      contextMenuVisible: false,
+      contextMenuStyle: { top: '0px', left: '0px' }
+    }
+  },
   props: {
     todo: {
       type: Object,
@@ -124,33 +156,14 @@ export default {
     selectedTodoIds: {
       type: Set,
       default: () => new Set()
+    },
+    projects: {
+      type: Array,
+      default: () => []
     }
   },
-  emits: ['click', 'mousedown', 'mouseup', 'toggle-complete', 'toggle-subtask', 'delete', 'restore', 'permanent-delete', 'dragstart'],
+  emits: ['click', 'toggle-complete', 'delete', 'restore', 'permanent-delete', 'dragstart', 'update-title', 'update-notes', 'archive', 'move-to-project'],
   computed: {
-    subtaskProgress() {
-      if (!this.todo.subtask_count) return 0
-      return Math.round((this.todo.subtask_completed / this.todo.subtask_count) * 100)
-    },
-    subtasks() {
-      if (!this.todo.subtasks_json) return []
-      try {
-        const parsed = JSON.parse(this.todo.subtasks_json)
-        // Filter out empty items (SQLite returns [null] for empty results)
-        return parsed.filter(s => s && s.id)
-      } catch {
-        return []
-      }
-    },
-    parsedTags() {
-      if (!this.todo.tags_json) return []
-      try {
-        const parsed = JSON.parse(this.todo.tags_json)
-        return parsed.filter(t => t && t.id)
-      } catch {
-        return []
-      }
-    }
   },
   methods: {
     onDragStart(event) {
@@ -163,13 +176,6 @@ export default {
       event.dataTransfer.setData('text/plain', JSON.stringify(idsToTransfer))
       event.dataTransfer.effectAllowed = 'move'
       this.$emit('dragstart', event)
-    },
-    getIconComponent(name) {
-      return iconMap[name] || null
-    },
-    getImportanceColor(importance) {
-      const colors = ['#666', '#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#e74c3c']
-      return colors[importance] || colors[0]
     },
     formatDeadline(dateString) {
       if (!dateString) return ''
@@ -191,11 +197,74 @@ export default {
       now.setHours(0, 0, 0, 0)
       return date < now
     },
+    formatCreatedDate(dateString) {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { year: '2-digit', month: 'short', day: 'numeric' })
+    },
     renderCardNotes(notes) {
       if (!notes) return ''
       // Strip mermaid code blocks for performance
       const processed = notes.replace(/`{3,}\s*mermaid\b[\s\S]*?`{3,}/gi, '[diagram]')
       return renderCardMarkdown(processed)
+    },
+    startEdit() {
+      this.editingTitle = this.todo.title
+      this.isEditing = true
+      this.$nextTick(() => this.$refs.titleInput?.focus())
+    },
+    saveTitle() {
+      if (this.isEditing) {
+        const newTitle = this.editingTitle.trim()
+        if (newTitle && newTitle !== this.todo.title) {
+          this.$emit('update-title', newTitle)
+        }
+        this.isEditing = false
+      }
+    },
+    cancelEdit() {
+      this.isEditing = false
+      this.editingTitle = ''
+    },
+    startNotesEdit() {
+      this.editingNotes = this.todo.notes || ''
+      this.isEditingNotes = true
+    },
+    saveNotes() {
+      if (this.isEditingNotes) {
+        const newNotes = this.editingNotes
+        if (newNotes !== this.todo.notes) {
+          this.$emit('update-notes', newNotes)
+        }
+        this.isEditingNotes = false
+      }
+    },
+    cancelNotesEdit() {
+      this.isEditingNotes = false
+      this.editingNotes = ''
+    },
+    handleClick(event) {
+      // Don't toggle when editing
+      if (this.isEditingNotes || this.isEditing) {
+        return
+      }
+      this.isCollapsed = !this.isCollapsed
+      this.$emit('click', event)
+    },
+    showContextMenu(event) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      this.contextMenuStyle = {
+        top: (event.clientY - rect.top) + 'px',
+        left: (event.clientX - rect.left) + 'px'
+      }
+      this.contextMenuVisible = true
+      // Close on click outside
+      setTimeout(() => {
+        document.addEventListener('click', this.hideContextMenu, { once: true })
+      }, 0)
+    },
+    hideContextMenu() {
+      this.contextMenuVisible = false
     }
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar" @mouseleave="onMouseLeave && onMouseLeave()" @mouseenter="onMouseEnter && onMouseEnter()">
+  <aside class="sidebar" :class="{ 'light-theme': theme === 'light' }" @mouseleave="onMouseLeave && onMouseLeave()" @mouseenter="onMouseEnter && onMouseEnter()">
     <div class="sidebar-header">
       <h2>Todo</h2>
       <button
@@ -23,8 +23,8 @@
         :class="{ active: currentFilter === null }"
         @click="$emit('set-filter', null)"
       >
-        <span class="nav-icon">*</span>
-        <span>Todos</span>
+        <List :size="16" class="nav-icon" />
+        <span>All</span>
         <span class="count">{{ allCount }}</span>
       </div>
 
@@ -33,9 +33,19 @@
         :class="{ active: currentFilter === 'inbox' }"
         @click="$emit('set-filter', 'inbox')"
       >
-        <span class="nav-icon">&gt;</span>
+        <Inbox :size="16" class="nav-icon" />
         <span>Inbox</span>
         <span class="count">{{ inboxCount }}</span>
+      </div>
+
+      <div
+        class="nav-item"
+        :class="{ active: currentFilter === 'archive' }"
+        @click="$emit('set-filter', 'archive')"
+      >
+        <Archive :size="16" class="nav-icon" />
+        <span>Archive</span>
+        <span v-if="archiveCount > 0" class="count">{{ archiveCount }}</span>
       </div>
 
       <div
@@ -43,7 +53,7 @@
         :class="{ active: currentFilter === 'trash' }"
         @click="$emit('set-filter', 'trash')"
       >
-        <span class="nav-icon">x</span>
+        <Trash2 :size="16" class="nav-icon" />
         <span>Trash</span>
         <span v-if="trashCount > 0" class="count">{{ trashCount }}</span>
       </div>
@@ -124,60 +134,12 @@
       <button v-else @click="showAddStatus">+ Add Status</button>
     </div>
 
-    <div class="sidebar-header category-header collapsible" @click.stop="categoriesCollapsed = !categoriesCollapsed">
-      <span class="collapse-indicator">{{ categoriesCollapsed ? '>' : 'v' }}</span>
-      <h2>Categories</h2>
-    </div>
-
-    <nav v-show="!categoriesCollapsed" class="category-nav">
-      <draggable
-        :model-value="categories"
-        item-key="id"
-        class="categories-list"
-        @update:model-value="$emit('update:categories', $event)"
-        @end="$emit('categories-reorder')"
-      >
-        <template #item="{ element: category }">
-          <div
-            class="nav-item category-item"
-            @click="$emit('edit-category', category)"
-          >
-            <span class="category-symbol-icon">
-              <component :is="getIconComponent(category.symbol)" v-if="getIconComponent(category.symbol)" :size="16" />
-              <span v-else>{{ category.symbol || '*' }}</span>
-            </span>
-            <span class="category-name">{{ category.name }}</span>
-            <span class="count">{{ getCategoryCount(category.id) }}</span>
-          </div>
-        </template>
-      </draggable>
-    </nav>
-
-    <div v-show="!categoriesCollapsed" class="add-category">
-      <input
-        v-if="showCategoryInput"
-        ref="categoryInput"
-        v-model="newCategoryName"
-        placeholder="Category name..."
-        type="text"
-        @keyup.enter="addCategory"
-        @blur="cancelAddCategory"
-      />
-      <button v-else @click="showAddCategory">+ Add Category</button>
-    </div>
-
     <div class="settings-section">
       <div class="sidebar-header settings-header collapsible" @click.stop="settingsCollapsed = !settingsCollapsed">
         <span class="collapse-indicator">{{ settingsCollapsed ? '>' : 'v' }}</span>
         <h2>Settings</h2>
       </div>
       <div v-show="!settingsCollapsed" class="settings-content">
-        <div class="preference-item">
-          <label class="checkbox-label">
-            <input :checked="openTodosInWindow" type="checkbox" @change="$emit('update:open-todos-in-window', $event.target.checked)" />
-            <span class="preference-text">Open todos in new window</span>
-          </label>
-        </div>
         <div class="preference-item">
           <label class="checkbox-label">
             <input :checked="gridLock" type="checkbox" @change="$emit('update:grid-lock', $event.target.checked)" />
@@ -208,14 +170,16 @@ import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
   MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
+  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
+  Inbox, Archive, Trash2, List
 } from 'lucide-vue-next'
 
 const iconMap = {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
   MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
+  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
+  Inbox, Archive, Trash2, List
 }
 
 export default {
@@ -227,6 +191,7 @@ export default {
   props: {
     visible: { type: Boolean, default: true },
     pinned: { type: Boolean, default: true },
+    theme: { type: String, default: 'dark' },
     onMouseLeave: { type: Function, default: null },
     onMouseEnter: { type: Function, default: null },
     currentFilter: { type: [Number, String], default: null },
@@ -236,6 +201,7 @@ export default {
     allCount: { type: Number, default: 0 },
     inboxCount: { type: Number, default: 0 },
     trashCount: { type: Number, default: 0 },
+    archiveCount: { type: Number, default: 0 },
     projectCounts: { type: Object, default: () => ({}) },
     statusCounts: { type: Object, default: () => ({}) },
     categoryCounts: { type: Object, default: () => ({}) },
@@ -508,6 +474,28 @@ export default {
   flex-shrink: 0;
 }
 
+/* Draggable project/status items */
+.project-item,
+.status-item {
+  cursor: grab;
+}
+
+.project-item:active,
+.status-item:active {
+  cursor: grabbing;
+}
+
+.project-item.sortable-ghost,
+.status-item.sortable-ghost {
+  opacity: 0.4;
+  background: var(--accent-color, #0f4c75);
+}
+
+.project-item.sortable-drag,
+.status-item.sortable-drag {
+  background: var(--bg-hover, #2a2f3d);
+}
+
 .project-name, .status-name, .category-name, .topic-name {
   flex: 1;
   overflow: hidden;
@@ -629,5 +617,133 @@ export default {
 
 .pin-btn.pinned {
   color: var(--accent-color, #0f4c75);
+}
+
+/* Light theme styles */
+.sidebar.light-theme {
+  background: #f5f5f5;
+  border-right-color: #e0e0e0;
+}
+
+.sidebar.light-theme .sidebar-header h2 {
+  color: #666;
+}
+
+.sidebar.light-theme .collapse-indicator {
+  color: #666;
+}
+
+.sidebar.light-theme .nav-item {
+  color: #333;
+}
+
+.sidebar.light-theme .nav-item:hover {
+  background: #e8e8e8;
+}
+
+.sidebar.light-theme .nav-item.active {
+  background: #d0e7f7;
+}
+
+.sidebar.light-theme .nav-icon {
+  color: #666;
+}
+
+.sidebar.light-theme .count {
+  color: #888;
+}
+
+.sidebar.light-theme .nav-divider {
+  background: #ddd;
+}
+
+.sidebar.light-theme .add-project input,
+.sidebar.light-theme .add-status input,
+.sidebar.light-theme .add-category input,
+.sidebar.light-theme .add-topic input {
+  border-color: #ddd;
+  background: #fff;
+  color: #333;
+}
+
+.sidebar.light-theme .add-project button,
+.sidebar.light-theme .add-status button,
+.sidebar.light-theme .add-category button,
+.sidebar.light-theme .add-topic button {
+  border-color: #ccc;
+  color: #666;
+}
+
+.sidebar.light-theme .add-project button:hover,
+.sidebar.light-theme .add-status button:hover,
+.sidebar.light-theme .add-category button:hover,
+.sidebar.light-theme .add-topic button:hover {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.sidebar.light-theme .edit-btn {
+  color: #888;
+}
+
+.sidebar.light-theme .settings-section,
+.sidebar.light-theme .sidebar-section {
+  border-top-color: #ddd;
+}
+
+.sidebar.light-theme .status-header,
+.sidebar.light-theme .category-header {
+  border-top-color: #ddd;
+}
+
+.sidebar.light-theme .preference-label {
+  color: #666;
+}
+
+.sidebar.light-theme .timezone-select {
+  background: #fff;
+  border-color: #ddd;
+  color: #333;
+}
+
+.sidebar.light-theme .checkbox-label {
+  color: #333;
+}
+
+.sidebar.light-theme .settings-btn {
+  background: #fff;
+  border-color: #ddd;
+  color: #333;
+}
+
+.sidebar.light-theme .settings-btn:hover {
+  background: #e8e8e8;
+}
+
+.sidebar.light-theme .database-location {
+  color: #888;
+}
+
+.sidebar.light-theme .pin-btn {
+  color: #888;
+}
+
+.sidebar.light-theme .pin-btn:hover {
+  background: #e8e8e8;
+  color: #333;
+}
+
+.sidebar.light-theme .category-symbol-icon {
+  color: #666;
+}
+
+.sidebar.light-theme .project-item.sortable-ghost,
+.sidebar.light-theme .status-item.sortable-ghost {
+  background: #d0e7f7;
+}
+
+.sidebar.light-theme .project-item.sortable-drag,
+.sidebar.light-theme .status-item.sortable-drag {
+  background: #e8e8e8;
 }
 </style>

@@ -677,60 +677,121 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Projects Overview */
-.projects-overview {
+/* Home Landing Page */
+.home-landing {
   padding: 24px;
   overflow-y: auto;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.projects-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 16px;
+.project-drop-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.project-card {
-  background: #0d0d0d;
+.project-drop-target {
+  padding: 12px 20px;
+  background: #1a1a1a;
+  border: 2px solid var(--project-color, #666);
   border-radius: 8px;
-  border-left: 4px solid #666;
   cursor: pointer;
   transition: all 0.15s;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.project-card:hover {
-  background: #1a1a1a;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.project-drop-target:hover {
+  background: #252525;
+  transform: translateY(-1px);
 }
 
-.project-card-color {
-  height: 8px;
+.project-drop-target.drag-over {
+  background: rgba(var(--project-color), 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-.project-card-content {
-  padding: 16px;
-}
-
-.project-card h3 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 600;
+.project-drop-target .project-name {
+  font-weight: 500;
   color: #f0f0f0;
 }
 
-.project-card-stats {
-  font-size: 13px;
+.project-drop-target .project-count {
+  background: #333;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
   color: #888;
 }
 
-.project-card.inbox-card {
-  border-left-color: #666;
+.inbox-landing {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.project-card .inbox-color {
-  background: linear-gradient(90deg, #444, #666);
+.inbox-landing h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.inbox-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inbox-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border-radius: 6px;
+  cursor: grab;
+  transition: all 0.15s;
+}
+
+.inbox-item:hover {
+  background: #252525;
+}
+
+.inbox-item:active {
+  cursor: grabbing;
+}
+
+.inbox-item.completed {
+  border-color: #0f9d58;
+}
+
+.inbox-item.completed .inbox-item-title {
+  text-decoration: line-through;
+}
+
+.inbox-item-title {
+  flex: 1;
+  color: #f0f0f0;
+}
+
+.inbox-item-date {
+  font-size: 12px;
+  color: #888;
+}
+
+.empty-inbox {
+  color: #666;
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
 }
 
 .main-header h1 .breadcrumb-link {
@@ -2145,6 +2206,19 @@ body {
   padding-left: 1.5em;
 }
 
+/* Smaller checkboxes in markdown task lists */
+.markdown-body input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.markdown-body li {
+  list-style: none;
+  margin: 0.2em 0;
+}
+
 .markdown-body blockquote {
   border-left: 3px solid #1a6fab;
   padding-left: 12px;
@@ -2407,7 +2481,7 @@ body {
 }
 
 .todo-card.completed {
-  opacity: 0.6;
+  border-color: #0f9d58;
 }
 
 .todo-card.ghost {
@@ -2458,6 +2532,27 @@ body {
   color: #ff6b6b;
 }
 
+.todo-card .card-header .archive-btn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.todo-card:hover .card-header .archive-btn {
+  opacity: 1;
+}
+
+.todo-card .card-header .archive-btn:hover {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
 .todo-card .card-header .restore-btn {
   background: none;
   border: none;
@@ -2477,6 +2572,28 @@ body {
 .todo-card .card-header .delete-btn.permanent:hover {
   background: rgba(231, 76, 60, 0.3);
   color: #e74c3c;
+}
+
+.todo-card .card-header .collapse-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.todo-card:hover .card-header .collapse-btn {
+  opacity: 1;
+}
+
+.todo-card .card-header .collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 /* Trash view styles */
@@ -2539,6 +2656,26 @@ body {
   flex: 1;
 }
 
+.todo-card .card-title-input,
+.kanban-card .card-title-input {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f0f0f0;
+  background: #2a2a2a;
+  border: 1px solid #4a9eff;
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+.todo-card .card-title-input:focus,
+.kanban-card .card-title-input:focus {
+  border-color: #6ab0ff;
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
 .todo-card .card-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2582,6 +2719,14 @@ body {
   padding: 2px 6px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
+}
+
+.todo-card .card-dates-info {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
 }
 
 .todo-card .card-start {
@@ -3043,11 +3188,7 @@ body {
 }
 
 .kanban-card.completed {
-  opacity: 0.6;
-}
-
-.kanban-card.completed .card-title {
-  opacity: 0.6;
+  border-color: #0f9d58;
 }
 
 .card-header {
@@ -3423,6 +3564,25 @@ body {
   flex-wrap: wrap;
 }
 
+.search-input {
+  padding: 8px 12px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+  width: 150px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1a6fab;
+}
+
+.search-input::placeholder {
+  color: #888;
+}
+
 .sort-select {
   padding: 8px 12px;
   border: 1px solid #555;
@@ -3436,6 +3596,105 @@ body {
 .sort-select:focus {
   outline: none;
   border-color: #1a6fab;
+}
+
+.show-completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #a0a0a0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.show-completed-toggle input {
+  cursor: pointer;
+}
+
+.show-completed-toggle span {
+  user-select: none;
+}
+
+.card-notes-input {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  background: #2a2a2a;
+  border: 1px solid #4a9eff;
+  border-radius: 4px;
+  color: #f0f0f0;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.card-notes-input:focus {
+  border-color: #6ab0ff;
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.add-notes-link {
+  color: var(--text-secondary, #888);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+  opacity: 0.7;
+}
+
+.add-notes-link:hover {
+  opacity: 1;
+  color: var(--text-primary, #ccc);
+}
+
+/* Card Context Menu */
+.card-context-menu {
+  position: absolute;
+  background: var(--bg-secondary, #1a1f2e);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 150px;
+  z-index: 1000;
+  padding: 4px 0;
+}
+
+.card-context-menu .context-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.card-context-menu .context-menu-item:hover {
+  background: var(--bg-hover, #2a2f3d);
+}
+
+.card-context-menu .context-menu-item.active {
+  color: var(--accent-color, #4a9eff);
+}
+
+.card-context-menu .context-menu-divider {
+  height: 1px;
+  background: var(--border-color, #3a3f4b);
+  margin: 4px 0;
+}
+
+.card-context-menu .context-menu-label {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+}
+
+.card-context-menu .project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* Importance Filter */
@@ -6303,6 +6562,13 @@ body {
   color: var(--text-primary);
 }
 
+.light-theme .todo-card .card-title-input,
+.light-theme .kanban-card .card-title-input {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+}
+
 .light-theme .todo-card .card-start {
   color: var(--text-muted);
   background: var(--bg-tertiary);
@@ -6314,6 +6580,10 @@ body {
 }
 
 .light-theme .todo-card .card-header .delete-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .todo-card .card-header .archive-btn {
   color: var(--text-muted);
 }
 
