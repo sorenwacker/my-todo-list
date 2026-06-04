@@ -333,6 +333,8 @@
             @update-status-todos="updateStatusTodos"
             @kanban-drop-status="onKanbanDropStatus"
             @update-title="handleUpdateTitle"
+            @update-notes="handleUpdateNotes"
+            @archive-todo="archiveTodo"
           />
 
           <div v-if="filteredTodos.length === 0 && currentView !== 'kanban'" class="empty-state">

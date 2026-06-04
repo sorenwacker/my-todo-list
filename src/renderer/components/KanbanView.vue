@@ -39,6 +39,8 @@
                     @toggle-complete="$emit('toggle-complete', element)"
                     @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
                   />
                 </template>
               </draggable>
@@ -67,6 +69,8 @@
                     @toggle-complete="$emit('toggle-complete', element)"
                     @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
                   />
                 </template>
               </draggable>
@@ -105,6 +109,8 @@
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -144,6 +150,8 @@
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -180,6 +188,8 @@
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -220,6 +230,8 @@
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -256,6 +268,8 @@
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -294,6 +308,8 @@
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
                     @update-title="$emit('update-title', element, $event)"
+                    @update-notes="$emit('update-notes', element, $event)"
+                    @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -402,7 +418,9 @@ export default {
     'kanban-drop-status',
     'kanban-project-change',
     'stacked-kanban-drop',
-    'update-title'
+    'update-title',
+    'update-notes',
+    'archive-todo'
   ],
   data() {
     return {
