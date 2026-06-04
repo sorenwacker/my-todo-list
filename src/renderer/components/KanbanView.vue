@@ -1,11 +1,5 @@
 <template>
   <div class="kanban-view-wrapper" @dragover="onDragOver" @dragend="onDragEnd" @dragleave="onDragEnd" @drop="onDragEnd">
-    <div class="kanban-group-toggle">
-      <button v-if="!isProjectSelected" :class="{ active: kanbanGroupBy === 'project' }" @click="$emit('update:kanban-group-by', 'project')">By Project</button>
-      <button :class="{ active: kanbanGroupBy === 'category' }" @click="$emit('update:kanban-group-by', 'category')">By Category</button>
-      <button :class="{ active: kanbanGroupBy === 'status' }" @click="$emit('update:kanban-group-by', 'status')">By Status</button>
-    </div>
-
     <!-- Stacked Kanban Boards (when groupByProject is active) -->
     <template v-if="groupByProject && !isProjectSelected">
       <div class="kanban-stacked">
@@ -44,6 +38,7 @@
                     @select="$emit('card-click', $event, element.id)"
                     @toggle-complete="$emit('toggle-complete', element)"
                     @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
                   />
                 </template>
               </draggable>
@@ -71,6 +66,7 @@
                     @select="$emit('card-click', $event, element.id)"
                     @toggle-complete="$emit('toggle-complete', element)"
                     @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
                   />
                 </template>
               </draggable>
@@ -108,6 +104,7 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
               />
             </template>
           </draggable>
@@ -146,6 +143,7 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
               />
             </template>
           </draggable>
@@ -181,6 +179,7 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
               />
             </template>
           </draggable>
@@ -220,6 +219,7 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
               />
             </template>
           </draggable>
@@ -255,6 +255,7 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
               />
             </template>
           </draggable>
@@ -292,6 +293,7 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
+                    @update-title="$emit('update-title', element, $event)"
               />
             </template>
           </draggable>
@@ -399,7 +401,8 @@ export default {
     'kanban-drop-category',
     'kanban-drop-status',
     'kanban-project-change',
-    'stacked-kanban-drop'
+    'stacked-kanban-drop',
+    'update-title'
   ],
   data() {
     return {

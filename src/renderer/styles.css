@@ -3909,31 +3909,6 @@ body {
   border-top: 1px solid #0d0d0d;
 }
 
-/* Kanban group toggle */
-.kanban-group-toggle {
-  display: flex;
-  gap: 4px;
-  background: #1a1a1a;
-  padding: 4px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
-.kanban-group-toggle button {
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.kanban-group-toggle button.active {
-  background: #1a6fab;
-  color: #fff;
-}
-
 /* Kanban view wrapper */
 .kanban-view-wrapper {
   display: flex;
@@ -6657,19 +6632,6 @@ body {
   border-color: var(--accent-color);
   color: var(--accent-color);
   background: rgba(15, 76, 117, 0.05);
-}
-
-.light-theme .kanban-group-toggle {
-  background: var(--bg-tertiary);
-}
-
-.light-theme .kanban-group-toggle button {
-  color: var(--text-secondary);
-}
-
-.light-theme .kanban-group-toggle button.active {
-  background: var(--accent-color);
-  color: #fff;
 }
 
 .light-theme .detail-panel {
