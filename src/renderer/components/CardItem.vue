@@ -52,12 +52,12 @@
       />
       <span v-else class="card-title" @dblclick.stop="startEdit">{{ todo.title }}</span>
       <template v-if="isTrashView">
-        <button class="restore-btn" title="Restore" @click.stop="$emit('restore')">R</button>
-        <button class="delete-btn permanent" title="Delete permanently" @click.stop="$emit('permanent-delete')">x</button>
+        <button class="restore-btn" title="Restore" @click.stop="$emit('restore')"><RotateCcw :size="14" /></button>
+        <button class="delete-btn permanent" title="Delete permanently" @click.stop="$emit('permanent-delete')"><Trash2 :size="14" /></button>
       </template>
       <template v-else>
-        <button class="archive-btn" title="Archive" @click.stop="$emit('archive')">A</button>
-        <button class="delete-btn" title="Delete" @click.stop="$emit('delete')">x</button>
+        <button class="archive-btn" title="Archive" @click.stop="$emit('archive')"><Archive :size="14" /></button>
+        <button class="delete-btn" title="Delete" @click.stop="$emit('delete')"><Trash2 :size="14" /></button>
       </template>
     </div>
     <div v-if="todo.project_name && showProject" class="card-meta">
@@ -103,11 +103,15 @@
 <script>
 import { renderCardMarkdown } from '../utils/markdown.js'
 import NotesEditor from './NotesEditor.vue'
+import { Archive, Trash2, RotateCcw } from 'lucide-vue-next'
 
 export default {
   name: 'CardItem',
   components: {
-    NotesEditor
+    NotesEditor,
+    Archive,
+    Trash2,
+    RotateCcw
   },
   data() {
     return {
