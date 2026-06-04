@@ -7068,6 +7068,26 @@ body {
   color: var(--text-muted);
 }
 
+.light-theme .inbox-landing h2 {
+  color: var(--text-secondary);
+}
+
+.light-theme .inbox-item {
+  background: var(--bg-secondary);
+}
+
+.light-theme .inbox-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .inbox-item-title {
+  color: var(--text-primary);
+}
+
+.light-theme .inbox-item-date {
+  color: var(--text-muted);
+}
+
 .light-theme .group-toggle {
   color: var(--text-secondary);
 }
