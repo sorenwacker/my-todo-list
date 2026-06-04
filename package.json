@@ -1,6 +1,6 @@
 {
   "name": "todo",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "Markdown-based todo list with notes and deadlines",
   "author": {
     "name": "sdrwacker",
@@ -22,7 +22,8 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "release": "npm run build && electron-builder --publish always"
+    "release": "npm run build && electron-builder --publish always",
+    "install:mac": "bash scripts/install.sh"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",
@@ -35,10 +36,17 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.6.2",
     "prettier": "^3.7.4",
+    "sql.js": "^1.13.0",
     "vite": "^6.4.1",
     "vitest": "^4.0.15"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.1",
+    "@codemirror/search": "^6.7.0",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.43.0",
     "better-sqlite3": "^11.5.0",
     "d3-force": "^3.0.0",
     "dompurify": "^3.3.1",
@@ -76,6 +84,24 @@
       ],
       "category": "public.app-category.productivity",
       "identity": null
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 400
+      }
     },
     "afterSign": "scripts/afterSign.cjs",
     "win": {
