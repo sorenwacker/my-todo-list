@@ -28,7 +28,9 @@ A feature-rich desktop todo application built with Electron and Vue 3. Designed 
 ### Data Management
 - **SQLite Database**: Local storage with efficient querying
 - **Export/Import**: Backup and restore data in JSON format
+- **Archive System**: Archive completed tasks to declutter active view
 - **Trash System**: Soft delete with recovery options
+- **Undo/Redo**: Full undo support for archive, trash, and restore operations
 
 ## Installation
 
@@ -96,14 +98,14 @@ Built applications will be output to the `dist/` directory.
 src/
 ├── main/          # Electron main process
 │   ├── index.js   # Application entry point
-│   └── database.js # SQLite database operations
+│   ├── database.js # SQLite database operations
+│   └── history.js  # Undo/redo state management
 ├── preload/       # Preload scripts (IPC bridge)
 │   └── index.js
 ├── renderer/      # Vue application
 │   ├── App.vue           # Main application view
-│   ├── DetailApp.vue     # Todo detail panel
-│   ├── SettingsApp.vue   # Settings interface
-│   └── StakeholderRegisterApp.vue
+│   ├── components/       # Reusable Vue components
+│   └── utils/            # Utility functions
 └── resources/     # Application icons and assets
 ```
 
@@ -192,3 +194,23 @@ This project is licensed under the MIT License.
 - Security updates for electron, vite, and vitest dependencies
 - Fixed ASAR integrity bypass vulnerability
 - Fixed esbuild development server vulnerability
+
+### v0.3.0
+- Multiple view modes: cards, list, table, kanban
+- Calendar view for deadline visualization
+- Global search across all content
+- Improved markdown rendering with task list support
+- Light and dark theme support
+
+### v0.3.1
+- Fixed light theme backgrounds
+- Fixed inbox item styling
+
+### v0.3.2
+- Archive system with "Archive Done" bulk action
+- Distinguished archive vs trash views with proper actions
+- Progress counts displayed as done/total format
+- Styled completed markdown checkboxes (green with strikethrough)
+- Undo integration for archive/unarchive/restore operations
+- Descriptive tooltips with undo hints on action buttons
+- Version display in settings
