@@ -70,10 +70,14 @@
     </td>
     <td class="col-actions">
       <template v-if="isTrashView">
-        <button class="restore-btn" title="Restore" @click.stop="$emit('restore')">R</button>
-        <button class="permanent-delete-btn" title="Delete permanently" @click.stop="$emit('permanent-delete')">x</button>
+        <button class="restore-btn" title="Restore from trash (Ctrl+Z to undo)" @click.stop="$emit('restore')">R</button>
+        <button class="permanent-delete-btn" title="Delete permanently (cannot be undone)" @click.stop="$emit('permanent-delete')">x</button>
       </template>
-      <button v-else @click.stop="$emit('delete')">x</button>
+      <template v-else-if="isArchiveView">
+        <button class="restore-btn" title="Unarchive - move back to active (Ctrl+Z to undo)" @click.stop="$emit('unarchive')">U</button>
+        <button title="Move to trash (Ctrl+Z to undo)" @click.stop="$emit('delete')">x</button>
+      </template>
+      <button v-else title="Move to trash (Ctrl+Z to undo)" @click.stop="$emit('delete')">x</button>
     </td>
   </tr>
 </template>
@@ -112,6 +116,10 @@ export default {
       type: Boolean,
       default: false
     },
+    isArchiveView: {
+      type: Boolean,
+      default: false
+    },
     hasSubtasks: {
       type: Boolean,
       default: false
@@ -121,7 +129,7 @@ export default {
       default: false
     }
   },
-  emits: ['select', 'toggle-complete', 'toggle-expand', 'delete', 'restore', 'permanent-delete', 'add-to-project', 'dragstart'],
+  emits: ['select', 'toggle-complete', 'toggle-expand', 'delete', 'restore', 'permanent-delete', 'unarchive', 'add-to-project', 'dragstart'],
   methods: {
     onDragStart(event) {
       event.dataTransfer.setData('text/plain', JSON.stringify([this.todo.id]))

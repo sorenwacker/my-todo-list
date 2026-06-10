@@ -52,12 +52,16 @@
       />
       <span v-else class="card-title" @dblclick.stop="startEdit">{{ todo.title }}</span>
       <template v-if="isTrashView">
-        <button class="restore-btn" title="Restore" @click.stop="$emit('restore')"><RotateCcw :size="14" /></button>
-        <button class="delete-btn permanent" title="Delete permanently" @click.stop="$emit('permanent-delete')"><Trash2 :size="14" /></button>
+        <button class="restore-btn" title="Restore from trash (Ctrl+Z to undo)" @click.stop="$emit('restore')"><RotateCcw :size="14" /></button>
+        <button class="delete-btn permanent" title="Delete permanently (cannot be undone)" @click.stop="$emit('permanent-delete')"><Trash2 :size="14" /></button>
+      </template>
+      <template v-else-if="isArchiveView">
+        <button class="restore-btn" title="Unarchive - move back to active (Ctrl+Z to undo)" @click.stop="$emit('unarchive')"><RotateCcw :size="14" /></button>
+        <button class="delete-btn" title="Move to trash (Ctrl+Z to undo)" @click.stop="$emit('delete')"><Trash2 :size="14" /></button>
       </template>
       <template v-else>
-        <button class="archive-btn" title="Archive" @click.stop="$emit('archive')"><Archive :size="14" /></button>
-        <button class="delete-btn" title="Delete" @click.stop="$emit('delete')"><Trash2 :size="14" /></button>
+        <button class="archive-btn" title="Archive - hide from active view (Ctrl+Z to undo)" @click.stop="$emit('archive')"><Archive :size="14" /></button>
+        <button class="delete-btn" title="Move to trash (Ctrl+Z to undo)" @click.stop="$emit('delete')"><Trash2 :size="14" /></button>
       </template>
     </div>
     <div v-if="todo.project_name && showProject" class="card-meta">
@@ -141,6 +145,10 @@ export default {
       type: Boolean,
       default: false
     },
+    isArchiveView: {
+      type: Boolean,
+      default: false
+    },
     cardStyle: {
       type: Object,
       default: () => ({})
@@ -166,7 +174,7 @@ export default {
       default: () => []
     }
   },
-  emits: ['click', 'toggle-complete', 'delete', 'restore', 'permanent-delete', 'dragstart', 'update-title', 'update-notes', 'archive', 'move-to-project'],
+  emits: ['click', 'toggle-complete', 'delete', 'restore', 'permanent-delete', 'unarchive', 'dragstart', 'update-title', 'update-notes', 'archive', 'move-to-project'],
   computed: {
   },
   methods: {

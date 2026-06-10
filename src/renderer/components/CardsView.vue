@@ -39,6 +39,7 @@
                 :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
                 :focused="focusedTodoId === element.id"
                 :is-trash-view="isTrashView"
+                :is-archive-view="isArchiveView"
                 :selected-todo-ids="selectedTodoIds"
                 :card-style="getCardStyle(element.id, element.project_color)"
                 :current-filter="currentFilter"
@@ -51,6 +52,7 @@
                 @delete="$emit('delete-todo', element.id)"
                 @restore="$emit('restore-todo', element.id)"
                 @permanent-delete="$emit('permanent-delete-todo', element.id)"
+                @unarchive="$emit('unarchive-todo', element.id)"
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
@@ -78,6 +80,7 @@
             :selected="selectedTodoId === element.id || selectedTodoIds.has(element.id)"
             :focused="focusedTodoId === element.id"
             :is-trash-view="isTrashView"
+            :is-archive-view="isArchiveView"
             :selected-todo-ids="selectedTodoIds"
             :card-style="getCardStyle(element.id, element.project_color)"
             :current-filter="currentFilter"
@@ -90,6 +93,7 @@
             @delete="$emit('delete-todo', element.id)"
             @restore="$emit('restore-todo', element.id)"
             @permanent-delete="$emit('permanent-delete-todo', element.id)"
+            @unarchive="$emit('unarchive-todo', element.id)"
             @update-title="$emit('update-title', element, $event)"
             @update-notes="$emit('update-notes', element, $event)"
             @archive="$emit('archive-todo', element.id)"
@@ -144,6 +148,10 @@ export default {
       type: Boolean,
       default: false
     },
+    isArchiveView: {
+      type: Boolean,
+      default: false
+    },
     cardColumns: {
       type: Number,
       default: 3
@@ -175,6 +183,7 @@ export default {
     'delete-todo',
     'restore-todo',
     'permanent-delete-todo',
+    'unarchive-todo',
     'update-sorted-todos',
     'drag-end',
     'update-group-todos',

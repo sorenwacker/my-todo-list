@@ -25,6 +25,7 @@
       :grid-lock="gridLock"
       :timezone="timezone"
       :database-path="databasePath"
+      :app-version="appVersion"
       @set-filter="setFilter"
       @update:projects="projects = $event"
       @projects-reorder="onProjectDragEnd"
@@ -141,6 +142,21 @@
           </h1>
           <div class="header-actions">
             <button
+              v-if="completedCount > 0 && currentFilter !== 'archive' && currentFilter !== 'trash'"
+              class="header-btn archive-done-btn"
+              :title="`Archive ${completedCount} done item${completedCount > 1 ? 's' : ''} (Ctrl+Z to undo)`"
+              @click="archiveCompletedTodos"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: -2px;">
+                <path d="M21 8v13H3V8"/>
+                <path d="M1 3h22v5H1z"/>
+                <path d="M10 12h4"/>
+              </svg>
+            </button>
+            <button
               class="header-btn search-btn"
               title="Search (press /)"
               @click="showGlobalSearch = true"
@@ -217,7 +233,7 @@
               @click="setView(view)"
             >{{ view.charAt(0).toUpperCase() + view.slice(1) }}</button>
           </div>
-          <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" @click="emptyTrash">Empty Trash</button>
+          <button v-if="isTrashView && trashCount > 0" class="empty-trash-btn" title="Permanently delete all items in trash (cannot be undone)" @click="emptyTrash">Empty Trash</button>
         </div>
         <div v-if="!isTrashView" class="add-todo">
           <input
@@ -247,7 +263,7 @@
             @drop.prevent="dropOnProject($event, project.id)"
           >
             <span class="project-name">{{ project.name }}</span>
-            <span class="project-count">{{ projectCounts[project.id] || 0 }}</span>
+            <span class="project-count">{{ formatProgress(projectCounts[project.id]) }}</span>
           </div>
         </div>
 
@@ -292,6 +308,7 @@
             :selected-todo-ids="selectedTodoIds"
             :focused-todo-id="focusedTodo?.id"
             :is-trash-view="isTrashView"
+            :is-archive-view="isArchiveView"
             :card-columns="cardColumns"
             :sort-by="sortBy"
             :current-filter="currentFilter"
@@ -303,6 +320,7 @@
             @delete-todo="deleteTodo"
             @restore-todo="restoreTodo"
             @permanent-delete-todo="permanentlyDeleteTodo"
+            @unarchive-todo="unarchiveTodo"
             @update-sorted-todos="updateSortedTodos"
             @drag-end="onDragEnd"
             @update-group-todos="updateGroupTodos"
@@ -699,6 +717,7 @@ export default {
       // Export/Import
       showImportDialog: false,
       databasePath: '',
+      appVersion: '',
       // Persons/Stakeholders
       persons: [],
       projectPersons: {},
@@ -786,6 +805,9 @@ export default {
     isTrashView() {
       return this.currentFilter === 'trash'
     },
+    isArchiveView() {
+      return this.currentFilter === 'archive'
+    },
     currentProjectName() {
       if (!this.isProjectSelected) return ''
       const project = this.projects.find(p => p.id === this.currentFilter)
@@ -823,15 +845,23 @@ export default {
       return this.persons.some(p => p.name.toLowerCase() === query)
     },
     allCount() {
-      return this.allTodos.length
+      const total = this.allTodos.length
+      const done = this.allTodos.filter(t => t.completed).length
+      return { done, total }
     },
     inboxCount() {
-      return this.allTodos.filter(t => !t.project_id).length
+      const inbox = this.allTodos.filter(t => !t.project_id)
+      const total = inbox.length
+      const done = inbox.filter(t => t.completed).length
+      return { done, total }
     },
     projectCounts() {
       const counts = {}
       for (const project of this.projects) {
-        counts[project.id] = this.allTodos.filter(t => t.project_id === project.id).length
+        const projectTodos = this.allTodos.filter(t => t.project_id === project.id)
+        const total = projectTodos.length
+        const done = projectTodos.filter(t => t.completed).length
+        counts[project.id] = { done, total }
       }
       return counts
     },
@@ -962,6 +992,10 @@ export default {
         todos = todos.filter(t => !t.completed)
       }
       return todos
+    },
+    completedCount() {
+      const todos = this.currentFilter === null ? this.allTodos : this.todos
+      return todos.filter(t => t.completed).length
     },
     timelineTodos() {
       // Only show todos that have at least one date (start_date or end_date)
@@ -1447,6 +1481,7 @@ export default {
     await this.loadTodos()
     await this.loadAllLinks()
     this.databasePath = await window.api.getDatabasePath()
+    this.appVersion = await window.api.getAppVersion()
     this.loadNodePositions()
 
     // Load graph person data if enabled
@@ -1519,6 +1554,12 @@ export default {
     }
   },
   methods: {
+    formatProgress(count) {
+      if (!count || typeof count !== 'object') return count || 0
+      if (count.total === 0) return ''
+      if (count.done === 0) return count.total
+      return `${count.done}/${count.total}`
+    },
     renderCardMarkdown(text) {
       return renderCardMarkdown(text)
     },
@@ -2020,6 +2061,19 @@ export default {
     },
     async archiveTodo(id) {
       await window.api.archiveTodo(id)
+      await this.loadAllTodos()
+      await this.loadTodos()
+    },
+    async archiveCompletedTodos() {
+      const projectId = this.isProjectSelected ? this.currentFilter : (this.currentFilter === 'inbox' ? 'inbox' : null)
+      const count = await window.api.archiveCompletedTodos(projectId)
+      if (count > 0) {
+        await this.loadAllTodos()
+        await this.loadTodos()
+      }
+    },
+    async unarchiveTodo(id) {
+      await window.api.unarchiveTodo(id)
       await this.loadAllTodos()
       await this.loadTodos()
     },

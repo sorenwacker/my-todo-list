@@ -2214,9 +2214,26 @@ body {
   vertical-align: middle;
 }
 
+/* Checked checkbox in markdown - green background */
+.markdown-body input[type="checkbox"]:checked {
+  background: #2ecc71;
+  border-color: #2ecc71;
+}
+
 .markdown-body li {
-  list-style: none;
   margin: 0.2em 0;
+}
+
+/* Only hide bullets for task list items (with checkboxes) */
+.markdown-body li:has(input[type="checkbox"]) {
+  list-style: none;
+}
+
+/* Dim completed task list items */
+.markdown-body li:has(input[type="checkbox"]:checked) {
+  color: #888;
+  text-decoration: line-through;
+  text-decoration-color: #666;
 }
 
 .markdown-body blockquote {
@@ -6974,6 +6991,12 @@ body {
 
 .light-theme .markdown-body blockquote {
   color: var(--text-secondary);
+}
+
+/* Light theme checked task list items */
+.light-theme .markdown-body li:has(input[type="checkbox"]:checked) {
+  color: #aaa;
+  text-decoration-color: #bbb;
 }
 
 .light-theme .importance-btn {

@@ -300,6 +300,16 @@ export class Database {
       this.db.exec('ALTER TABLE subtasks ADD COLUMN due_date TEXT')
     } catch { /* column exists */ }
 
+    // Migration: add completed_at column to todos
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN completed_at TEXT')
+    } catch { /* column exists */ }
+
+    // Migration: add archived_at column to todos
+    try {
+      this.db.exec('ALTER TABLE todos ADD COLUMN archived_at TEXT')
+    } catch { /* column exists */ }
+
     // Seed default statuses if none exist
     const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
     if (statusCount === 0) {
@@ -554,7 +564,7 @@ export class Database {
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
-        WHERE t.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL AND t.archived_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
       `).all()
     } else if (projectId === 'inbox') {
@@ -569,9 +579,11 @@ export class Database {
         FROM todos t
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
-        WHERE t.project_id IS NULL AND t.deleted_at IS NULL
+        WHERE t.project_id IS NULL AND t.deleted_at IS NULL AND t.archived_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
       `).all()
+    } else if (projectId === 'archive') {
+      return this.getArchivedTodos()
     } else if (projectId === 'trash') {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
@@ -599,7 +611,7 @@ export class Database {
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
-        WHERE t.project_id = ? AND t.deleted_at IS NULL
+        WHERE t.project_id = ? AND t.deleted_at IS NULL AND t.archived_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
       `).all(projectId)
     }
@@ -642,11 +654,20 @@ export class Database {
     const type = todo.type || 'todo'
     const topicId = todo.topic_id !== undefined ? todo.topic_id : null
 
+    // Set completed_at when completing, clear when uncompleting
+    const existingTodo = this.getTodo(todo.id)
+    let completedAt = existingTodo?.completed_at || null
+    if (todo.completed && !existingTodo?.completed) {
+      completedAt = new Date().toISOString()
+    } else if (!todo.completed) {
+      completedAt = null
+    }
+
     this.db.prepare(`
       UPDATE todos
-      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, topic_id = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, completed_at = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, topic_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, topicId, todo.id)
+    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, completedAt, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, topicId, todo.id)
 
     return this.getTodo(todo.id)
   }
@@ -730,6 +751,60 @@ export class Database {
   restoreTodo(id) {
     this.db.prepare('UPDATE todos SET deleted_at = NULL WHERE id = ?').run(id)
     return this.getTodo(id)
+  }
+
+  archiveTodo(id) {
+    this.db.prepare('UPDATE todos SET archived_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
+    return true
+  }
+
+  getCompletedTodoIds(projectId = null) {
+    let sql = 'SELECT id FROM todos WHERE completed = 1 AND archived_at IS NULL AND deleted_at IS NULL'
+    const params = []
+    if (projectId === 'inbox') {
+      sql += ' AND project_id IS NULL'
+    } else if (projectId !== null && typeof projectId === 'number') {
+      sql += ' AND project_id = ?'
+      params.push(projectId)
+    }
+    return this.db.prepare(sql).all(...params).map(r => r.id)
+  }
+
+  archiveCompletedTodos(projectId = null) {
+    let sql = 'UPDATE todos SET archived_at = CURRENT_TIMESTAMP WHERE completed = 1 AND archived_at IS NULL AND deleted_at IS NULL'
+    const params = []
+    if (projectId === 'inbox') {
+      sql += ' AND project_id IS NULL'
+    } else if (projectId !== null && typeof projectId === 'number') {
+      sql += ' AND project_id = ?'
+      params.push(projectId)
+    }
+    const result = this.db.prepare(sql).run(...params)
+    return result.changes
+  }
+
+  unarchiveTodo(id) {
+    this.db.prepare('UPDATE todos SET archived_at = NULL WHERE id = ?').run(id)
+    return this.getTodo(id)
+  }
+
+  getArchivedTodos() {
+    return this.db.prepare(`
+      SELECT t.*, p.name as project_name, p.color as project_color,
+             c.name as category_name, c.symbol as category_symbol,
+             s.name as status_name, s.color as status_color
+      FROM todos t
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN statuses s ON t.status_id = s.id
+      WHERE t.archived_at IS NOT NULL AND t.deleted_at IS NULL
+      ORDER BY t.archived_at DESC
+    `).all()
+  }
+
+  getArchiveCount() {
+    const result = this.db.prepare('SELECT COUNT(*) as count FROM todos WHERE archived_at IS NOT NULL AND deleted_at IS NULL').get()
+    return result.count
   }
 
   permanentlyDeleteTodo(id) {

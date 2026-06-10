@@ -25,7 +25,7 @@
       >
         <List :size="16" class="nav-icon" />
         <span>All</span>
-        <span class="count">{{ allCount }}</span>
+        <span class="count">{{ formatProgress(allCount) }}</span>
       </div>
 
       <div
@@ -35,7 +35,7 @@
       >
         <Inbox :size="16" class="nav-icon" />
         <span>Inbox</span>
-        <span class="count">{{ inboxCount }}</span>
+        <span class="count">{{ formatProgress(inboxCount) }}</span>
       </div>
 
       <div
@@ -88,7 +88,7 @@
           >
             <span class="project-dot" :style="{ background: project.color }"></span>
             <span class="project-name">{{ project.name }}</span>
-            <span class="count">{{ getProjectCount(project.id) }}</span>
+            <span class="count">{{ formatProgress(getProjectCount(project.id)) }}</span>
             <button class="edit-btn" @click.stop="$emit('edit-project', project)">...</button>
           </div>
         </template>
@@ -158,6 +158,9 @@
         <div class="database-location">
           <small>Database: {{ databasePath }}</small>
         </div>
+        <div v-if="appVersion" class="app-version">
+          <small>Version: {{ appVersion }}</small>
+        </div>
       </div>
     </div>
 
@@ -198,8 +201,8 @@ export default {
     projects: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
-    allCount: { type: Number, default: 0 },
-    inboxCount: { type: Number, default: 0 },
+    allCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
+    inboxCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
     trashCount: { type: Number, default: 0 },
     archiveCount: { type: Number, default: 0 },
     projectCounts: { type: Object, default: () => ({}) },
@@ -212,7 +215,8 @@ export default {
     openTodosInWindow: { type: Boolean, default: false },
     gridLock: { type: Boolean, default: false },
     timezone: { type: String, default: 'auto' },
-    databasePath: { type: String, default: '' }
+    databasePath: { type: String, default: '' },
+    appVersion: { type: String, default: '' }
   },
   emits: [
     'set-filter',
@@ -283,8 +287,14 @@ export default {
     getIconComponent(name) {
       return iconMap[name] || null
     },
+    formatProgress(count) {
+      if (!count || typeof count !== 'object') return count || 0
+      if (count.total === 0) return ''
+      if (count.done === 0) return count.total
+      return `${count.done}/${count.total}`
+    },
     getProjectCount(projectId) {
-      return this.projectCounts[projectId] || 0
+      return this.projectCounts[projectId] || { done: 0, total: 0 }
     },
     getStatusCount(statusId) {
       return this.statusCounts[statusId] || 0
@@ -590,7 +600,8 @@ export default {
   background: var(--bg-hover, #2a2f3d);
 }
 
-.database-location {
+.database-location,
+.app-version {
   font-size: 11px;
   color: var(--text-secondary, #a0a0a0);
   word-break: break-all;
@@ -720,7 +731,8 @@ export default {
   background: #e8e8e8;
 }
 
-.sidebar.light-theme .database-location {
+.sidebar.light-theme .database-location,
+.sidebar.light-theme .app-version {
   color: #888;
 }
 

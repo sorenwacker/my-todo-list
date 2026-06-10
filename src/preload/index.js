@@ -68,6 +68,10 @@ contextBridge.exposeInMainWorld('api', {
   permanentlyDeleteTodo: (id) => ipcRenderer.invoke('permanently-delete-todo', id),
   emptyTrash: () => ipcRenderer.invoke('empty-trash'),
   getTrashCount: () => ipcRenderer.invoke('get-trash-count'),
+  archiveTodo: (id) => ipcRenderer.invoke('archive-todo', id),
+  archiveCompletedTodos: (projectId) => ipcRenderer.invoke('archive-completed-todos', projectId),
+  unarchiveTodo: (id) => ipcRenderer.invoke('unarchive-todo', id),
+  getArchiveCount: () => ipcRenderer.invoke('get-archive-count'),
 
   // Milestone operations (parent_id based - legacy)
   getChildTodos: (parentId) => ipcRenderer.invoke('get-child-todos', parentId),
@@ -131,11 +135,9 @@ contextBridge.exposeInMainWorld('api', {
   exportData: () => ipcRenderer.invoke('export-data'),
   importData: (mode) => ipcRenderer.invoke('import-data', mode),
   getDatabasePath: () => ipcRenderer.invoke('get-database-path'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   // Window operations
-  openDetail: (todoId) => ipcRenderer.invoke('open-detail', todoId),
-  closeDetailWindow: (todoId) => ipcRenderer.invoke('close-detail-window', todoId),
-  closeAllDetailWindows: () => ipcRenderer.invoke('close-all-detail-windows'),
   openStakeholderRegister: (projectId) => ipcRenderer.invoke('open-stakeholder-register', projectId),
 
   // Events
@@ -143,24 +145,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('refresh-todos', callback)
     return () => ipcRenderer.removeListener('refresh-todos', callback)
   },
-  onLoadTodo: (callback) => {
-    ipcRenderer.on('load-todo', (_, id) => callback(id))
-    return () => ipcRenderer.removeListener('load-todo', callback)
-  },
-  onSaveBeforeClose: (callback) => {
-    ipcRenderer.on('save-before-close', callback)
-    return () => ipcRenderer.removeListener('save-before-close', callback)
-  },
-  onDetailOpenedInWindow: (callback) => {
-    ipcRenderer.on('detail-opened-in-window', (_, todoId) => callback(todoId))
-    return () => ipcRenderer.removeListener('detail-opened-in-window', callback)
-  },
-  onEmbedTodo: (callback) => {
-    ipcRenderer.on('embed-todo', (_, todoId) => callback(todoId))
-    return () => ipcRenderer.removeListener('embed-todo', callback)
-  },
   notifyTodoUpdated: () => ipcRenderer.send('todo-updated'),
-  embedTodo: (todoId) => ipcRenderer.send('embed-todo', todoId),
 
   // Update operations
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

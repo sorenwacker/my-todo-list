@@ -54,8 +54,6 @@ function handleWithValidation(handler, handlerName = 'unknown') {
 }
 
 let mainWindow = null
-let detailWindow = null
-let detailWindowTodoId = null
 let stakeholderWindow = null
 let database = null
 
@@ -84,85 +82,6 @@ function createMainWindow() {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
-}
-
-function createDetailWindow(todoId) {
-  // If a detail window is already open for this specific todo, just focus it
-  if (detailWindow && detailWindowTodoId === todoId) {
-    detailWindow.focus()
-    return
-  }
-
-  // If a detail window is open for a different todo, update it to show the new todo
-  if (detailWindow && detailWindowTodoId !== todoId) {
-    detailWindowTodoId = todoId
-    detailWindow.focus()
-    detailWindow.webContents.send('load-todo', todoId)
-    return
-  }
-
-  // Create new detail window
-  detailWindowTodoId = todoId
-  detailWindow = new BrowserWindow({
-    width: 600,
-    height: 700,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
-
-  if (process.env.NODE_ENV === 'development') {
-    detailWindow.loadURL(`http://localhost:5173/detail.html?id=${todoId}`)
-  } else {
-    detailWindow.loadFile(join(__dirname, '../renderer/detail.html'), {
-      query: { id: todoId.toString() }
-    })
-  }
-
-  // Save before closing - execute save directly
-  detailWindow.on('close', async (e) => {
-    if (detailWindow && !detailWindow.isDestroyed() && !detailWindow.webContents.isDestroyed()) {
-      e.preventDefault()
-      console.log('Detail window closing, executing save...')
-      try {
-        // Execute save directly in the renderer
-        const saved = await detailWindow.webContents.executeJavaScript(`
-          (function() {
-            try {
-              if (window.api && window.api.updateTodoSync) {
-                const app = document.querySelector('#app').__vue_app__;
-                if (app) {
-                  const instance = app._instance;
-                  if (instance && instance.proxy && instance.proxy.todo) {
-                    console.log('Saving todo via executeJavaScript');
-                    // Create plain object copy to avoid Vue reactive issues
-                    const todoData = JSON.parse(JSON.stringify(instance.proxy.todo));
-                    window.api.updateTodoSync(todoData);
-                    window.api.notifyTodoUpdated();
-                    return true;
-                  }
-                }
-              }
-            } catch (e) {
-              console.error('Error in executeJavaScript save:', e);
-            }
-            return false;
-          })();
-        `)
-        console.log('Save completed:', saved, '- closing window')
-      } catch (err) {
-        console.error('Error saving before close:', err)
-      }
-      detailWindow.destroy()
-    }
-  })
-
-  detailWindow.on('closed', () => {
-    detailWindow = null
-    detailWindowTodoId = null
-  })
 }
 
 function createStakeholderWindow(projectId) {
@@ -544,7 +463,79 @@ app.whenReady().then(() => {
     return result
   }))
   ipcMain.handle('restore-todo', handleWithValidation((_, id) => {
-    return database.restoreTodo(validateId(id))
+    const validId = validateId(id)
+    const todo = database.getTodo(validId)
+    const result = database.restoreTodo(validId)
+
+    if (todo) {
+      history.push({
+        type: 'restore-todo',
+        description: `Restore "${todo.title}"`,
+        undo: () => database.deleteTodo(validId),
+        redo: () => database.restoreTodo(validId)
+      })
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
+    }
+    return result
+  }))
+  ipcMain.handle('archive-todo', handleWithValidation((_, id) => {
+    const validId = validateId(id)
+    const todo = database.getTodo(validId)
+    const result = database.archiveTodo(validId)
+
+    if (todo) {
+      history.push({
+        type: 'archive-todo',
+        description: `Archive "${todo.title}"`,
+        undo: () => database.unarchiveTodo(validId),
+        redo: () => database.archiveTodo(validId)
+      })
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
+    }
+    return result
+  }))
+  ipcMain.handle('archive-completed-todos', handleWithValidation((_, projectId) => {
+    // Get completed todos before archiving for undo
+    const completedIds = database.getCompletedTodoIds(projectId)
+    const count = database.archiveCompletedTodos(projectId)
+
+    if (count > 0) {
+      history.push({
+        type: 'archive-completed',
+        description: `Archive ${count} completed item${count > 1 ? 's' : ''}`,
+        undo: () => completedIds.forEach(id => database.unarchiveTodo(id)),
+        redo: () => completedIds.forEach(id => database.archiveTodo(id))
+      })
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
+    }
+    return count
+  }))
+  ipcMain.handle('unarchive-todo', handleWithValidation((_, id) => {
+    const validId = validateId(id)
+    const todo = database.getTodo(validId)
+    const result = database.unarchiveTodo(validId)
+
+    if (todo) {
+      history.push({
+        type: 'unarchive-todo',
+        description: `Unarchive "${todo.title}"`,
+        undo: () => database.archiveTodo(validId),
+        redo: () => database.unarchiveTodo(validId)
+      })
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
+    }
+    return result
+  }))
+  ipcMain.handle('get-archive-count', handleWithValidation(() => {
+    return database.getArchiveCount()
   }))
   ipcMain.handle('permanently-delete-todo', handleWithValidation((_, id) => {
     return database.permanentlyDeleteTodo(validateId(id))
@@ -741,31 +732,11 @@ app.whenReady().then(() => {
     return join(app.getPath('userData'), 'todos.db')
   })
 
-  // Window management
-  ipcMain.handle('open-detail', handleWithValidation((_, todoId) => {
-    const validatedId = validateId(todoId)
-    createDetailWindow(validatedId)
-    // Notify main window that detail was opened in a window
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('detail-opened-in-window', validatedId)
-    }
-  }))
-
-  ipcMain.handle('close-detail-window', handleWithValidation((_, todoId) => {
-    const validatedId = validateId(todoId)
-    // Close the detail window if it's open for this todo
-    if (detailWindow && detailWindowTodoId === validatedId && !detailWindow.isDestroyed()) {
-      detailWindow.close()
-    }
-  }))
-
-  ipcMain.handle('close-all-detail-windows', () => {
-    // Close any open detail window
-    if (detailWindow && !detailWindow.isDestroyed()) {
-      detailWindow.close()
-    }
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion()
   })
 
+  // Window management
   ipcMain.handle('open-stakeholder-register', handleWithValidation((_, projectId) => {
     createStakeholderWindow(validateId(projectId))
   }))
@@ -774,19 +745,6 @@ app.whenReady().then(() => {
   ipcMain.on('todo-updated', () => {
     if (mainWindow) {
       mainWindow.webContents.send('refresh-todos')
-    }
-  })
-
-  // Embed todo from detached window back to main window
-  ipcMain.on('embed-todo', (event, todoId) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('embed-todo', todoId)
-      mainWindow.focus()
-    }
-    // Close the detail window that sent this message
-    const senderWindow = BrowserWindow.fromWebContents(event.sender)
-    if (senderWindow && senderWindow !== mainWindow) {
-      senderWindow.close()
     }
   })
 
