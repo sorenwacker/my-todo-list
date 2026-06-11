@@ -29,9 +29,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          main: resolve(__dirname, 'src/renderer/index.html'),
-          detail: resolve(__dirname, 'src/renderer/detail.html'),
-          stakeholderRegister: resolve(__dirname, 'src/renderer/stakeholder-register.html')
+          main: resolve(__dirname, 'src/renderer/index.html')
         }
       }
     },

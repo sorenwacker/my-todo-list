@@ -1,7 +1,7 @@
 <template>
   <div
     class="todo-card"
-    :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused, 'grid-locked': gridLock }"
+    :class="{ completed: todo.completed, selected: selected, 'keyboard-focused': focused }"
     :style="cardStyle"
     :data-todo-id="todo.id"
     :draggable="isDraggable ? 'true' : 'false'"
@@ -117,17 +117,6 @@ export default {
     Trash2,
     RotateCcw
   },
-  data() {
-    return {
-      isEditing: false,
-      editingTitle: '',
-      isCollapsed: true,
-      isEditingNotes: false,
-      editingNotes: '',
-      contextMenuVisible: false,
-      contextMenuStyle: { top: '0px', left: '0px' }
-    }
-  },
   props: {
     todo: {
       type: Object,
@@ -157,10 +146,6 @@ export default {
       type: Boolean,
       default: false
     },
-    gridLock: {
-      type: Boolean,
-      default: false
-    },
     isDraggable: {
       type: Boolean,
       default: false
@@ -175,6 +160,17 @@ export default {
     }
   },
   emits: ['click', 'toggle-complete', 'delete', 'restore', 'permanent-delete', 'unarchive', 'dragstart', 'update-title', 'update-notes', 'archive', 'move-to-project'],
+  data() {
+    return {
+      isEditing: false,
+      editingTitle: '',
+      isCollapsed: true,
+      isEditingNotes: false,
+      editingNotes: '',
+      contextMenuVisible: false,
+      contextMenuStyle: { top: '0px', left: '0px' }
+    }
+  },
   computed: {
   },
   methods: {

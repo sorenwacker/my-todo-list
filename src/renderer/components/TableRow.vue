@@ -17,8 +17,8 @@
       <button
         class="expand-btn"
         :class="{ 'has-subtasks': hasSubtasks }"
-        @click.stop="$emit('toggle-expand')"
         :title="hasSubtasks ? (isExpanded ? 'Collapse tasks' : 'Expand tasks') : 'Add tasks'"
+        @click.stop="$emit('toggle-expand')"
       >{{ isExpanded ? '−' : '+' }}</button>
     </td>
     <td class="col-title" :class="{ 'has-subtasks': hasSubtasks }">{{ todo.title }}</td>
@@ -27,12 +27,12 @@
         v-if="todo.project_name"
         class="project-badge clickable"
         :style="{ background: todo.project_color }"
-        @click.stop="$emit('add-to-project', todo.project_id)"
         title="Click to add new item to this project"
+        @click.stop="$emit('add-to-project', todo.project_id)"
       >
         {{ todo.project_name }}
       </span>
-      <span v-else class="inbox-badge clickable" @click.stop="$emit('add-to-project', null)" title="Click to add new item to inbox">-</span>
+      <span v-else class="inbox-badge clickable" title="Click to add new item to inbox" @click.stop="$emit('add-to-project', null)">-</span>
     </td>
     <td class="col-category">
       <span v-if="todo.category_name" class="category-badge">

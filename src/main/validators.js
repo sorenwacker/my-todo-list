@@ -2,6 +2,8 @@
  * Input validation utilities for IPC handlers
  */
 
+import { MAX_LENGTH, MAX_ARRAY_SIZE, DEFAULT_COLORS } from '../config/constants.js'
+
 class ValidationError extends Error {
   constructor(message) {
     super(message)
@@ -36,7 +38,7 @@ function validateOptionalId(value, fieldName = 'id') {
 /**
  * Validate that value is a non-empty string
  */
-function validateString(value, fieldName = 'value', maxLength = 1000) {
+function validateString(value, fieldName = 'value', maxLength = MAX_LENGTH.GENERIC_STRING) {
   if (typeof value !== 'string') {
     throw new ValidationError(`${fieldName} must be a string`)
   }
@@ -52,7 +54,7 @@ function validateString(value, fieldName = 'value', maxLength = 1000) {
 /**
  * Validate that value is a string (can be empty)
  */
-function validateOptionalString(value, fieldName = 'value', maxLength = 50000) {
+function validateOptionalString(value, fieldName = 'value', maxLength = MAX_LENGTH.OPTIONAL_STRING) {
   if (value === null || value === undefined) {
     return ''
   }
@@ -81,7 +83,7 @@ function validateColor(value, fieldName = 'color') {
 /**
  * Validate optional hex color
  */
-function validateOptionalColor(value, fieldName = 'color', defaultValue = '#0f4c75') {
+function validateOptionalColor(value, fieldName = 'color', defaultValue = DEFAULT_COLORS.PROJECT) {
   if (value === null || value === undefined || value === '') {
     return defaultValue
   }
@@ -98,8 +100,8 @@ function validateIdArray(value, fieldName = 'ids') {
   if (value.length === 0) {
     return []
   }
-  if (value.length > 10000) {
-    throw new ValidationError(`${fieldName} exceeds maximum length of 10000`)
+  if (value.length > MAX_ARRAY_SIZE.IDS) {
+    throw new ValidationError(`${fieldName} exceeds maximum length of ${MAX_ARRAY_SIZE.IDS}`)
   }
   return value.map((id, i) => validateId(id, `${fieldName}[${i}]`))
 }
@@ -160,17 +162,16 @@ function validateTodo(todo) {
 
   return {
     id: validateId(todo.id, 'todo.id'),
-    title: validateString(todo.title, 'todo.title', 500),
-    notes: validateOptionalString(todo.notes, 'todo.notes', 100000),
+    title: validateString(todo.title, 'todo.title', MAX_LENGTH.TODO_TITLE),
+    notes: validateOptionalString(todo.notes, 'todo.notes', MAX_LENGTH.TODO_NOTES),
     start_date: validateOptionalDate(todo.start_date, 'todo.start_date'),
     end_date: validateOptionalDate(todo.end_date, 'todo.end_date'),
     completed: validateBoolean(todo.completed, 'todo.completed'),
     project_id: validateOptionalId(todo.project_id, 'todo.project_id'),
-    category_id: validateOptionalId(todo.category_id, 'todo.category_id'),
     status_id: validateOptionalId(todo.status_id, 'todo.status_id'),
     importance: validateOptionalImportance(todo.importance),
     recurrence_type: validateOptionalRecurrenceType(todo.recurrence_type),
-    recurrence_interval: validateOptionalPositiveInt(todo.recurrence_interval, 'todo.recurrence_interval', 365),
+    recurrence_interval: validateOptionalPositiveInt(todo.recurrence_interval, 'todo.recurrence_interval', MAX_ARRAY_SIZE.RECURRENCE_INTERVAL),
     recurrence_end_date: validateOptionalDate(todo.recurrence_end_date, 'todo.recurrence_end_date'),
     notes_sensitive: validateBoolean(todo.notes_sensitive, 'todo.notes_sensitive'),
     type: validateTodoType(todo.type),
@@ -197,7 +198,7 @@ function validateOptionalRecurrenceType(value) {
 /**
  * Validate optional positive integer
  */
-function validateOptionalPositiveInt(value, fieldName = 'value', max = 1000000) {
+function validateOptionalPositiveInt(value, fieldName = 'value', max = MAX_ARRAY_SIZE.POSITIVE_INT) {
   if (value === null || value === undefined) {
     return 1
   }
@@ -218,24 +219,8 @@ function validateProject(project) {
 
   return {
     id: validateId(project.id, 'project.id'),
-    name: validateString(project.name, 'project.name', 200),
+    name: validateString(project.name, 'project.name', MAX_LENGTH.PROJECT_NAME),
     color: validateOptionalColor(project.color, 'project.color')
-  }
-}
-
-/**
- * Validate category object
- */
-function validateCategory(category) {
-  if (!category || typeof category !== 'object') {
-    throw new ValidationError('category must be an object')
-  }
-
-  return {
-    id: validateId(category.id, 'category.id'),
-    name: validateString(category.name, 'category.name', 100),
-    color: validateOptionalColor(category.color, 'category.color'),
-    symbol: validateOptionalString(category.symbol, 'category.symbol', 10)
   }
 }
 
@@ -249,93 +234,11 @@ function validateStatus(status) {
 
   return {
     id: validateId(status.id, 'status.id'),
-    name: validateString(status.name, 'status.name', 100),
+    name: validateString(status.name, 'status.name', MAX_LENGTH.STATUS_NAME),
     color: validateOptionalColor(status.color, 'status.color')
   }
 }
 
-/**
- * Validate person object
- */
-function validatePerson(person) {
-  if (!person || typeof person !== 'object') {
-    throw new ValidationError('person must be an object')
-  }
-
-  const result = {
-    name: validateString(person.name, 'person.name', 200),
-    email: validateOptionalString(person.email, 'person.email', 320),
-    phone: validateOptionalString(person.phone, 'person.phone', 50),
-    company: validateOptionalString(person.company, 'person.company', 200),
-    role: validateOptionalString(person.role, 'person.role', 200),
-    notes: validateOptionalString(person.notes, 'person.notes', 10000),
-    color: validateOptionalColor(person.color, 'person.color', '#6b7280'),
-    github_name: validateOptionalString(person.github_name, 'person.github_name', 100)
-  }
-
-  // Include id if present (for updates)
-  if (person.id !== undefined) {
-    result.id = validateId(person.id, 'person.id')
-  }
-
-  return result
-}
-
-/**
- * Validate subtask object
- */
-function validateSubtask(subtask) {
-  if (!subtask || typeof subtask !== 'object') {
-    throw new ValidationError('subtask must be an object')
-  }
-
-  return {
-    id: validateId(subtask.id, 'subtask.id'),
-    title: validateString(subtask.title, 'subtask.title', 500),
-    completed: validateBoolean(subtask.completed, 'subtask.completed')
-  }
-}
-
-/**
- * Validate stakeholder data
- */
-function validateStakeholderData(data) {
-  if (!data || typeof data !== 'object') {
-    return {}
-  }
-
-  const result = {}
-
-  if (data.influence_level !== undefined) {
-    const num = Number(data.influence_level)
-    if (!Number.isInteger(num) || num < 1 || num > 5) {
-      throw new ValidationError('influence_level must be between 1 and 5')
-    }
-    result.influence_level = num
-  }
-
-  if (data.interest_level !== undefined) {
-    const num = Number(data.interest_level)
-    if (!Number.isInteger(num) || num < 1 || num > 5) {
-      throw new ValidationError('interest_level must be between 1 and 5')
-    }
-    result.interest_level = num
-  }
-
-  if (data.stakeholder_type !== undefined) {
-    result.stakeholder_type = validateOptionalString(data.stakeholder_type, 'stakeholder_type', 100)
-  }
-
-  if (data.engagement_strategy !== undefined) {
-    result.engagement_strategy = validateOptionalString(data.engagement_strategy, 'engagement_strategy', 200)
-  }
-
-  if (data.notes !== undefined) {
-    result.notes = validateOptionalString(data.notes, 'notes', 10000)
-  }
-
-  return result
-}
 
 /**
  * Validate search query
@@ -344,8 +247,8 @@ function validateSearchQuery(query) {
   if (typeof query !== 'string') {
     throw new ValidationError('query must be a string')
   }
-  if (query.length > 500) {
-    throw new ValidationError('query exceeds maximum length of 500')
+  if (query.length > MAX_LENGTH.SEARCH_QUERY) {
+    throw new ValidationError(`query exceeds maximum length of ${MAX_LENGTH.SEARCH_QUERY}`)
   }
   return query
 }
@@ -476,11 +379,7 @@ export {
   validateBoolean,
   validateTodo,
   validateProject,
-  validateCategory,
   validateStatus,
-  validatePerson,
-  validateSubtask,
-  validateStakeholderData,
   validateSearchQuery,
   validateImportMode,
   validateUrl,

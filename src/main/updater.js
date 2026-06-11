@@ -1,6 +1,7 @@
 import { autoUpdater } from 'electron-updater'
 import { app, dialog } from 'electron'
 import logger from './logger.js'
+import { UPDATE_CHECK_INITIAL_DELAY, UPDATE_CHECK_INTERVAL } from '../config/constants.js'
 
 const log = logger.child({ module: 'updater' })
 
@@ -17,12 +18,12 @@ export function initAutoUpdater(win) {
   // Check for updates on startup (with delay to not slow down launch)
   setTimeout(() => {
     checkForUpdates()
-  }, 5000)
+  }, UPDATE_CHECK_INITIAL_DELAY)
 
   // Check for updates every 4 hours
   setInterval(() => {
     checkForUpdates()
-  }, 4 * 60 * 60 * 1000)
+  }, UPDATE_CHECK_INTERVAL)
 
   // Event handlers
   autoUpdater.on('checking-for-update', () => {

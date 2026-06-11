@@ -75,15 +75,6 @@ export default {
     Archive,
     Trash2
   },
-  data() {
-    return {
-      isEditing: false,
-      editingTitle: '',
-      isCollapsed: true,
-      isEditingNotes: false,
-      editingNotes: ''
-    }
-  },
   props: {
     todo: {
       type: Object,
@@ -103,6 +94,15 @@ export default {
     }
   },
   emits: ['select', 'toggle-complete', 'delete', 'update-title', 'update-notes', 'archive'],
+  data() {
+    return {
+      isEditing: false,
+      editingTitle: '',
+      isCollapsed: true,
+      isEditingNotes: false,
+      editingNotes: ''
+    }
+  },
   computed: {
     subtaskProgress() {
       if (!this.todo.subtask_count) return 0

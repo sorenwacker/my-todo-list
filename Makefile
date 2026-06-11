@@ -3,7 +3,7 @@ ICON_SIZES = 16 32 64 128 256 512 1024
 ICON_PNGS = $(addprefix resources/icon-,$(addsuffix .png,$(ICON_SIZES)))
 DMG = $(wildcard dist/Todo-*-arm64.dmg)
 
-.PHONY: icons build dist install clean dev
+.PHONY: icons build dist install install-mac clean dev
 
 icons: $(ICON_PNGS)
 
@@ -24,6 +24,9 @@ install: dist
 	if [ -z "$$DMG" ]; then echo "No DMG found"; exit 1; fi; \
 	echo "Opening $$DMG"; \
 	open "$$DMG"
+
+install-mac:
+	npm run install:mac
 
 clean:
 	rm -rf dist out

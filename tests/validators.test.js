@@ -14,7 +14,6 @@ import {
   validateTodo,
   validateProject,
   validatePerson,
-  validateSubtask,
   validateSearchQuery,
   validateImportMode,
   validateUrl,
@@ -245,16 +244,6 @@ describe('Validators', () => {
       const result = validatePerson(person)
       expect(result.id).toBe(1)
       expect(result.name).toBe('John Doe')
-    })
-  })
-
-  describe('validateSubtask', () => {
-    it('should validate subtask', () => {
-      const subtask = { id: 1, title: 'Subtask', completed: true }
-      const result = validateSubtask(subtask)
-      expect(result.id).toBe(1)
-      expect(result.title).toBe('Subtask')
-      expect(result.completed).toBe(true)
     })
   })
 

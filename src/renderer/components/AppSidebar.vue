@@ -30,16 +30,6 @@
 
       <div
         class="nav-item"
-        :class="{ active: currentFilter === 'inbox' }"
-        @click="$emit('set-filter', 'inbox')"
-      >
-        <Inbox :size="16" class="nav-icon" />
-        <span>Inbox</span>
-        <span class="count">{{ formatProgress(inboxCount) }}</span>
-      </div>
-
-      <div
-        class="nav-item"
         :class="{ active: currentFilter === 'archive' }"
         @click="$emit('set-filter', 'archive')"
       >
@@ -62,15 +52,15 @@
 
       <div class="add-project">
         <input
-          v-if="showProjectInput"
-          ref="projectInput"
-          v-model="newProjectName"
+          v-if="projectInput.showInput.value"
+          :ref="el => projectInput.inputRef.value = el"
+          v-model="projectInput.inputValue.value"
           placeholder="Project name..."
           type="text"
-          @keyup.enter="addProject"
-          @blur="cancelAddProject"
+          @keyup.enter="projectInput.add"
+          @blur="projectInput.cancel"
         />
-        <button v-else @click="showAddProject">+ Add Project</button>
+        <button v-else @click="projectInput.showAdd">+ Add Project</button>
       </div>
 
       <draggable
@@ -96,7 +86,8 @@
     </nav>
 
     <div class="sidebar-header status-header collapsible" @click.stop="statusesCollapsed = !statusesCollapsed">
-      <span class="collapse-indicator">{{ statusesCollapsed ? '>' : 'v' }}</span>
+      <ChevronRight v-if="statusesCollapsed" :size="14" class="collapse-icon" />
+      <ChevronDown v-else :size="14" class="collapse-icon" />
       <h2>Statuses</h2>
     </div>
 
@@ -123,29 +114,24 @@
 
     <div v-show="!statusesCollapsed" class="add-status">
       <input
-        v-if="showStatusInput"
-        ref="statusInput"
-        v-model="newStatusName"
+        v-if="statusInput.showInput.value"
+        :ref="el => statusInput.inputRef.value = el"
+        v-model="statusInput.inputValue.value"
         placeholder="Status name..."
         type="text"
-        @keyup.enter="addStatus"
-        @blur="cancelAddStatus"
+        @keyup.enter="statusInput.add"
+        @blur="statusInput.cancel"
       />
-      <button v-else @click="showAddStatus">+ Add Status</button>
+      <button v-else @click="statusInput.showAdd">+ Add Status</button>
     </div>
 
     <div class="settings-section">
       <div class="sidebar-header settings-header collapsible" @click.stop="settingsCollapsed = !settingsCollapsed">
-        <span class="collapse-indicator">{{ settingsCollapsed ? '>' : 'v' }}</span>
+        <ChevronRight v-if="settingsCollapsed" :size="14" class="collapse-icon" />
+        <ChevronDown v-else :size="14" class="collapse-icon" />
         <h2>Settings</h2>
       </div>
       <div v-show="!settingsCollapsed" class="settings-content">
-        <div class="preference-item">
-          <label class="checkbox-label">
-            <input :checked="gridLock" type="checkbox" @change="$emit('update:grid-lock', $event.target.checked)" />
-            <span class="preference-text">Grid lock (cards view)</span>
-          </label>
-        </div>
         <div class="preference-item timezone-item">
           <label class="preference-label">Timezone</label>
           <select :value="timezone" class="timezone-select" @change="$emit('update:timezone', $event.target.value)">
@@ -174,15 +160,16 @@ import {
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
   MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
   AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
-  Inbox, Archive, Trash2, List
+  Inbox, Archive, Trash2, List, ChevronRight, ChevronDown
 } from 'lucide-vue-next'
+import { useAddInput } from '../composables/useAddInput'
 
 const iconMap = {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
   MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
   AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
-  Inbox, Archive, Trash2, List
+  Inbox, Archive, Trash2, List, ChevronRight, ChevronDown
 }
 
 export default {
@@ -200,20 +187,17 @@ export default {
     currentFilter: { type: [Number, String], default: null },
     projects: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
-    categories: { type: Array, default: () => [] },
     allCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
     inboxCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
     trashCount: { type: Number, default: 0 },
     archiveCount: { type: Number, default: 0 },
     projectCounts: { type: Object, default: () => ({}) },
     statusCounts: { type: Object, default: () => ({}) },
-    categoryCounts: { type: Object, default: () => ({}) },
     topics: { type: Array, default: () => [] },
     selectedTopicId: { type: Number, default: null },
     topicCounts: { type: Object, default: () => ({}) },
     isProjectSelected: { type: Boolean, default: false },
     openTodosInWindow: { type: Boolean, default: false },
-    gridLock: { type: Boolean, default: false },
     timezone: { type: String, default: 'auto' },
     databasePath: { type: String, default: '' },
     appVersion: { type: String, default: '' }
@@ -222,24 +206,25 @@ export default {
     'set-filter',
     'update:projects', 'projects-reorder', 'add-project', 'edit-project',
     'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
-    'update:categories', 'categories-reorder', 'add-category', 'edit-category',
     'select-topic', 'add-topic', 'edit-topic', 'delete-topic', 'topics-reorder',
-    'update:open-todos-in-window', 'update:grid-lock', 'update:timezone',
+    'update:open-todos-in-window', 'update:timezone',
     'export', 'show-import',
     'toggle-pin', 'mouseleave', 'mouseenter'
   ],
+  setup(props, { emit }) {
+    const projectInput = useAddInput('project', emit)
+    const statusInput = useAddInput('status', emit)
+    const topicInput = useAddInput('topic', emit)
+
+    return {
+      projectInput,
+      statusInput,
+      topicInput
+    }
+  },
   data() {
     return {
-      showProjectInput: false,
-      showStatusInput: false,
-      showCategoryInput: false,
-      showTopicInput: false,
-      newProjectName: '',
-      newStatusName: '',
-      newCategoryName: '',
-      newTopicName: '',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
-      categoriesCollapsed: localStorage.getItem('categories-collapsed') !== 'false',
       topicsCollapsed: localStorage.getItem('topics-collapsed') !== 'false',
       settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
       commonTimezones: [
@@ -273,9 +258,6 @@ export default {
     statusesCollapsed(val) {
       localStorage.setItem('statuses-collapsed', val)
     },
-    categoriesCollapsed(val) {
-      localStorage.setItem('categories-collapsed', val)
-    },
     topicsCollapsed(val) {
       localStorage.setItem('topics-collapsed', val)
     },
@@ -299,67 +281,8 @@ export default {
     getStatusCount(statusId) {
       return this.statusCounts[statusId] || 0
     },
-    getCategoryCount(categoryId) {
-      return this.categoryCounts[categoryId] || 0
-    },
-    showAddProject() {
-      this.showProjectInput = true
-      this.$nextTick(() => this.$refs.projectInput?.focus())
-    },
-    addProject() {
-      if (this.newProjectName.trim()) {
-        this.$emit('add-project', this.newProjectName.trim())
-      }
-      this.cancelAddProject()
-    },
-    cancelAddProject() {
-      this.newProjectName = ''
-      this.showProjectInput = false
-    },
-    showAddStatus() {
-      this.showStatusInput = true
-      this.$nextTick(() => this.$refs.statusInput?.focus())
-    },
-    addStatus() {
-      if (this.newStatusName.trim()) {
-        this.$emit('add-status', this.newStatusName.trim())
-      }
-      this.cancelAddStatus()
-    },
-    cancelAddStatus() {
-      this.newStatusName = ''
-      this.showStatusInput = false
-    },
-    showAddCategory() {
-      this.showCategoryInput = true
-      this.$nextTick(() => this.$refs.categoryInput?.focus())
-    },
-    addCategory() {
-      if (this.newCategoryName.trim()) {
-        this.$emit('add-category', this.newCategoryName.trim())
-      }
-      this.cancelAddCategory()
-    },
-    cancelAddCategory() {
-      this.newCategoryName = ''
-      this.showCategoryInput = false
-    },
     getTopicCount(topicId) {
       return this.topicCounts[topicId] || 0
-    },
-    showAddTopic() {
-      this.showTopicInput = true
-      this.$nextTick(() => this.$refs.topicInput?.focus())
-    },
-    addTopic() {
-      if (this.newTopicName.trim()) {
-        this.$emit('add-topic', this.newTopicName.trim())
-      }
-      this.cancelAddTopic()
-    },
-    cancelAddTopic() {
-      this.newTopicName = ''
-      this.showTopicInput = false
     }
   }
 }
@@ -446,11 +369,11 @@ export default {
   margin: 8px 16px;
 }
 
-.add-project, .add-status, .add-category, .add-topic {
+.add-project, .add-status, .add-topic {
   padding: 8px 16px;
 }
 
-.add-project input, .add-status input, .add-category input, .add-topic input {
+.add-project input, .add-status input, .add-topic input {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-color, #3a3f4b);
@@ -461,7 +384,7 @@ export default {
   box-sizing: border-box;
 }
 
-.add-project button, .add-status button, .add-category button, .add-topic button {
+.add-project button, .add-status button, .add-topic button {
   width: 100%;
   padding: 6px 8px;
   background: transparent;
@@ -472,7 +395,7 @@ export default {
   font-size: 13px;
 }
 
-.add-project button:hover, .add-status button:hover, .add-category button:hover, .add-topic button:hover {
+.add-project button:hover, .add-status button:hover, .add-topic button:hover {
   border-color: var(--accent-color, #0f4c75);
   color: var(--accent-color, #0f4c75);
 }
@@ -506,20 +429,11 @@ export default {
   background: var(--bg-hover, #2a2f3d);
 }
 
-.project-name, .status-name, .category-name, .topic-name {
+.project-name, .status-name, .topic-name {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.category-symbol-icon {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary, #a0a0a0);
 }
 
 .edit-btn {
@@ -541,8 +455,7 @@ export default {
   margin-top: auto;
 }
 
-.status-header,
-.category-header {
+.status-header {
   border-top: 1px solid var(--border-color, #333);
 }
 
@@ -679,7 +592,6 @@ export default {
 
 .sidebar.light-theme .add-project button,
 .sidebar.light-theme .add-status button,
-.sidebar.light-theme .add-category button,
 .sidebar.light-theme .add-topic button {
   border-color: #ccc;
   color: #666;
@@ -687,7 +599,6 @@ export default {
 
 .sidebar.light-theme .add-project button:hover,
 .sidebar.light-theme .add-status button:hover,
-.sidebar.light-theme .add-category button:hover,
 .sidebar.light-theme .add-topic button:hover {
   border-color: #3498db;
   color: #3498db;
@@ -702,8 +613,7 @@ export default {
   border-top-color: #ddd;
 }
 
-.sidebar.light-theme .status-header,
-.sidebar.light-theme .category-header {
+.sidebar.light-theme .status-header {
   border-top-color: #ddd;
 }
 
@@ -743,10 +653,6 @@ export default {
 .sidebar.light-theme .pin-btn:hover {
   background: #e8e8e8;
   color: #333;
-}
-
-.sidebar.light-theme .category-symbol-icon {
-  color: #666;
 }
 
 .sidebar.light-theme .project-item.sortable-ghost,

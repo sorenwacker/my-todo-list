@@ -2,6 +2,7 @@ import BetterSqlite3 from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
+import log from './logger.js'
 
 export class Database {
   constructor(dbPath = null) {
@@ -27,13 +28,6 @@ export class Database {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        symbol TEXT DEFAULT '*',
-        sort_order INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      );
 
       CREATE TABLE IF NOT EXISTS todos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,11 +38,9 @@ export class Database {
         sort_order INTEGER DEFAULT 0,
         importance INTEGER DEFAULT NULL,
         project_id INTEGER,
-        category_id INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
       );
 
       CREATE TABLE IF NOT EXISTS todo_links (
@@ -69,55 +61,6 @@ export class Database {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS subtasks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        todo_id INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        completed INTEGER DEFAULT 0,
-        sort_order INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS persons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT DEFAULT '',
-        phone TEXT DEFAULT '',
-        company TEXT DEFAULT '',
-        role TEXT DEFAULT '',
-        github_name TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        color TEXT DEFAULT '#0f4c75',
-        sort_order INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS todo_persons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        todo_id INTEGER NOT NULL,
-        person_id INTEGER NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
-        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
-        UNIQUE(todo_id, person_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS project_persons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        project_id INTEGER NOT NULL,
-        person_id INTEGER NOT NULL,
-        influence_level INTEGER DEFAULT 3,
-        interest_level INTEGER DEFAULT 3,
-        stakeholder_type TEXT DEFAULT 'Internal',
-        engagement_strategy TEXT DEFAULT 'Keep Informed',
-        notes TEXT DEFAULT '',
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
-        UNIQUE(project_id, person_id)
-      );
-
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT,
@@ -132,17 +75,6 @@ export class Database {
         FOREIGN KEY (milestone_id) REFERENCES todos(id) ON DELETE CASCADE,
         FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
         UNIQUE(milestone_id, todo_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS milestone_persons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        milestone_id INTEGER NOT NULL,
-        person_id INTEGER NOT NULL,
-        role TEXT DEFAULT '',
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (milestone_id) REFERENCES todos(id) ON DELETE CASCADE,
-        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
-        UNIQUE(milestone_id, person_id)
       );
 
       CREATE TABLE IF NOT EXISTS project_topics (
@@ -172,16 +104,6 @@ export class Database {
         UNIQUE(todo_id, tag_id)
       );
 
-      CREATE TABLE IF NOT EXISTS person_tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        person_id INTEGER NOT NULL,
-        tag_id INTEGER NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-        UNIQUE(person_id, tag_id)
-      );
-
       CREATE TABLE IF NOT EXISTS project_tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
@@ -193,122 +115,167 @@ export class Database {
       );
     `)
 
-    // Migration: add importance and category_id if missing
+    // Migration: add importance if missing
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN importance INTEGER DEFAULT NULL')
-    } catch { /* column exists */ }
-    try {
-      this.db.exec('ALTER TABLE todos ADD COLUMN category_id INTEGER')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN importance', error: error.message })
+      }
+    }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN start_date TEXT')
-    } catch { /* column exists */ }
-    try {
-      this.db.exec('ALTER TABLE persons ADD COLUMN github_name TEXT DEFAULT \'\'')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN start_date', error: error.message })
+      }
+    }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN status_id INTEGER')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN status_id', error: error.message })
+      }
+    }
 
     // Migration: rename deadline to end_date
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN end_date TEXT')
       // Migrate data from deadline to end_date
       this.db.exec('UPDATE todos SET end_date = deadline WHERE deadline IS NOT NULL AND end_date IS NULL')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN end_date', error: error.message })
+      }
+    }
 
     // Migration: add deleted_at for soft delete (trashbin)
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN deleted_at TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN deleted_at to todos', error: error.message })
+      }
+    }
 
     // Migration: add deleted_at for projects soft delete
     try {
       this.db.exec('ALTER TABLE projects ADD COLUMN deleted_at TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN deleted_at to projects', error: error.message })
+      }
+    }
 
-    // Migration: add symbol column to categories (replacing color)
+    // Migration: drop categories table
     try {
-      this.db.exec('ALTER TABLE categories ADD COLUMN symbol TEXT DEFAULT \'*\'')
-    } catch { /* column exists */ }
+      this.db.exec('DROP TABLE IF EXISTS categories')
+    } catch (error) {
+      log.warn('Migration warning', { migration: 'DROP TABLE categories', error: error.message })
+    }
 
     // Migration: add recurrence fields to todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_type TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN recurrence_type', error: error.message })
+      }
+    }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_interval INTEGER DEFAULT 1')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN recurrence_interval', error: error.message })
+      }
+    }
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN recurrence_end_date TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN recurrence_end_date', error: error.message })
+      }
+    }
 
     // Migration: fix importance default - update any default 3 values to NULL
     try {
       this.db.exec('UPDATE todos SET importance = NULL WHERE importance = 3 AND title NOT LIKE \'%importance%\'')
-    } catch { /* ignore errors */ }
+    } catch (error) {
+      log.warn('Migration warning', { migration: 'UPDATE importance defaults', error: error.message })
+    }
 
-    // Migration: add stakeholder analysis fields to project_persons
-    try {
-      this.db.exec('ALTER TABLE project_persons ADD COLUMN influence_level INTEGER DEFAULT 3')
-    } catch { /* column exists */ }
-    try {
-      this.db.exec('ALTER TABLE project_persons ADD COLUMN interest_level INTEGER DEFAULT 3')
-    } catch { /* column exists */ }
-    try {
-      this.db.exec('ALTER TABLE project_persons ADD COLUMN stakeholder_type TEXT DEFAULT \'Internal\'')
-    } catch { /* column exists */ }
-    try {
-      this.db.exec('ALTER TABLE project_persons ADD COLUMN engagement_strategy TEXT DEFAULT \'Keep Informed\'')
-    } catch { /* column exists */ }
-    try {
-      this.db.exec('ALTER TABLE project_persons ADD COLUMN notes TEXT DEFAULT \'\'')
-    } catch { /* column exists */ }
 
     // Migration: add notes_sensitive flag for todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN notes_sensitive INTEGER DEFAULT 0')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN notes_sensitive', error: error.message })
+      }
+    }
 
     // Migration: add type column to todos (for todo vs note distinction)
     try {
       this.db.exec("ALTER TABLE todos ADD COLUMN type TEXT DEFAULT 'todo'")
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN type', error: error.message })
+      }
+    }
 
     // Migration: add parent_id for milestone hierarchy
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN parent_id INTEGER REFERENCES todos(id) ON DELETE SET NULL')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN parent_id', error: error.message })
+      }
+    }
 
     // Migration: add milestone_date for milestone markers
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN milestone_date TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN milestone_date', error: error.message })
+      }
+    }
 
     // Migration: add topic_id for project-specific topic buckets
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN topic_id INTEGER REFERENCES project_topics(id) ON DELETE SET NULL')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN topic_id', error: error.message })
+      }
+    }
 
     // Migration: add due_date column to todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN due_date TEXT')
-    } catch { /* column exists */ }
-
-    // Migration: add due_date column to subtasks
-    try {
-      this.db.exec('ALTER TABLE subtasks ADD COLUMN due_date TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN due_date to todos', error: error.message })
+      }
+    }
 
     // Migration: add completed_at column to todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN completed_at TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN completed_at', error: error.message })
+      }
+    }
 
     // Migration: add archived_at column to todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN archived_at TEXT')
-    } catch { /* column exists */ }
+    } catch (error) {
+      if (!error.message.includes('duplicate column') && !error.message.includes('already exists')) {
+        log.warn('Migration warning', { migration: 'ADD COLUMN archived_at', error: error.message })
+      }
+    }
 
     // Seed default statuses if none exist
     const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
@@ -372,39 +339,6 @@ export class Database {
 
   permanentlyDeleteProject(id) {
     this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
-    return true
-  }
-
-  // Category operations
-  getAllCategories() {
-    return this.db.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all()
-  }
-
-  getCategory(id) {
-    return this.db.prepare('SELECT * FROM categories WHERE id = ?').get(id)
-  }
-
-  createCategory(name, symbol = '*') {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM categories').get()
-    const sortOrder = (maxOrder.max || 0) + 1
-
-    const result = this.db.prepare(
-      'INSERT INTO categories (name, symbol, sort_order) VALUES (?, ?, ?)'
-    ).run(name, symbol, sortOrder)
-
-    return this.getCategory(result.lastInsertRowid)
-  }
-
-  updateCategory(category) {
-    this.db.prepare(
-      'UPDATE categories SET name = ?, symbol = ? WHERE id = ?'
-    ).run(category.name, category.symbol, category.id)
-
-    return this.getCategory(category.id)
-  }
-
-  deleteCategory(id) {
-    this.db.prepare('DELETE FROM categories WHERE id = ?').run(id)
     return true
   }
 
@@ -482,87 +416,15 @@ export class Database {
     return true
   }
 
-  // Person operations
-  getAllPersons() {
-    return this.db.prepare('SELECT * FROM persons ORDER BY sort_order ASC').all()
-  }
-
-  getPerson(id) {
-    return this.db.prepare('SELECT * FROM persons WHERE id = ?').get(id)
-  }
-
-  createPerson(person) {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM persons').get()
-    const sortOrder = (maxOrder.max || 0) + 1
-
-    const result = this.db.prepare(`
-      INSERT INTO persons (name, email, phone, company, role, github_name, notes, color, sort_order)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      person.name,
-      person.email || '',
-      person.phone || '',
-      person.company || '',
-      person.role || '',
-      person.github_name || '',
-      person.notes || '',
-      person.color || '#0f4c75',
-      sortOrder
-    )
-
-    return this.getPerson(result.lastInsertRowid)
-  }
-
-  updatePerson(person) {
-    this.db.prepare(`
-      UPDATE persons
-      SET name = ?, email = ?, phone = ?, company = ?, role = ?, github_name = ?, notes = ?, color = ?
-      WHERE id = ?
-    `).run(
-      person.name,
-      person.email || '',
-      person.phone || '',
-      person.company || '',
-      person.role || '',
-      person.github_name || '',
-      person.notes || '',
-      person.color,
-      person.id
-    )
-
-    return this.getPerson(person.id)
-  }
-
-  deletePerson(id) {
-    this.db.prepare('DELETE FROM persons WHERE id = ?').run(id)
-    return true
-  }
-
-  reorderPersons(ids) {
-    const stmt = this.db.prepare('UPDATE persons SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
-      ids.forEach((id, index) => {
-        stmt.run(index, id)
-      })
-    })
-    transaction(ids)
-    return true
-  }
-
   // Todo operations
   getAllTodos(projectId = null) {
     if (projectId === null) {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
-               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json,
                (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM todo_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.todo_id = t.id) as tags_json
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
-        LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.deleted_at IS NULL AND t.archived_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
@@ -570,14 +432,9 @@ export class Database {
     } else if (projectId === 'inbox') {
       return this.db.prepare(`
         SELECT t.*, NULL as project_name, NULL as project_color,
-               c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
-               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json,
                (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM todo_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.todo_id = t.id) as tags_json
         FROM todos t
-        LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.project_id IS NULL AND t.deleted_at IS NULL AND t.archived_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
@@ -587,14 +444,9 @@ export class Database {
     } else if (projectId === 'trash') {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.symbol as category_symbol,
-               s.name as status_name, s.color as status_color,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
-               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
+               s.name as status_name, s.color as status_color
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
-        LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.deleted_at IS NOT NULL
         ORDER BY t.deleted_at DESC
@@ -602,14 +454,9 @@ export class Database {
     } else {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.symbol as category_symbol,
-               s.name as status_name, s.color as status_color,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id) as subtask_count,
-               (SELECT COUNT(*) FROM subtasks WHERE todo_id = t.id AND completed = 1) as subtask_completed,
-               (SELECT json_group_array(json_object('id', id, 'title', title, 'completed', completed)) FROM subtasks WHERE todo_id = t.id ORDER BY sort_order) as subtasks_json
+               s.name as status_name, s.color as status_color
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
-        LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.project_id = ? AND t.deleted_at IS NULL AND t.archived_at IS NULL
         ORDER BY t.sort_order ASC, t.created_at DESC
@@ -620,11 +467,9 @@ export class Database {
   getTodo(id) {
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.id = ?
     `).get(id)
@@ -665,9 +510,9 @@ export class Database {
 
     this.db.prepare(`
       UPDATE todos
-      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, completed_at = ?, project_id = ?, category_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, topic_id = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, completed_at = ?, project_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, topic_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, completedAt, todo.project_id || null, todo.category_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, topicId, todo.id)
+    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, completedAt, todo.project_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, topicId, todo.id)
 
     return this.getTodo(todo.id)
   }
@@ -722,8 +567,8 @@ export class Database {
     const sortOrder = (maxOrder.max || 0) + 1
 
     const result = this.db.prepare(`
-      INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, category_id, status_id, recurrence_type, recurrence_interval, recurrence_end_date)
-      VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, status_id, recurrence_type, recurrence_interval, recurrence_end_date)
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       todo.title,
       todo.notes || '',
@@ -732,7 +577,6 @@ export class Database {
       sortOrder,
       todo.importance,
       todo.project_id,
-      todo.category_id,
       todo.status_id,
       todo.recurrence_type,
       todo.recurrence_interval,
@@ -791,11 +635,9 @@ export class Database {
   getArchivedTodos() {
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.archived_at IS NOT NULL AND t.deleted_at IS NULL
       ORDER BY t.archived_at DESC
@@ -826,11 +668,9 @@ export class Database {
   getChildTodos(parentId) {
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.parent_id = ? AND t.deleted_at IS NULL
       ORDER BY t.sort_order ASC
@@ -888,17 +728,6 @@ export class Database {
     return true
   }
 
-  reorderCategories(ids) {
-    const stmt = this.db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
-      ids.forEach((id, index) => {
-        stmt.run(index, id)
-      })
-    })
-    transaction(ids)
-    return true
-  }
-
   reorderStatuses(ids) {
     const stmt = this.db.prepare('UPDATE statuses SET sort_order = ? WHERE id = ?')
     const transaction = this.db.transaction((ids) => {
@@ -914,11 +743,9 @@ export class Database {
   getLinkedTodos(todoId) {
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.id IN (
         SELECT target_id FROM todo_links WHERE source_id = ?
@@ -939,7 +766,8 @@ export class Database {
         'INSERT OR IGNORE INTO todo_links (source_id, target_id) VALUES (?, ?)'
       ).run(first, second)
       return true
-    } catch {
+    } catch (error) {
+      log.warn('Failed to link todos', { sourceId, targetId, error: error.message })
       return false
     }
   }
@@ -957,11 +785,9 @@ export class Database {
     if (excludeId) {
       return this.db.prepare(`
         SELECT t.*, p.name as project_name, p.color as project_color,
-               c.name as category_name, c.symbol as category_symbol,
                s.name as status_name, s.color as status_color
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
-        LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.title LIKE ? AND t.id != ? AND t.deleted_at IS NULL
         LIMIT 10
@@ -969,45 +795,31 @@ export class Database {
     }
     return this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE t.title LIKE ? AND t.deleted_at IS NULL
       LIMIT 10
     `).all(`%${query}%`)
   }
 
-  // Global search across todos, persons, projects, and tags
+  // Global search across todos, projects, and tags
   globalSearch(query, limit = 20) {
     const searchTerm = `%${query}%`
 
     // Search todos (title + notes + tags)
     const todos = this.db.prepare(`
       SELECT DISTINCT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       LEFT JOIN todo_tags tt ON t.id = tt.todo_id
       LEFT JOIN tags tg ON tt.tag_id = tg.id
       WHERE (t.title LIKE ? OR t.notes LIKE ? OR tg.name LIKE ?) AND t.deleted_at IS NULL
       LIMIT ?
     `).all(searchTerm, searchTerm, searchTerm, limit)
-
-    // Search persons (name + email + company + tags)
-    const persons = this.db.prepare(`
-      SELECT DISTINCT pe.*
-      FROM persons pe
-      LEFT JOIN person_tags pt ON pe.id = pt.person_id
-      LEFT JOIN tags tg ON pt.tag_id = tg.id
-      WHERE pe.name LIKE ? OR pe.email LIKE ? OR pe.company LIKE ? OR tg.name LIKE ?
-      LIMIT ?
-    `).all(searchTerm, searchTerm, searchTerm, searchTerm, limit)
 
     // Search projects (name + tags)
     const projects = this.db.prepare(`
@@ -1024,7 +836,7 @@ export class Database {
       SELECT * FROM tags WHERE name LIKE ? LIMIT ?
     `).all(searchTerm, limit)
 
-    return { todos, persons, projects, tags }
+    return { todos, projects, tags }
   }
 
   // Settings operations
@@ -1033,7 +845,8 @@ export class Database {
     if (!row) return null
     try {
       return JSON.parse(row.value)
-    } catch {
+    } catch (error) {
+      log.warn('Failed to parse setting value as JSON, returning raw string', { key, error: error.message })
       return row.value
     }
   }
@@ -1054,202 +867,12 @@ export class Database {
     for (const row of rows) {
       try {
         settings[row.key] = JSON.parse(row.value)
-      } catch {
+      } catch (error) {
+        log.warn('Failed to parse setting value as JSON, using raw string', { key: row.key, error: error.message })
         settings[row.key] = row.value
       }
     }
     return settings
-  }
-
-  // Subtask operations
-  getSubtasks(todoId) {
-    return this.db.prepare(`
-      SELECT * FROM subtasks WHERE todo_id = ? ORDER BY sort_order ASC
-    `).all(todoId)
-  }
-
-  getAllSubtasks() {
-    return this.db.prepare(`
-      SELECT * FROM subtasks ORDER BY todo_id, sort_order ASC
-    `).all()
-  }
-
-  getSubtask(id) {
-    return this.db.prepare('SELECT * FROM subtasks WHERE id = ?').get(id)
-  }
-
-  createSubtask(todoId, title) {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM subtasks WHERE todo_id = ?').get(todoId)
-    const sortOrder = (maxOrder.max || 0) + 1
-
-    const result = this.db.prepare(`
-      INSERT INTO subtasks (todo_id, title, sort_order) VALUES (?, ?, ?)
-    `).run(todoId, title, sortOrder)
-
-    return this.getSubtask(result.lastInsertRowid)
-  }
-
-  updateSubtask(subtask) {
-    const fields = []
-    const values = []
-
-    if (subtask.title !== undefined) {
-      fields.push('title = ?')
-      values.push(subtask.title)
-    }
-    if (subtask.completed !== undefined) {
-      fields.push('completed = ?')
-      values.push(subtask.completed ? 1 : 0)
-    }
-    if (subtask.due_date !== undefined) {
-      fields.push('due_date = ?')
-      values.push(subtask.due_date)
-    }
-
-    if (fields.length > 0) {
-      values.push(subtask.id)
-      this.db.prepare(`UPDATE subtasks SET ${fields.join(', ')} WHERE id = ?`).run(...values)
-    }
-
-    return this.getSubtask(subtask.id)
-  }
-
-  deleteSubtask(id) {
-    this.db.prepare('DELETE FROM subtasks WHERE id = ?').run(id)
-    return true
-  }
-
-  reorderSubtasks(ids) {
-    const stmt = this.db.prepare('UPDATE subtasks SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
-      ids.forEach((id, index) => {
-        stmt.run(index, id)
-      })
-    })
-    transaction(ids)
-    return true
-  }
-
-  // Todo-Person linking operations
-  getTodoPersons(todoId) {
-    return this.db.prepare(`
-      SELECT p.*
-      FROM persons p
-      INNER JOIN todo_persons tp ON p.id = tp.person_id
-      WHERE tp.todo_id = ?
-      ORDER BY p.sort_order ASC
-    `).all(todoId)
-  }
-
-  linkTodoPerson(todoId, personId) {
-    try {
-      this.db.prepare(`
-        INSERT OR IGNORE INTO todo_persons (todo_id, person_id)
-        VALUES (?, ?)
-      `).run(todoId, personId)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  unlinkTodoPerson(todoId, personId) {
-    this.db.prepare(`
-      DELETE FROM todo_persons
-      WHERE todo_id = ? AND person_id = ?
-    `).run(todoId, personId)
-    return true
-  }
-
-  getPersonTodos(personId) {
-    return this.db.prepare(`
-      SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
-             s.name as status_name, s.color as status_color
-      FROM todos t
-      INNER JOIN todo_persons tp ON t.id = tp.todo_id
-      LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
-      LEFT JOIN statuses s ON t.status_id = s.id
-      WHERE tp.person_id = ? AND t.deleted_at IS NULL
-      ORDER BY t.sort_order ASC
-    `).all(personId)
-  }
-
-  // Project-Person linking operations
-  getProjectPersons(projectId) {
-    return this.db.prepare(`
-      SELECT p.*,
-             pp.influence_level,
-             pp.interest_level,
-             pp.stakeholder_type,
-             pp.engagement_strategy,
-             pp.notes as stakeholder_notes
-      FROM persons p
-      INNER JOIN project_persons pp ON p.id = pp.person_id
-      WHERE pp.project_id = ?
-      ORDER BY p.sort_order ASC
-    `).all(projectId)
-  }
-
-  linkProjectPerson(projectId, personId, stakeholderData = {}) {
-    try {
-      const {
-        influence_level = 3,
-        interest_level = 3,
-        stakeholder_type = 'Internal',
-        engagement_strategy = 'Keep Informed',
-        notes = ''
-      } = stakeholderData
-
-      this.db.prepare(`
-        INSERT OR IGNORE INTO project_persons
-        (project_id, person_id, influence_level, interest_level, stakeholder_type, engagement_strategy, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(projectId, personId, influence_level, interest_level, stakeholder_type, engagement_strategy, notes)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  updateProjectPersonStakeholder(projectId, personId, stakeholderData) {
-    this.db.prepare(`
-      UPDATE project_persons
-      SET influence_level = ?,
-          interest_level = ?,
-          stakeholder_type = ?,
-          engagement_strategy = ?,
-          notes = ?
-      WHERE project_id = ? AND person_id = ?
-    `).run(
-      stakeholderData.influence_level,
-      stakeholderData.interest_level,
-      stakeholderData.stakeholder_type,
-      stakeholderData.engagement_strategy,
-      stakeholderData.notes || '',
-      projectId,
-      personId
-    )
-    return true
-  }
-
-  unlinkProjectPerson(projectId, personId) {
-    this.db.prepare(`
-      DELETE FROM project_persons
-      WHERE project_id = ? AND person_id = ?
-    `).run(projectId, personId)
-    return true
-  }
-
-  getPersonProjects(personId) {
-    return this.db.prepare(`
-      SELECT p.*
-      FROM projects p
-      INNER JOIN project_persons pp ON p.id = pp.project_id
-      WHERE pp.person_id = ?
-      ORDER BY p.sort_order ASC
-    `).all(personId)
   }
 
   // Milestone operations
@@ -1258,27 +881,14 @@ export class Database {
       SELECT t.*,
              p.name as project_name,
              p.color as project_color,
-             c.name as category_name,
-             c.symbol as category_symbol,
              s.name as status_name,
              s.color as status_color
       FROM todos t
       INNER JOIN milestone_todos mt ON t.id = mt.todo_id
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE mt.milestone_id = ? AND t.deleted_at IS NULL
       ORDER BY t.sort_order ASC
-    `).all(milestoneId)
-  }
-
-  getMilestonePersons(milestoneId) {
-    return this.db.prepare(`
-      SELECT p.*, mp.role as milestone_role
-      FROM persons p
-      INNER JOIN milestone_persons mp ON p.id = mp.person_id
-      WHERE mp.milestone_id = ?
-      ORDER BY p.name ASC
     `).all(milestoneId)
   }
 
@@ -1296,49 +906,6 @@ export class Database {
       WHERE milestone_id = ? AND todo_id = ?
     `).run(milestoneId, todoId)
     return true
-  }
-
-  linkMilestonePerson(milestoneId, personId, role = '') {
-    this.db.prepare(`
-      INSERT OR IGNORE INTO milestone_persons (milestone_id, person_id, role)
-      VALUES (?, ?, ?)
-    `).run(milestoneId, personId, role)
-    return true
-  }
-
-  unlinkMilestonePerson(milestoneId, personId) {
-    this.db.prepare(`
-      DELETE FROM milestone_persons
-      WHERE milestone_id = ? AND person_id = ?
-    `).run(milestoneId, personId)
-    return true
-  }
-
-  getAllMilestones(projectId = null) {
-    if (projectId) {
-      return this.db.prepare(`
-        SELECT t.*,
-               p.name as project_name,
-               p.color as project_color,
-               (SELECT COUNT(*) FROM milestone_todos WHERE milestone_id = t.id) as todo_count,
-               (SELECT COUNT(*) FROM milestone_persons WHERE milestone_id = t.id) as person_count
-        FROM todos t
-        LEFT JOIN projects p ON t.project_id = p.id
-        WHERE t.type = 'milestone' AND t.project_id = ? AND t.deleted_at IS NULL
-        ORDER BY t.end_date ASC, t.sort_order ASC
-      `).all(projectId)
-    }
-    return this.db.prepare(`
-      SELECT t.*,
-             p.name as project_name,
-             p.color as project_color,
-             (SELECT COUNT(*) FROM milestone_todos WHERE milestone_id = t.id) as todo_count,
-             (SELECT COUNT(*) FROM milestone_persons WHERE milestone_id = t.id) as person_count
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE t.type = 'milestone' AND t.deleted_at IS NULL
-      ORDER BY t.end_date ASC, t.sort_order ASC
-    `).all()
   }
 
   // Tag operations
@@ -1381,7 +948,9 @@ export class Database {
     const tag = this.createTag(tagName)
     try {
       this.db.prepare('INSERT OR IGNORE INTO todo_tags (todo_id, tag_id) VALUES (?, ?)').run(todoId, tag.id)
-    } catch { /* already exists */ }
+    } catch (error) {
+      log.warn('Failed to add tag to todo', { todoId, tagName, error: error.message })
+    }
     return tag
   }
 
@@ -1395,36 +964,11 @@ export class Database {
   cleanupOrphanedTag(tagId) {
     const count = this.db.prepare(`
       SELECT (SELECT COUNT(*) FROM todo_tags WHERE tag_id = ?) +
-             (SELECT COUNT(*) FROM person_tags WHERE tag_id = ?) +
              (SELECT COUNT(*) FROM project_tags WHERE tag_id = ?) as total
-    `).get(tagId, tagId, tagId)
+    `).get(tagId, tagId)
     if (count.total === 0) {
       this.db.prepare('DELETE FROM tags WHERE id = ?').run(tagId)
     }
-  }
-
-  // Person-Tag operations
-  getPersonTags(personId) {
-    return this.db.prepare(`
-      SELECT t.* FROM tags t
-      INNER JOIN person_tags pt ON t.id = pt.tag_id
-      WHERE pt.person_id = ?
-      ORDER BY t.name ASC
-    `).all(personId)
-  }
-
-  addPersonTag(personId, tagName) {
-    const tag = this.createTag(tagName)
-    try {
-      this.db.prepare('INSERT OR IGNORE INTO person_tags (person_id, tag_id) VALUES (?, ?)').run(personId, tag.id)
-    } catch { /* already exists */ }
-    return tag
-  }
-
-  removePersonTag(personId, tagId) {
-    this.db.prepare('DELETE FROM person_tags WHERE person_id = ? AND tag_id = ?').run(personId, tagId)
-    this.cleanupOrphanedTag(tagId)
-    return true
   }
 
   // Project-Tag operations
@@ -1441,7 +985,9 @@ export class Database {
     const tag = this.createTag(tagName)
     try {
       this.db.prepare('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)').run(projectId, tag.id)
-    } catch { /* already exists */ }
+    } catch (error) {
+      log.warn('Failed to add tag to project', { projectId, tagName, error: error.message })
+    }
     return tag
   }
 
@@ -1454,24 +1000,16 @@ export class Database {
   // Search by tag
   searchByTag(tagName) {
     const tag = this.getTagByName(tagName)
-    if (!tag) return { todos: [], persons: [], projects: [] }
+    if (!tag) return { todos: [], projects: [] }
 
     const todos = this.db.prepare(`
       SELECT t.*, p.name as project_name, p.color as project_color,
-             c.name as category_name, c.symbol as category_symbol,
              s.name as status_name, s.color as status_color
       FROM todos t
       INNER JOIN todo_tags tt ON t.id = tt.todo_id
       LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN statuses s ON t.status_id = s.id
       WHERE tt.tag_id = ? AND t.deleted_at IS NULL
-    `).all(tag.id)
-
-    const persons = this.db.prepare(`
-      SELECT p.* FROM persons p
-      INNER JOIN person_tags pt ON p.id = pt.person_id
-      WHERE pt.tag_id = ?
     `).all(tag.id)
 
     const projects = this.db.prepare(`
@@ -1480,34 +1018,24 @@ export class Database {
       WHERE pt.tag_id = ? AND p.deleted_at IS NULL
     `).all(tag.id)
 
-    return { todos, persons, projects }
+    return { todos, projects }
   }
 
   // Export/Import operations
   exportData() {
     const projects = this.db.prepare('SELECT * FROM projects').all()
-    const categories = this.db.prepare('SELECT * FROM categories').all()
     const statuses = this.db.prepare('SELECT * FROM statuses').all()
     const todos = this.db.prepare('SELECT * FROM todos').all()
     const todoLinks = this.db.prepare('SELECT * FROM todo_links').all()
-    const subtasks = this.db.prepare('SELECT * FROM subtasks').all()
-    const persons = this.db.prepare('SELECT * FROM persons').all()
-    const todoPersons = this.db.prepare('SELECT * FROM todo_persons').all()
-    const projectPersons = this.db.prepare('SELECT * FROM project_persons').all()
 
     return {
       version: '1.0',
       exportDate: new Date().toISOString(),
       data: {
         projects,
-        categories,
         statuses,
         todos,
-        todoLinks,
-        subtasks,
-        persons,
-        todoPersons,
-        projectPersons
+        todoLinks
       }
     }
   }
@@ -1517,29 +1045,22 @@ export class Database {
       throw new Error('Invalid import data format')
     }
 
-    const { projects, categories, statuses, todos, todoLinks, subtasks, persons, todoPersons, projectPersons } = importData.data
+    const { projects, statuses, todos, todoLinks } = importData.data
 
     // Create a transaction for atomic import
     const transaction = this.db.transaction(() => {
       // If replace mode, clear existing data
       if (mode === 'replace') {
-        this.db.prepare('DELETE FROM project_persons').run()
-        this.db.prepare('DELETE FROM todo_persons').run()
-        this.db.prepare('DELETE FROM subtasks').run()
         this.db.prepare('DELETE FROM todo_links').run()
         this.db.prepare('DELETE FROM todos').run()
-        this.db.prepare('DELETE FROM persons').run()
         this.db.prepare('DELETE FROM statuses').run()
-        this.db.prepare('DELETE FROM categories').run()
         this.db.prepare('DELETE FROM projects').run()
       }
 
       // Maps to track old ID to new ID mappings
       const projectIdMap = new Map()
-      const categoryIdMap = new Map()
       const statusIdMap = new Map()
       const todoIdMap = new Map()
-      const personIdMap = new Map()
 
       // Import projects
       if (projects && projects.length > 0) {
@@ -1550,18 +1071,6 @@ export class Database {
         projects.forEach(p => {
           const result = stmt.run(p.name, p.color, p.sort_order, p.created_at, p.deleted_at || null)
           projectIdMap.set(p.id, result.lastInsertRowid)
-        })
-      }
-
-      // Import categories
-      if (categories && categories.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO categories (name, symbol, sort_order, created_at)
-          VALUES (?, ?, ?, ?)
-        `)
-        categories.forEach(c => {
-          const result = stmt.run(c.name, c.symbol, c.sort_order, c.created_at)
-          categoryIdMap.set(c.id, result.lastInsertRowid)
         })
       }
 
@@ -1577,37 +1086,14 @@ export class Database {
         })
       }
 
-      // Import persons
-      if (persons && persons.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO persons (name, email, phone, company, role, notes, color, sort_order, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-        persons.forEach(p => {
-          const result = stmt.run(
-            p.name,
-            p.email || '',
-            p.phone || '',
-            p.company || '',
-            p.role || '',
-            p.notes || '',
-            p.color,
-            p.sort_order,
-            p.created_at
-          )
-          personIdMap.set(p.id, result.lastInsertRowid)
-        })
-      }
-
       // Import todos
       if (todos && todos.length > 0) {
         const stmt = this.db.prepare(`
-          INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, category_id, status_id, created_at, updated_at, deleted_at, recurrence_type, recurrence_interval, recurrence_end_date)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, status_id, created_at, updated_at, deleted_at, recurrence_type, recurrence_interval, recurrence_end_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         todos.forEach(t => {
           const newProjectId = t.project_id ? projectIdMap.get(t.project_id) : null
-          const newCategoryId = t.category_id ? categoryIdMap.get(t.category_id) : null
           const newStatusId = t.status_id ? statusIdMap.get(t.status_id) : null
 
           const result = stmt.run(
@@ -1619,7 +1105,6 @@ export class Database {
             t.sort_order,
             t.importance,
             newProjectId,
-            newCategoryId,
             newStatusId,
             t.created_at,
             t.updated_at,
@@ -1643,50 +1128,6 @@ export class Database {
           const newTargetId = todoIdMap.get(l.target_id)
           if (newSourceId && newTargetId) {
             stmt.run(newSourceId, newTargetId, l.created_at)
-          }
-        })
-      }
-
-      // Import subtasks
-      if (subtasks && subtasks.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO subtasks (todo_id, title, completed, sort_order, created_at)
-          VALUES (?, ?, ?, ?, ?)
-        `)
-        subtasks.forEach(s => {
-          const newTodoId = todoIdMap.get(s.todo_id)
-          if (newTodoId) {
-            stmt.run(newTodoId, s.title, s.completed, s.sort_order, s.created_at)
-          }
-        })
-      }
-
-      // Import todo-person links
-      if (todoPersons && todoPersons.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT OR IGNORE INTO todo_persons (todo_id, person_id, created_at)
-          VALUES (?, ?, ?)
-        `)
-        todoPersons.forEach(tp => {
-          const newTodoId = todoIdMap.get(tp.todo_id)
-          const newPersonId = personIdMap.get(tp.person_id)
-          if (newTodoId && newPersonId) {
-            stmt.run(newTodoId, newPersonId, tp.created_at)
-          }
-        })
-      }
-
-      // Import project-person links
-      if (projectPersons && projectPersons.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT OR IGNORE INTO project_persons (project_id, person_id, created_at)
-          VALUES (?, ?, ?)
-        `)
-        projectPersons.forEach(pp => {
-          const newProjectId = projectIdMap.get(pp.project_id)
-          const newPersonId = personIdMap.get(pp.person_id)
-          if (newProjectId && newPersonId) {
-            stmt.run(newProjectId, newPersonId, pp.created_at)
           }
         })
       }

@@ -1,17 +1,18 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { EditorState, EditorSelection } from '@codemirror/state'
+import { EditorState, EditorSelection, Prec } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { markdown } from '@codemirror/lang-markdown'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { markdown, markdownKeymap } from '@codemirror/lang-markdown'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+import { darkEditorTheme } from '../editorTheme'
 
 // Custom keymap for multi-cursor (Cmd+Alt+Up/Down)
 const multiCursorKeymap = [
   {
     key: 'Alt-ArrowUp',
     mac: 'Cmd-Alt-ArrowUp',
-    run: (view) => {
+    run: view => {
       const { state } = view
       const ranges = []
       for (const range of state.selection.ranges) {
@@ -26,17 +27,17 @@ const multiCursorKeymap = [
       }
       if (ranges.length > state.selection.ranges.length) {
         view.dispatch({
-          selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from))
+          selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from)),
         })
         return true
       }
       return false
-    }
+    },
   },
   {
     key: 'Alt-ArrowDown',
     mac: 'Cmd-Alt-ArrowDown',
-    run: (view) => {
+    run: view => {
       const { state } = view
       const ranges = []
       for (const range of state.selection.ranges) {
@@ -51,69 +52,23 @@ const multiCursorKeymap = [
       }
       if (ranges.length > state.selection.ranges.length) {
         view.dispatch({
-          selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from))
+          selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from)),
         })
         return true
       }
       return false
-    }
-  }
+    },
+  },
 ]
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  placeholder: { type: String, default: 'Add notes (Markdown supported)...' }
 })
 
-const emit = defineEmits(['update:modelValue', 'blur', 'escape'])
+const emit = defineEmits(['update:modelValue', 'blur'])
 
 const container = ref(null)
 let editor = null
-
-const theme = EditorView.theme({
-  '&': {
-    height: '100%',
-    fontSize: '13px'
-  },
-  '.cm-scroller': {
-    overflow: 'auto',
-    fontFamily: 'inherit'
-  },
-  '.cm-content': {
-    padding: '8px',
-    caretColor: '#3b82f6'
-  },
-  '.cm-line': {
-    padding: '0 4px'
-  },
-  '&.cm-focused': {
-    outline: 'none'
-  },
-  '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-    backgroundColor: 'rgba(59, 130, 246, 0.3) !important'
-  },
-  '.cm-cursor': {
-    borderLeftColor: '#3b82f6',
-    borderLeftWidth: '2px'
-  },
-  '.cm-gutters': {
-    backgroundColor: '#1a1a1a',
-    color: '#666',
-    border: 'none'
-  },
-  '.cm-placeholder': {
-    color: '#666'
-  }
-}, { dark: true })
-
-// Custom keymap for escape key
-const escapeKeymap = keymap.of([{
-  key: 'Escape',
-  run: () => {
-    emit('escape')
-    return true
-  }
-}])
 
 function setupEditor() {
   if (!container.value) return
@@ -136,12 +91,11 @@ function setupEditor() {
         highlightSelectionMatches(),
         history(),
         markdown(),
-        keymap.of([...multiCursorKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
-        escapeKeymap,
-        theme,
+        Prec.highest(keymap.of(markdownKeymap)),
+        keymap.of([...multiCursorKeymap, indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+        darkEditorTheme,
         EditorView.lineWrapping,
         EditorState.allowMultipleSelections.of(true),
-        EditorView.contentAttributes.of({ 'aria-label': props.placeholder }),
         EditorView.updateListener.of(update => {
           if (update.docChanged) {
             emit('update:modelValue', update.state.doc.toString())
@@ -149,21 +103,24 @@ function setupEditor() {
           if (update.focusChanged && !update.view.hasFocus) {
             emit('blur')
           }
-        })
-      ]
-    })
+        }),
+      ],
+    }),
   })
 }
 
-watch(() => props.modelValue, (newVal) => {
-  if (!editor) return
-  const current = editor.state.doc.toString()
-  if (newVal !== current) {
-    editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: newVal || '' }
-    })
+watch(
+  () => props.modelValue,
+  newVal => {
+    if (!editor) return
+    const current = editor.state.doc.toString()
+    if (newVal !== current) {
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: newVal || '' },
+      })
+    }
   }
-})
+)
 
 onMounted(() => {
   nextTick(setupEditor)
@@ -175,6 +132,45 @@ onUnmounted(() => {
     editor = null
   }
 })
+
+// Expose methods for selection handling
+function getSelection() {
+  if (!editor) return { text: '', from: 0, to: 0 }
+  const state = editor.state
+  const { from, to } = state.selection.main
+  const text = state.sliceDoc(from, to)
+  return { text, from, to }
+}
+
+function replaceSelection(newText) {
+  if (!editor) return
+  const { from, to } = editor.state.selection.main
+  editor.dispatch({
+    changes: { from, to, insert: newText },
+  })
+}
+
+function getScrollElement() {
+  if (!editor) return null
+  return editor.scrollDOM
+}
+
+function getScrollInfo() {
+  if (!editor) return { scrollTop: 0, scrollHeight: 0, clientHeight: 0 }
+  const el = editor.scrollDOM
+  return {
+    scrollTop: el.scrollTop,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  }
+}
+
+function setScrollTop(scrollTop) {
+  if (!editor) return
+  editor.scrollDOM.scrollTop = scrollTop
+}
+
+defineExpose({ getSelection, replaceSelection, getScrollElement, getScrollInfo, setScrollTop })
 </script>
 
 <template>
@@ -185,14 +181,28 @@ onUnmounted(() => {
 .cm-container {
   height: 100%;
   min-height: 150px;
-  background: #0d0d0d;
+  background: var(--bg-secondary);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .cm-container :deep(.cm-editor) {
   height: 100%;
-  background: #0d0d0d;
-  color: #e0e0e0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.cm-container :deep(.cm-gutters) {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  border: none;
+}
+
+.cm-container :deep(.cm-activeLineGutter) {
+  background: var(--bg-hover);
+}
+
+.cm-container :deep(.cm-activeLine) {
+  background: var(--bg-hover);
 }
 </style>

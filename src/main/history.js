@@ -1,9 +1,10 @@
 import logger from './logger.js'
+import { HISTORY_MAX_SIZE } from '../config/constants.js'
 
 const log = logger.child({ module: 'history' })
 
 class ActionHistory {
-  constructor(maxSize = 50) {
+  constructor(maxSize = HISTORY_MAX_SIZE) {
     this.undoStack = []
     this.redoStack = []
     this.maxSize = maxSize

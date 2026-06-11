@@ -782,4 +782,34 @@ export default {
 .light-theme .day-event:hover {
   background: #e8e8e8;
 }
+
+.light-theme .week-day-header {
+  border-color: #e0e0e0;
+}
+
+.light-theme .week-day-header .day-name {
+  color: #666;
+}
+
+.light-theme .weekday-header {
+  color: #666;
+}
+
+.light-theme .week-column.is-weekend {
+  background: #f9f9f9;
+}
+
+.light-theme .day-column {
+  border-color: #e0e0e0;
+}
+
+.light-theme .event-project,
+.light-theme .event-category {
+  background: #e0e0e0;
+  color: #555;
+}
+
+.light-theme .month-cell.other-month .cell-date {
+  color: #999;
+}
 </style>

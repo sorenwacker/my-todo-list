@@ -14,13 +14,6 @@ contextBridge.exposeInMainWorld('api', {
   permanentlyDeleteProject: (id) => ipcRenderer.invoke('permanently-delete-project', id),
   getDeletedProjects: () => ipcRenderer.invoke('get-deleted-projects'),
 
-  // Category operations
-  getCategories: () => ipcRenderer.invoke('get-categories'),
-  getCategory: (id) => ipcRenderer.invoke('get-category', id),
-  createCategory: (name, symbol) => ipcRenderer.invoke('create-category', name, symbol),
-  updateCategory: (category) => ipcRenderer.invoke('update-category', category),
-  deleteCategory: (id) => ipcRenderer.invoke('delete-category', id),
-
   // Project Topic operations (project-specific buckets)
   getProjectTopics: (projectId) => ipcRenderer.invoke('get-project-topics', projectId),
   getProjectTopic: (id) => ipcRenderer.invoke('get-project-topic', id),
@@ -35,27 +28,6 @@ contextBridge.exposeInMainWorld('api', {
   createStatus: (name, color) => ipcRenderer.invoke('create-status', name, color),
   updateStatus: (status) => ipcRenderer.invoke('update-status', status),
   deleteStatus: (id) => ipcRenderer.invoke('delete-status', id),
-
-  // Person operations
-  getPersons: () => ipcRenderer.invoke('get-persons'),
-  getPerson: (id) => ipcRenderer.invoke('get-person', id),
-  createPerson: (person) => ipcRenderer.invoke('create-person', person),
-  updatePerson: (person) => ipcRenderer.invoke('update-person', person),
-  deletePerson: (id) => ipcRenderer.invoke('delete-person', id),
-  reorderPersons: (ids) => ipcRenderer.invoke('reorder-persons', ids),
-
-  // Todo-Person linking
-  getTodoPersons: (todoId) => ipcRenderer.invoke('get-todo-persons', todoId),
-  linkTodoPerson: (todoId, personId) => ipcRenderer.invoke('link-todo-person', todoId, personId),
-  unlinkTodoPerson: (todoId, personId) => ipcRenderer.invoke('unlink-todo-person', todoId, personId),
-  getPersonTodos: (personId) => ipcRenderer.invoke('get-person-todos', personId),
-
-  // Project-Person linking
-  getProjectPersons: (projectId) => ipcRenderer.invoke('get-project-persons', projectId),
-  linkProjectPerson: (projectId, personId, stakeholderData) => ipcRenderer.invoke('link-project-person', projectId, personId, stakeholderData),
-  updateProjectPersonStakeholder: (projectId, personId, stakeholderData) => ipcRenderer.invoke('update-project-person-stakeholder', projectId, personId, stakeholderData),
-  unlinkProjectPerson: (projectId, personId) => ipcRenderer.invoke('unlink-project-person', projectId, personId),
-  getPersonProjects: (personId) => ipcRenderer.invoke('get-person-projects', personId),
 
   // Todo operations
   getTodos: (projectId) => ipcRenderer.invoke('get-todos', projectId),
@@ -81,11 +53,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Milestone operations (many-to-many)
   getMilestoneTodos: (milestoneId) => ipcRenderer.invoke('get-milestone-todos', milestoneId),
-  getMilestonePersons: (milestoneId) => ipcRenderer.invoke('get-milestone-persons', milestoneId),
   linkMilestoneTodo: (milestoneId, todoId) => ipcRenderer.invoke('link-milestone-todo', milestoneId, todoId),
   unlinkMilestoneTodo: (milestoneId, todoId) => ipcRenderer.invoke('unlink-milestone-todo', milestoneId, todoId),
-  linkMilestonePerson: (milestoneId, personId, role) => ipcRenderer.invoke('link-milestone-person', milestoneId, personId, role),
-  unlinkMilestonePerson: (milestoneId, personId) => ipcRenderer.invoke('unlink-milestone-person', milestoneId, personId),
   getAllMilestones: (projectId) => ipcRenderer.invoke('get-all-milestones', projectId),
 
   // Tag operations
@@ -93,9 +62,6 @@ contextBridge.exposeInMainWorld('api', {
   getTodoTags: (todoId) => ipcRenderer.invoke('get-todo-tags', todoId),
   addTodoTag: (todoId, tagName) => ipcRenderer.invoke('add-todo-tag', todoId, tagName),
   removeTodoTag: (todoId, tagId) => ipcRenderer.invoke('remove-todo-tag', todoId, tagId),
-  getPersonTags: (personId) => ipcRenderer.invoke('get-person-tags', personId),
-  addPersonTag: (personId, tagName) => ipcRenderer.invoke('add-person-tag', personId, tagName),
-  removePersonTag: (personId, tagId) => ipcRenderer.invoke('remove-person-tag', personId, tagId),
   getProjectTags: (projectId) => ipcRenderer.invoke('get-project-tags', projectId),
   addProjectTag: (projectId, tagName) => ipcRenderer.invoke('add-project-tag', projectId, tagName),
   removeProjectTag: (projectId, tagId) => ipcRenderer.invoke('remove-project-tag', projectId, tagId),
@@ -103,7 +69,6 @@ contextBridge.exposeInMainWorld('api', {
 
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),
   reorderProjects: (ids) => ipcRenderer.invoke('reorder-projects', ids),
-  reorderCategories: (ids) => ipcRenderer.invoke('reorder-categories', ids),
   reorderStatuses: (ids) => ipcRenderer.invoke('reorder-statuses', ids),
 
   // Link operations
@@ -120,14 +85,6 @@ contextBridge.exposeInMainWorld('api', {
   setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value),
   getAllSettings: () => ipcRenderer.invoke('get-all-settings'),
 
-  // Subtask operations
-  getSubtasks: (todoId) => ipcRenderer.invoke('get-subtasks', todoId),
-  getAllSubtasks: () => ipcRenderer.invoke('get-all-subtasks'),
-  createSubtask: (todoId, title) => ipcRenderer.invoke('create-subtask', todoId, title),
-  updateSubtask: (subtask) => ipcRenderer.invoke('update-subtask', subtask),
-  deleteSubtask: (id) => ipcRenderer.invoke('delete-subtask', id),
-  reorderSubtasks: (ids) => ipcRenderer.invoke('reorder-subtasks', ids),
-
   // Recurrence operations
   createNextRecurrence: (todoId) => ipcRenderer.invoke('create-next-recurrence', todoId),
 
@@ -136,9 +93,6 @@ contextBridge.exposeInMainWorld('api', {
   importData: (mode) => ipcRenderer.invoke('import-data', mode),
   getDatabasePath: () => ipcRenderer.invoke('get-database-path'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
-
-  // Window operations
-  openStakeholderRegister: (projectId) => ipcRenderer.invoke('open-stakeholder-register', projectId),
 
   // Events
   onRefreshTodos: (callback) => {

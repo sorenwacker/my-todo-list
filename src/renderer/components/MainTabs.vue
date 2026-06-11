@@ -20,15 +20,7 @@ export default {
       type: String,
       required: true
     },
-    notesCount: {
-      type: Number,
-      default: 0
-    },
-    todosCount: {
-      type: Number,
-      default: 0
-    },
-    milestonesCount: {
+    itemsCount: {
       type: Number,
       default: 0
     },
@@ -49,9 +41,7 @@ export default {
   computed: {
     tabs() {
       return [
-        { id: 'split', label: 'Split', count: this.todosCount + this.milestonesCount + this.notesCount },
-        { id: 'todos', label: 'Todos', count: this.todosCount + this.milestonesCount },
-        { id: 'notes', label: 'Notes', count: this.notesCount },
+        { id: 'items', label: 'Items', count: this.itemsCount },
         { id: 'stakeholders', label: this.isProjectSelected ? 'Stakeholders' : 'People', count: this.stakeholdersCount }
       ]
     }

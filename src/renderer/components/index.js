@@ -1,8 +1,6 @@
 export { default as AppSidebar } from './AppSidebar.vue'
 export { default as CardItem } from './CardItem.vue'
 export { default as CardsView } from './CardsView.vue'
-export { default as CategoryModal } from './CategoryModal.vue'
-export { default as DetailPanel } from './DetailPanel.vue'
 export { default as KanbanCard } from './KanbanCard.vue'
 export { default as KanbanView } from './KanbanView.vue'
 export { default as StatusModal } from './StatusModal.vue'

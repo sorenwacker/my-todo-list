@@ -1,5 +1,9 @@
 <template>
-  <div v-if="visible" class="search-overlay" @click.self="close">
+  <div v-if="visible">
+    <!-- Preview outside overlay so it appears in main window -->
+    <ItemPreview v-if="hoveredItem" :item="hoveredItem.item" class="search-preview" />
+
+    <div class="search-overlay" @click.self="close">
     <div class="search-modal" @click.stop>
       <div class="search-input-wrapper">
         <Search class="search-icon" :size="20" />
@@ -7,7 +11,7 @@
           ref="searchInput"
           v-model="query"
           type="text"
-          placeholder="Search todos, notes, persons, projects..."
+          placeholder="Search todos, notes, projects..."
           @input="debouncedSearch"
           @keydown="handleKeydown"
         />
@@ -59,27 +63,6 @@
           </div>
         </div>
 
-        <!-- Persons -->
-        <div v-if="results.persons.length" class="result-group">
-          <div class="group-header">
-            <User :size="16" />
-            <span>Persons</span>
-            <span class="count">{{ results.persons.length }}</span>
-          </div>
-          <div
-            v-for="item in results.persons"
-            :key="'person-' + item.id"
-            class="result-item"
-            :class="{ selected: isSelected('persons', item.id) }"
-            @click="selectResult('person', item)"
-            @mouseenter="hoverIndex = getGlobalIndex('persons', item.id)"
-          >
-            <span class="person-dot" :style="{ background: item.color }"></span>
-            <span class="result-title">{{ item.name }}</span>
-            <span v-if="item.company" class="result-meta">{{ item.company }}</span>
-          </div>
-        </div>
-
         <!-- Projects -->
         <div v-if="results.projects.length" class="result-group">
           <div class="group-header">
@@ -125,16 +108,41 @@
         No results found for "{{ query }}"
       </div>
 
+      <div v-else-if="recentItems.length" class="search-results">
+        <div class="result-group">
+          <div class="group-header">
+            <Clock :size="16" />
+            <span>Recent</span>
+          </div>
+          <div
+            v-for="(item, index) in recentItems"
+            :key="'recent-' + item.id"
+            class="result-item"
+            :class="{ selected: hoverIndex === index }"
+            @click="selectResult('todo', item)"
+            @mouseenter="hoverIndex = index"
+          >
+            <span class="result-title">{{ item.title }}</span>
+            <span v-if="item.project_name" class="result-meta">{{ item.project_name }}</span>
+          </div>
+        </div>
+      </div>
+
       <div v-else class="search-hint">
         Start typing to search across all items
       </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <ItemPreview v-if="hoveredItem" :item="hoveredItem.item" class="search-preview" />
     </div>
   </div>
 </template>
 
 <script>
-import { Search, CheckSquare, FileText, User, Folder, Tag } from 'lucide-vue-next'
+import { Search, CheckSquare, FileText, Folder, Tag, Clock } from 'lucide-vue-next'
 import { debounce } from '../utils/helpers.js'
+import ItemPreview from './ItemPreview.vue'
 
 export default {
   name: 'GlobalSearch',
@@ -142,23 +150,27 @@ export default {
     Search,
     CheckSquare,
     FileText,
-    User,
     Folder,
-    Tag
+    Tag,
+    Clock,
+    ItemPreview
   },
   props: {
     visible: {
       type: Boolean,
       default: false
+    },
+    recentItems: {
+      type: Array,
+      default: () => []
     }
   },
-  emits: ['close', 'select-todo', 'select-person', 'select-project', 'select-tag'],
+  emits: ['close', 'select-todo', 'select-project', 'select-tag'],
   data() {
     return {
       query: '',
       results: {
         todos: [],
-        persons: [],
         projects: [],
         tags: []
       },
@@ -176,7 +188,6 @@ export default {
     },
     hasResults() {
       return this.results.todos.length > 0 ||
-             this.results.persons.length > 0 ||
              this.results.projects.length > 0 ||
              this.results.tags.length > 0
     },
@@ -190,10 +201,6 @@ export default {
       this.noteResults.forEach(item => {
         flat.push({ type: 'notes', item })
       })
-      // Persons
-      this.results.persons.forEach(item => {
-        flat.push({ type: 'persons', item })
-      })
       // Projects
       this.results.projects.forEach(item => {
         flat.push({ type: 'projects', item })
@@ -203,6 +210,16 @@ export default {
         flat.push({ type: 'tags', item })
       })
       return flat
+    },
+    hoveredItem() {
+      // When showing recent items (no query)
+      if (!this.query && this.recentItems.length > 0) {
+        if (this.hoverIndex < 0 || this.hoverIndex >= this.recentItems.length) return null
+        return { type: 'todos', item: this.recentItems[this.hoverIndex] }
+      }
+      // When showing search results
+      if (this.hoverIndex < 0 || this.hoverIndex >= this.flatResults.length) return null
+      return this.flatResults[this.hoverIndex]
     }
   },
   watch: {
@@ -212,7 +229,7 @@ export default {
           this.$refs.searchInput?.focus()
         })
         this.query = ''
-        this.results = { todos: [], persons: [], projects: [], tags: [] }
+        this.results = { todos: [], projects: [], tags: [] }
         this.hoverIndex = -1
       }
     }
@@ -223,7 +240,7 @@ export default {
   methods: {
     async performSearch() {
       if (!this.query.trim()) {
-        this.results = { todos: [], persons: [], projects: [], tags: [] }
+        this.results = { todos: [], projects: [], tags: [] }
         return
       }
 
@@ -233,7 +250,7 @@ export default {
         this.hoverIndex = this.flatResults.length > 0 ? 0 : -1
       } catch (error) {
         console.error('Search failed:', error)
-        this.results = { todos: [], persons: [], projects: [], tags: [] }
+        this.results = { todos: [], projects: [], tags: [] }
       } finally {
         this.isSearching = false
       }
@@ -269,8 +286,6 @@ export default {
         const { type, item } = this.flatResults[this.hoverIndex]
         if (type === 'todos' || type === 'notes') {
           this.selectResult('todo', item)
-        } else if (type === 'persons') {
-          this.selectResult('person', item)
         } else if (type === 'projects') {
           this.selectResult('project', item)
         } else if (type === 'tags') {
@@ -290,8 +305,6 @@ export default {
       this.close()
       if (type === 'todo' || type === 'note') {
         this.$emit('select-todo', item.id)
-      } else if (type === 'person') {
-        this.$emit('select-person', item)
       } else if (type === 'project') {
         this.$emit('select-project', item)
       } else if (type === 'tag') {
@@ -427,7 +440,6 @@ export default {
   font-size: 12px;
 }
 
-.person-dot,
 .project-dot {
   width: 10px;
   height: 10px;
@@ -451,5 +463,19 @@ export default {
 
 .search-loading {
   font-style: italic;
+}
+
+.search-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  max-width: 600px;
+  width: 100%;
+}
+
+.search-preview {
+  position: fixed;
+  right: 16px;
+  top: 80px;
 }
 </style>

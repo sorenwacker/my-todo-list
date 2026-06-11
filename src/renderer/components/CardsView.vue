@@ -1,8 +1,8 @@
 <template>
   <div
+    ref="cardsViewRef"
     class="cards-view"
     :class="{ 'light-theme': theme === 'light' }"
-    ref="cardsViewRef"
     @mousedown="onContainerMouseDown"
     @mousemove="onContainerMouseMove"
     @mouseup="onContainerMouseUp"
@@ -44,11 +44,9 @@
                 :card-style="getCardStyle(element.id, element.project_color)"
                 :current-filter="currentFilter"
                 :show-project="false"
-                :grid-lock="gridLock"
                 :projects="projects"
                 @click="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
-                @toggle-subtask="$emit('toggle-subtask', $event)"
                 @delete="$emit('delete-todo', element.id)"
                 @restore="$emit('restore-todo', element.id)"
                 @permanent-delete="$emit('permanent-delete-todo', element.id)"
@@ -85,7 +83,6 @@
             :card-style="getCardStyle(element.id, element.project_color)"
             :current-filter="currentFilter"
             :show-project="currentFilter === null || currentFilter === 'archive'"
-            :grid-lock="gridLock"
             :projects="projects"
             @click="$emit('card-click', $event, element.id)"
             @toggle-complete="$emit('toggle-complete', element)"
@@ -163,10 +160,6 @@ export default {
     currentFilter: {
       default: null
     },
-    gridLock: {
-      type: Boolean,
-      default: false
-    },
     isProjectView: {
       type: Boolean,
       default: false
@@ -179,7 +172,6 @@ export default {
   emits: [
     'card-click',
     'toggle-complete',
-    'toggle-subtask',
     'delete-todo',
     'restore-todo',
     'permanent-delete-todo',
@@ -195,6 +187,14 @@ export default {
     'archive-todo',
     'move-to-project'
   ],
+  data() {
+    return {
+      // Marquee selection
+      isSelecting: false,
+      selectionStart: { x: 0, y: 0 },
+      selectionCurrent: { x: 0, y: 0 }
+    }
+  },
   computed: {
     selectionBoxStyle() {
       const left = Math.min(this.selectionStart.x, this.selectionCurrent.x)
@@ -207,14 +207,6 @@ export default {
         width: width + 'px',
         height: height + 'px'
       }
-    }
-  },
-  data() {
-    return {
-      // Marquee selection
-      isSelecting: false,
-      selectionStart: { x: 0, y: 0 },
-      selectionCurrent: { x: 0, y: 0 }
     }
   },
   methods: {

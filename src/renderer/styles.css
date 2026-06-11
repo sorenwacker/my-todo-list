@@ -884,6 +884,41 @@ body {
   color: #999;
 }
 
+.main-header .header-nav-icons {
+  display: flex;
+  gap: 2px;
+}
+
+.main-header .header-btn.nav-btn {
+  position: relative;
+}
+
+.main-header .header-btn.nav-btn.active {
+  color: #1a6fab;
+  background: rgba(26, 111, 171, 0.15);
+}
+
+.main-header .nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 9px;
+  background: #1a6fab;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 8px;
+  min-width: 14px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.main-header .header-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
 .main-header .header-controls {
   display: flex;
   gap: 12px;

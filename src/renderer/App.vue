@@ -11,7 +11,6 @@
       :theme="theme"
       :on-mouse-leave="onSidebarMouseLeave"
       :on-mouse-enter="() => sidebarVisible = true"
-      @toggle-pin="toggleSidebarPin"
       :current-filter="currentFilter"
       :projects="projects"
       :statuses="statuses"
@@ -22,7 +21,7 @@
       :project-counts="projectCounts"
       :status-counts="statusCounts"
       :is-project-selected="isProjectSelected"
-      :grid-lock="gridLock"
+      @toggle-pin="toggleSidebarPin"
       :timezone="timezone"
       :database-path="databasePath"
       :app-version="appVersion"
@@ -35,7 +34,6 @@
       @statuses-reorder="onStatusDragEnd"
       @add-status="addStatusFromSidebar"
       @edit-status="editStatus"
-      @update:grid-lock="onGridLockChange"
       @update:timezone="onTimezoneChange"
       @export="handleExport"
       @show-import="showImportDialog = true"
@@ -113,7 +111,7 @@
       <header class="main-header">
         <div class="header-title-row">
           <h1 class="header-title">
-            <span class="breadcrumb-link breadcrumb-home" @click="setFilter('inbox')" title="Home">
+            <span class="breadcrumb-link breadcrumb-home" title="Home" @click="setFilter('inbox')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 <polyline points="9 22 9 12 15 12 15 22"/>
@@ -312,11 +310,9 @@
             :card-columns="cardColumns"
             :sort-by="sortBy"
             :current-filter="currentFilter"
-            :grid-lock="gridLock"
             :projects="projects"
             @card-click="handleCardClick"
             @toggle-complete="toggleComplete"
-            @toggle-subtask="toggleSubtask"
             @delete-todo="deleteTodo"
             @restore-todo="restoreTodo"
             @permanent-delete-todo="permanentlyDeleteTodo"
@@ -403,15 +399,13 @@ import {
   Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
   Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
   MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
+  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
+  Inbox, Archive, Trash2
 } from 'lucide-vue-next'
 
-const categoryIcons = {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
-}
+import { useTodos } from './composables/useTodos.js'
+import { useProjects } from './composables/useProjects.js'
+import { useStatuses } from './composables/useStatuses.js'
 
 // Validate and repair localStorage on startup
 const SETTINGS_VERSION = 1
@@ -427,28 +421,24 @@ function validateLocalStorage() {
     // Validate current-view
     const currentView = localStorage.getItem('current-view')
     if (currentView && !validViews.includes(currentView)) {
-      console.warn('Invalid current-view, resetting to cards')
       localStorage.setItem('current-view', 'cards')
     }
 
     // Validate sort-by
     const sortBy = localStorage.getItem('sort-by')
     if (sortBy && !validSorts.includes(sortBy)) {
-      console.warn('Invalid sort-by, resetting to manual')
       localStorage.setItem('sort-by', 'manual')
     }
 
     // Validate theme
     const theme = localStorage.getItem('todo-theme')
     if (theme && !validThemes.includes(theme)) {
-      console.warn('Invalid theme, resetting to dark')
       localStorage.setItem('todo-theme', 'dark')
     }
 
     // Validate detail-layout
     const layout = localStorage.getItem('detail-layout')
     if (layout && !validLayouts.includes(layout)) {
-      console.warn('Invalid detail-layout, resetting to auto')
       localStorage.setItem('detail-layout', 'auto')
     }
 
@@ -460,7 +450,6 @@ function validateLocalStorage() {
         try {
           JSON.parse(value)
         } catch {
-          console.warn(`Invalid JSON in ${key}, resetting`)
           localStorage.removeItem(key)
         }
       }
@@ -469,15 +458,13 @@ function validateLocalStorage() {
     // Validate numeric settings
     const cardColumns = localStorage.getItem('card-columns')
     if (cardColumns && (isNaN(parseInt(cardColumns)) || parseInt(cardColumns) < 1 || parseInt(cardColumns) > 10)) {
-      console.warn('Invalid card-columns, resetting')
       localStorage.removeItem('card-columns')
     }
 
     // Update version
     localStorage.setItem('settings-version', String(SETTINGS_VERSION))
-  } catch (e) {
-    console.error('Error validating localStorage, clearing all settings:', e)
-    // If something goes very wrong, clear problematic keys
+  } catch {
+    // If validation fails, clear problematic keys
     const keysToPreserve = [] // Could preserve some keys if needed
     const allKeys = Object.keys(localStorage)
     for (const key of allKeys) {
@@ -495,14 +482,14 @@ const savedTheme = localStorage.getItem('todo-theme') || 'dark'
 mermaid.initialize({
   startOnLoad: false,
   theme: savedTheme === 'light' ? 'default' : 'dark',
-  securityLevel: 'loose'
+  securityLevel: 'strict'
 })
 
 function reinitializeMermaid(theme) {
   mermaid.initialize({
     startOnLoad: false,
     theme: theme === 'light' ? 'default' : 'dark',
-    securityLevel: 'loose',
+    securityLevel: 'strict',
     flowchart: {
       htmlLabels: true,
       curve: 'basis',
@@ -553,15 +540,26 @@ export default {
     KanbanView,
     StatusModal,
     ProjectModal,
-    ...categoryIcons
+    Inbox,
+    Archive,
+    Trash2
+  },
+  setup() {
+    const todosComposable = useTodos()
+    const projectsComposable = useProjects()
+    const statusesComposable = useStatuses()
+
+    return {
+      todosComposable,
+      projectsComposable,
+      statusesComposable
+    }
   },
   data() {
     return {
-      todos: [],
-      projects: [],
-      categories: [],
-      statuses: [],
-      allTodos: [],
+      // todos, allTodos, selectedTodoIds, focusedTodoIndex now from todosComposable
+      // projects, editingProject, editingProjectTags, newProjectName, showProjectInput now from projectsComposable
+      // statuses, editingStatus, newStatusName, showStatusInput now from statusesComposable
       currentFilter: null,
       tabViews: JSON.parse(localStorage.getItem('tab-views') || '{}'),
       activeTab: (() => {
@@ -572,34 +570,26 @@ export default {
       showCompleted: localStorage.getItem('show-completed') === 'true',
       kanbanGroupBy: 'status',
       newTodoTitle: '',
-      newPersonName: '',
-      newProjectName: '',
-      newCategoryName: '',
-      newStatusName: '',
-      showProjectInput: false,
-      showCategoryInput: false,
-      showStatusInput: false,
-      editingProject: null,
-      editingProjectTags: [],
-      editingCategory: null,
-      editingStatus: null,
-      selectedTodoIds: new Set(),
-      subtasks: [],
-      milestoneRelations: {}, // { milestoneId: { todos: [], persons: [] } }
-      allSubtasksMap: {},
+      // newProjectName: '', // now in projectsComposable
+      // newStatusName: '', // now in statusesComposable
+      // showProjectInput: false, // now in projectsComposable
+      // showStatusInput: false, // now in statusesComposable
+      // editingProject: null, // now in projectsComposable
+      // editingProjectTags: [], // now in projectsComposable
+      // editingStatus: null, // now in statusesComposable
+      // selectedTodoIds: new Set(), // now in todosComposable
+      milestoneRelations: {}, // { milestoneId: { todos: [] } }
       allTags: [],
-      showStakeholderPicker: false,
       saveTimeout: null,
+      // sortBy and searchQuery are still here because they're used by the component's UI state
       sortBy: localStorage.getItem('sort-by') || 'manual',
       searchQuery: '',
       groupByProject: localStorage.getItem('group-by-project') === 'true',
       cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
       cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
-      gridLock: localStorage.getItem('grid-lock') === 'true',
       timezone: localStorage.getItem('timezone') || 'auto',
       gridSize: 100,
       filterProjectId: null,
-      filterCategoryId: null,
       importanceFilterOp: 'none',
       importanceFilterValue: 3,
       timelineScale: 100,
@@ -650,64 +640,28 @@ export default {
       projectTransitionDirection: 'forward',
       previousProjectFilter: null,
       tabTransitionDirection: 'forward',
-      projectColors: [
-        // Blues
-        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
-        // Greens
-        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342',
-        // Reds & Pinks
-        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292',
-        // Oranges & Yellows
-        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300',
-        // Purples
-        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2',
-        // Neutrals
-        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
-      ],
-      categorySymbols: [
-        'Folder', 'Home', 'Briefcase', 'ShoppingCart', 'Heart', 'BookOpen', 'Target', 'Star',
-        'Calendar', 'Clock', 'Tag', 'Flag', 'Bookmark', 'Zap', 'Coffee', 'Music',
-        'Camera', 'Film', 'MessageCircle', 'Mail', 'Phone', 'Users', 'User', 'Settings',
-        'Bell', 'Gift', 'Award', 'Trophy', 'Crown', 'AlertCircle', 'Info', 'HelpCircle'
-      ],
-      statusColors: [
-        // Blues
-        '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
-        // Greens
-        '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342',
-        // Reds & Pinks
-        '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292',
-        // Oranges & Yellows
-        '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300',
-        // Purples
-        '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2',
-        // Neutrals
-        '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
-      ],
+      // projectColors now from projectsComposable
+      // statusColors now from statusesComposable
       // Graph layout parameters
       // d3-force parameters
       graphRepulsion: parseInt(localStorage.getItem('graph-repulsion')) || -800,
       graphEdgeLength: parseInt(localStorage.getItem('graph-edge-length')) || 200,
       graphLayoutType: localStorage.getItem('graph-layout-type') || 'force',
       showGraphSettings: false,
-      showPersonsInGraph: localStorage.getItem('show-persons-in-graph') === 'true',
       orthogonalEdges: localStorage.getItem('orthogonal-edges') === 'true',
-      todoPersons: {},
       d3Simulation: null,
       // Theme
       theme: localStorage.getItem('todo-theme') || 'dark',
       // Sidebar visibility
       sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
       sidebarPinned: localStorage.getItem('sidebar-pinned') === 'true',
-      categoriesCollapsed: localStorage.getItem('categories-collapsed') === 'true',
       statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
-      personsCollapsed: localStorage.getItem('persons-collapsed') !== 'false',
       settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
       // Trash & Archive
       trashCount: 0,
       archiveCount: 0,
       // Keyboard navigation
-      focusedTodoIndex: -1,
+      // focusedTodoIndex: -1, // now in todosComposable
       // Global search
       showGlobalSearch: false,
       showProjectsOverview: false,
@@ -718,11 +672,6 @@ export default {
       showImportDialog: false,
       databasePath: '',
       appVersion: '',
-      // Persons/Stakeholders
-      persons: [],
-      projectPersons: {},
-      showProjectPersonPicker: false,
-      pendingPersonEdit: null,
       // Project Topics (buckets)
       projectTopics: [],
       selectedTopicId: null,
@@ -759,6 +708,68 @@ export default {
         localStorage.setItem('tab-views', JSON.stringify(this.tabViews))
       }
     },
+    // Delegate to composables
+    projects() {
+      return this.projectsComposable.projects.value
+    },
+    todos() {
+      return this.todosComposable.todos.value
+    },
+    allTodos() {
+      return this.todosComposable.allTodos.value
+    },
+    statuses() {
+      return this.statusesComposable.statuses.value
+    },
+    selectedTodoIds() {
+      return this.todosComposable.selectedTodoIds.value
+    },
+    focusedTodoIndex() {
+      return this.todosComposable.focusedTodoIndex.value
+    },
+    focusedTodo() {
+      return this.todosComposable.focusedTodo.value
+    },
+    allSubtasksMap() {
+      return this.todosComposable.allSubtasksMap.value
+    },
+    editingProject() {
+      return this.projectsComposable.editingProject.value
+    },
+    editingProjectTags() {
+      return this.projectsComposable.editingProjectTags.value
+    },
+    newProjectName: {
+      get() {
+        return this.projectsComposable.newProjectName.value
+      },
+      set(val) {
+        this.projectsComposable.newProjectName.value = val
+      }
+    },
+    showProjectInput() {
+      return this.projectsComposable.showProjectInput.value
+    },
+    editingStatus() {
+      return this.statusesComposable.editingStatus.value
+    },
+    newStatusName: {
+      get() {
+        return this.statusesComposable.newStatusName.value
+      },
+      set(val) {
+        this.statusesComposable.newStatusName.value = val
+      }
+    },
+    showStatusInput() {
+      return this.statusesComposable.showStatusInput.value
+    },
+    projectColors() {
+      return this.projectsComposable.projectColors
+    },
+    statusColors() {
+      return this.statusesComposable.statusColors
+    },
     currentProjectColor() {
       if (this.currentFilter && this.currentFilter !== 'inbox' && this.currentFilter !== 'trash') {
         const project = this.projects.find(p => p.id === this.currentFilter)
@@ -780,7 +791,6 @@ export default {
       if (this.currentFilter === null) return 'Items'
       if (this.currentFilter === 'inbox') return 'Inbox'
       if (this.currentFilter === 'trash') return 'Trash'
-      if (this.currentFilter === 'persons') return 'Persons'
       const project = this.projects.find(p => p.id === this.currentFilter)
       const projectName = project ? project.name : 'Items'
       // Add topic name to breadcrumb when filtered
@@ -818,32 +828,6 @@ export default {
       const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
       return topic ? topic.name : ''
     },
-    currentProjectPersons() {
-      if (!this.editingProject || !this.editingProject.id) return []
-      return this.projectPersons[this.editingProject.id] || []
-    },
-    selectedProjectStakeholders() {
-      if (!this.isProjectSelected) return []
-      return this.projectPersons[this.currentFilter] || []
-    },
-    availableStakeholders() {
-      if (!this.isProjectSelected) return this.persons
-      const assigned = this.selectedProjectStakeholders.map(p => p.id)
-      return this.persons.filter(p => !assigned.includes(p.id))
-    },
-    filteredAvailableStakeholders() {
-      if (!this.newPersonName.trim()) return this.availableStakeholders
-      const query = this.newPersonName.toLowerCase().trim()
-      return this.availableStakeholders.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        (p.role && p.role.toLowerCase().includes(query))
-      )
-    },
-    hasExactStakeholderMatch() {
-      if (!this.newPersonName.trim()) return false
-      const query = this.newPersonName.toLowerCase().trim()
-      return this.persons.some(p => p.name.toLowerCase() === query)
-    },
     allCount() {
       const total = this.allTodos.length
       const done = this.allTodos.filter(t => t.completed).length
@@ -856,28 +840,10 @@ export default {
       return { done, total }
     },
     projectCounts() {
-      const counts = {}
-      for (const project of this.projects) {
-        const projectTodos = this.allTodos.filter(t => t.project_id === project.id)
-        const total = projectTodos.length
-        const done = projectTodos.filter(t => t.completed).length
-        counts[project.id] = { done, total }
-      }
-      return counts
+      return this.projectsComposable.projectCounts.value
     },
     statusCounts() {
-      const counts = {}
-      for (const status of this.statuses) {
-        counts[status.id] = this.allTodos.filter(t => t.status_id === status.id).length
-      }
-      return counts
-    },
-    categoryCounts() {
-      const counts = {}
-      for (const category of this.categories) {
-        counts[category.id] = this.allTodos.filter(t => t.category_id === category.id).length
-      }
-      return counts
+      return this.statusesComposable.getStatusCounts(this.allTodos)
     },
     topicCounts() {
       const counts = {}
@@ -892,12 +858,6 @@ export default {
         ? this.allTodos.filter(t => t.project_id === this.currentFilter)
         : this.allTodos
       return todos.filter(t => !t.deleted_at).length
-    },
-    stakeholdersCount() {
-      if (this.isProjectSelected) {
-        return this.selectedProjectStakeholders.length
-      }
-      return this.persons.length
     },
     availableViews() {
       return ['cards', 'kanban']
@@ -921,9 +881,6 @@ export default {
     inboxTodos() {
       return this.filteredTodos.filter(t => !t.project_id)
     },
-    uncategorizedTodos() {
-      return this.filteredTodos.filter(t => !t.category_id)
-    },
     noStatusTodos() {
       return this.filteredTodos.filter(t => !t.status_id)
     },
@@ -934,15 +891,9 @@ export default {
       return null
     },
     sortedTodos() {
-      let sorted = [...this.filteredTodos]
-      if (this.sortBy === 'created') {
-        sorted.sort((a, b) => {
-          return new Date(b.created_at) - new Date(a.created_at)
-        })
-      } else if (this.sortBy === 'alpha') {
-        sorted.sort((a, b) => a.title.localeCompare(b.title))
-      }
-      return sorted
+      this.todosComposable.setSortBy(this.sortBy)
+      // The composable's sortedTodos uses filteredTodos as base, which we've already set up above
+      return this.todosComposable.sortedTodos.value
     },
     groupedTodos() {
       const groups = []
@@ -975,27 +926,19 @@ export default {
       return groups
     },
     filteredTodos() {
-      let todos = this.currentFilter === null ? this.allTodos : this.todos
+      // Set filter state in composable for its internal computed properties
+      this.todosComposable.setCurrentFilter(this.currentFilter)
+      this.todosComposable.setSearchQuery(this.searchQuery)
+      this.todosComposable.setShowCompleted(this.showCompleted)
+
+      let todos = this.todosComposable.filteredTodos.value
       if (this.filterProjectId !== null) {
         todos = todos.filter(t => t.project_id === this.filterProjectId)
-      }
-      // Apply search query filter
-      if (this.searchQuery.trim()) {
-        const query = this.searchQuery.toLowerCase().trim()
-        todos = todos.filter(t =>
-          (t.title && t.title.toLowerCase().includes(query)) ||
-          (t.notes && t.notes.toLowerCase().includes(query))
-        )
-      }
-      // Hide completed items if not showing them
-      if (!this.showCompleted) {
-        todos = todos.filter(t => !t.completed)
       }
       return todos
     },
     completedCount() {
-      const todos = this.currentFilter === null ? this.allTodos : this.todos
-      return todos.filter(t => t.completed).length
+      return this.todosComposable.completedCount.value
     },
     timelineTodos() {
       // Only show todos that have at least one date (start_date or end_date)
@@ -1128,36 +1071,7 @@ export default {
         todos = todos.filter(t => !t.completed)
       }
 
-      const nodes = [...todos]
-
-      // Add person nodes if enabled
-      if (this.showPersonsInGraph) {
-        const personSet = new Set()
-
-        // Collect all unique persons from todos
-        Object.values(this.todoPersons).forEach(persons => {
-          persons.forEach(person => {
-            personSet.add(person.id)
-          })
-        })
-
-        // Add person nodes
-        personSet.forEach(personId => {
-          const person = this.persons.find(p => p.id === personId)
-          if (person) {
-            nodes.push({
-              id: `person-${person.id}`,
-              personId: person.id,
-              type: 'person',
-              title: person.name,
-              color: person.color,
-              person: person
-            })
-          }
-        })
-      }
-
-      return nodes
+      return todos
     },
     tooltipStyle() {
       return {
@@ -1168,27 +1082,11 @@ export default {
     },
     graphLinks() {
       // Use graphNodes to get the actual visible todo IDs (respects project filtering)
-      const todoIds = new Set(this.graphNodes.filter(n => n.type !== 'person').map(t => t.id))
+      const todoIds = new Set(this.graphNodes.map(t => t.id))
       // Filter links to only include those where both ends are visible
       const links = this.allLinks.filter(link =>
         todoIds.has(link.source) && todoIds.has(link.target)
       )
-
-      // Add person-todo links if enabled
-      if (this.showPersonsInGraph) {
-        Object.entries(this.todoPersons).forEach(([todoId, persons]) => {
-          const numTodoId = parseInt(todoId)
-          if (todoIds.has(numTodoId)) {
-            persons.forEach(person => {
-              links.push({
-                source: `person-${person.id}`,
-                target: numTodoId,
-                type: 'person-todo'
-              })
-            })
-          }
-        })
-      }
 
       return links
     },
@@ -1297,11 +1195,10 @@ export default {
           rows.push({ id: 'unassigned', name: 'Unassigned', color: '#666', todos: unassignedTodos, todoLanes, laneCount })
         }
 
-        // Milestone rows with their linked todos and persons
+        // Milestone rows with their linked todos
         for (const milestone of milestones) {
-          const rel = this.milestoneRelations[milestone.id] || { todos: [], persons: [] }
+          const rel = this.milestoneRelations[milestone.id] || { todos: [] }
           const linkedTodos = rel.todos || []
-          const linkedPersons = rel.persons || []
           const milestoneTodos = [milestone, ...linkedTodos]
           if (milestoneTodos.length > 0) {
             const { todoLanes, laneCount } = assignLanes(milestoneTodos)
@@ -1313,8 +1210,7 @@ export default {
               todoLanes,
               laneCount,
               isMilestone: true,
-              milestone: milestone,
-              persons: linkedPersons
+              milestone: milestone
             })
           }
         }
@@ -1359,17 +1255,13 @@ export default {
     },
     activeTab(val, oldVal) {
       // Determine tab transition direction
-      const tabOrder = ['items', 'stakeholders']
+      const tabOrder = ['items']
       const oldIndex = tabOrder.indexOf(oldVal)
       const newIndex = tabOrder.indexOf(val)
       this.tabTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
 
       // Clear topic filter when switching tabs
       this.selectedTopicId = null
-      // Load project stakeholders when switching to stakeholders tab
-      if (val === 'stakeholders' && this.isProjectSelected) {
-        this.loadProjectPersons(this.currentFilter)
-      }
     },
     currentFilter(val, oldVal) {
       // Determine project transition direction
@@ -1377,10 +1269,9 @@ export default {
         if (filter === null) return 0
         if (filter === 'inbox') return 1
         if (filter === 'trash') return 2
-        if (filter === 'persons') return 3
         // For project IDs, find index in projects array
         const idx = this.projects.findIndex(p => p.id === filter)
-        return idx >= 0 ? idx + 4 : 999
+        return idx >= 0 ? idx + 3 : 999
       }
       const oldIndex = getFilterIndex(oldVal)
       const newIndex = getFilterIndex(val)
@@ -1394,10 +1285,6 @@ export default {
         this.loadProjectTopics(val)
       } else {
         this.projectTopics = []
-      }
-      // Load project stakeholders when project filter changes while in stakeholders tab
-      if (this.activeTab === 'stakeholders' && typeof val === 'number') {
-        this.loadProjectPersons(val)
       }
     },
     ganttGroupBy(val) {
@@ -1453,9 +1340,7 @@ export default {
   },
   async mounted() {
     await this.loadProjects()
-    await this.loadCategories()
     await this.loadStatuses()
-    await this.loadPersons()
     await this.loadAllTags()
     await this.loadAllTodos()
 
@@ -1465,7 +1350,7 @@ export default {
       try {
         const filter = JSON.parse(savedFilter)
         // Verify the filter is valid (project still exists if it's a number)
-        if (filter === 'inbox' || filter === 'trash' || filter === 'persons') {
+        if (filter === 'inbox' || filter === 'trash') {
           this.currentFilter = filter
         } else if (typeof filter === 'number') {
           const projectExists = this.projects.some(p => p.id === filter)
@@ -1473,8 +1358,8 @@ export default {
             this.currentFilter = filter
           }
         }
-      } catch (e) {
-        console.warn('Failed to restore filter:', e)
+      } catch {
+        // Failed to restore filter, will use default
       }
     }
 
@@ -1484,10 +1369,6 @@ export default {
     this.appVersion = await window.api.getAppVersion()
     this.loadNodePositions()
 
-    // Load graph person data if enabled
-    if (this.showPersonsInGraph) {
-      await this.updateGraphData()
-    }
 
     window.api.onRefreshTodos(() => {
       this.loadAllTodos()
@@ -1515,13 +1396,10 @@ export default {
     document.addEventListener('click', (event) => {
       const link = event.target.closest('a')
       if (link && link.href && (link.closest('.notes-preview') || link.closest('.card-notes-preview'))) {
-        console.log('Native click on link:', link.href)
         event.preventDefault()
         event.stopPropagation()
         if (window.api && window.api.openExternal) {
           window.api.openExternal(link.href)
-        } else {
-          console.error('window.api.openExternal is not available')
         }
       }
     })
@@ -1590,13 +1468,6 @@ export default {
     toggleShowCompleted() {
       localStorage.setItem('show-completed', this.showCompleted.toString())
     },
-    toggleGridLock() {
-      localStorage.setItem('grid-lock', this.gridLock.toString())
-    },
-    onGridLockChange(value) {
-      this.gridLock = value
-      localStorage.setItem('grid-lock', value.toString())
-    },
     onTimezoneChange(value) {
       this.timezone = value
       localStorage.setItem('timezone', value)
@@ -1607,13 +1478,12 @@ export default {
       localStorage.setItem('todo-open-mode', mode)
     },
     async loadProjects() {
-      this.projects = await window.api.getProjects()
-    },
-    async loadCategories() {
-      this.categories = await window.api.getCategories()
+      await this.projectsComposable.loadProjects()
+      // Sync allTodos to projects composable for projectCounts
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async loadStatuses() {
-      this.statuses = await window.api.getStatuses()
+      await this.statusesComposable.loadStatuses()
     },
     // Project Topic methods
     async loadProjectTopics(projectId) {
@@ -1677,15 +1547,12 @@ export default {
     async handleDropOnTopic(todoIds, topicId) {
       // Handle both single ID (legacy) and array of IDs
       const ids = Array.isArray(todoIds) ? todoIds : [todoIds]
-      console.log('handleDropOnTopic called:', ids, topicId)
 
       for (const todoId of ids) {
         const todo = this.allTodos.find(t => t.id === todoId)
         if (!todo) {
-          console.log('Todo not found:', todoId)
           continue
         }
-        console.log('Updating todo:', todo.id, 'from topic', todo.topic_id, 'to', topicId)
         await window.api.updateTodo({ ...todo, topic_id: topicId })
 
         // Directly update local state for immediate reactivity
@@ -1706,8 +1573,6 @@ export default {
       // Clear multi-selection after drop
       this.selectedTodoIds.clear()
       this.selectedTodoIds = new Set()
-
-      console.log('handleDropOnTopic completed for', ids.length, 'items')
     },
     async addTopicFromCards(name) {
       if (!name.trim() || !this.isProjectSelected) return
@@ -1727,42 +1592,26 @@ export default {
       this.selectTodo(todo.id)
     },
     async loadAllTodos() {
-      this.allTodos = await window.api.getTodos(null)
-      // Debug: check if notes_sensitive is being loaded
-      const sensitiveTodos = this.allTodos.filter(t => t.notes_sensitive)
-      if (sensitiveTodos.length > 0) {
-        console.log('Found', sensitiveTodos.length, 'sensitive todos:', sensitiveTodos.map(t => ({ id: t.id, title: t.title, notes_sensitive: t.notes_sensitive })))
-      }
+      await this.todosComposable.loadAllTodos()
+      // Always show global counts since archive/trash views show all items
       this.trashCount = await window.api.getTrashCount()
       this.archiveCount = await window.api.getArchiveCount()
-      await this.loadAllSubtasks()
+      // Sync allTodos to projects composable for projectCounts
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async loadAllSubtasks() {
-      const subtasks = await window.api.getAllSubtasks()
-      console.log('Loaded subtasks:', subtasks.length, subtasks)
-      const map = {}
-      for (const subtask of subtasks) {
-        if (!map[subtask.todo_id]) {
-          map[subtask.todo_id] = []
-        }
-        map[subtask.todo_id].push(subtask)
-      }
-      console.log('Subtasks map:', map)
-      this.allSubtasksMap = map
+      // Now handled by todosComposable.loadAllTodos()
     },
     async loadTodos() {
-      this.todos = await window.api.getTodos(this.currentFilter)
+      await this.todosComposable.loadTodos(this.currentFilter)
     },
     async loadMilestoneRelations() {
       // Load todos and persons for all milestones
       const milestones = this.allTodos.filter(t => t.type === 'milestone')
       const relations = {}
       for (const milestone of milestones) {
-        const [todos, persons] = await Promise.all([
-          window.api.getMilestoneTodos(milestone.id),
-          window.api.getMilestonePersons(milestone.id)
-        ])
-        relations[milestone.id] = { todos, persons }
+        const todos = await window.api.getMilestoneTodos(milestone.id)
+        relations[milestone.id] = { todos }
       }
       this.milestoneRelations = relations
     },
@@ -1862,13 +1711,12 @@ export default {
         localStorage.setItem('current-filter', JSON.stringify(filter))
       }
       await this.loadTodos()
+      // Refresh archive/trash counts (always global)
+      this.trashCount = await window.api.getTrashCount()
+      this.archiveCount = await window.api.getArchiveCount()
       // Load project-specific graph settings and positions
       this.loadGraphSettings()
       this.loadNodePositions()
-      // Update graph person data when filter changes
-      if (this.showPersonsInGraph) {
-        await this.updateGraphData()
-      }
       // Load stakeholders if in stakeholders view and a project is selected
       if (this.currentView === 'stakeholders' && typeof filter === 'number') {
         await this.loadProjectPersons(filter)
@@ -1879,20 +1727,14 @@ export default {
       const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
         ? this.currentFilter
         : null
-      // Type is determined by the active tab: notes = note, todos = todo
       const type = 'todo'
-      const todo = await window.api.createTodo(this.newTodoTitle.trim(), projectId, type)
-      // Set default start_date to today and assign topic if selected
-      if (todo) {
-        const updates = { ...todo, start_date: new Date().toISOString().split('T')[0] }
-        if (this.selectedTopicId !== null) {
-          updates.topic_id = this.selectedTopicId
-        }
-        await window.api.updateTodo(updates)
+      const updates = { start_date: new Date().toISOString().split('T')[0] }
+      if (this.selectedTopicId !== null) {
+        updates.topic_id = this.selectedTopicId
       }
+      await this.todosComposable.addTodo(this.newTodoTitle.trim(), projectId, type, updates)
       this.newTodoTitle = ''
-      await this.loadAllTodos()
-      await this.loadTodos()
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async addMilestone() {
       const projectId = this.currentFilter !== null && this.currentFilter !== 'inbox'
@@ -1903,8 +1745,8 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         if (milestone && milestone.id) this.selectTodo(milestone.id)
-      } catch (e) {
-        console.error('Failed to create milestone:', e)
+      } catch {
+        // Milestone creation failed
       }
     },
     async createTodoOnDate(dateKey) {
@@ -1920,8 +1762,8 @@ export default {
           await this.loadTodos()
           this.selectTodo(todo.id)
         }
-      } catch (e) {
-        console.error('Failed to create todo on date:', e)
+      } catch {
+        // Todo creation failed
       }
     },
     async addTodoToProject(projectId) {
@@ -1931,8 +1773,8 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         if (todo) this.selectTodo(todo)
-      } catch (e) {
-        console.error('Failed to create todo:', e)
+      } catch {
+        // Todo creation failed
       }
     },
     onInboxDragStart(event, todo) {
@@ -2001,8 +1843,8 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         if (todo) this.selectTodo(todo)
-      } catch (e) {
-        console.error('Failed to create todo:', e)
+      } catch {
+        // Todo creation failed
       }
     },
     async addTodoToStatus(statusId) {
@@ -2018,51 +1860,30 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         if (todo) this.selectTodo(todo)
-      } catch (e) {
-        console.error('Failed to create todo:', e)
+      } catch {
+        // Todo creation failed
       }
     },
     async toggleComplete(todo) {
-      const todoData = this.toPlainTodo(todo)
-      const isCompleting = !todo.completed
-      todoData.completed = isCompleting
-      // Auto-set end_date when completing if empty
-      if (isCompleting && !todoData.end_date) {
-        todoData.end_date = new Date().toISOString().split('T')[0]
-      }
-      await window.api.updateTodo(todoData)
-
-      // If completing a recurring task, create the next occurrence
-      if (isCompleting && todo.recurrence_type) {
-        await window.api.createNextRecurrence(todo.id)
-      }
-
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.toggleComplete(todo)
+      // Sync to project composable for counts
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async handleUpdateTitle(todo, newTitle) {
-      const todoData = this.toPlainTodo(todo)
-      todoData.title = newTitle
-      await window.api.updateTodo(todoData)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.handleUpdateTitle(todo, newTitle)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async handleUpdateNotes(todo, newNotes) {
-      const todoData = this.toPlainTodo(todo)
-      todoData.notes = newNotes
-      await window.api.updateTodo(todoData)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.handleUpdateNotes(todo, newNotes)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async deleteTodo(id) {
-      await window.api.deleteTodo(id)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.deleteTodo(id)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async archiveTodo(id) {
-      await window.api.archiveTodo(id)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.archiveTodo(id)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async archiveCompletedTodos() {
       const projectId = this.isProjectSelected ? this.currentFilter : (this.currentFilter === 'inbox' ? 'inbox' : null)
@@ -2073,16 +1894,12 @@ export default {
       }
     },
     async unarchiveTodo(id) {
-      await window.api.unarchiveTodo(id)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.unarchiveTodo(id)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async moveToProject(todo, projectId) {
-      const todoData = this.toPlainTodo(todo)
-      todoData.project_id = projectId
-      await window.api.updateTodo(todoData)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.moveToProject(todo, projectId)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async deleteTodoFromGraph(id) {
       const todo = this.graphNodes.find(n => n.id === id)
@@ -2090,26 +1907,6 @@ export default {
       if (confirm(`Delete "${title}"?`)) {
         // Keep node position for undo - only remove on permanent delete
         await this.deleteTodo(id)
-      }
-    },
-    async removePersonFromGraph(personNode) {
-      const personId = personNode.personId
-      const personName = personNode.title
-      // Find all todos this person is connected to
-      const connectedTodoIds = this.graphLinks
-        .filter(l => l.type === 'person-todo' && l.source === personNode.id)
-        .map(l => l.target)
-
-      if (connectedTodoIds.length === 0) {
-        // Not connected to anything, just hide by disabling persons in graph
-        return
-      }
-
-      if (confirm(`Remove ${personName} from ${connectedTodoIds.length} item(s)?`)) {
-        for (const todoId of connectedTodoIds) {
-          await window.api.unlinkTodoPerson(todoId, personId)
-        }
-        await this.updateGraphData()
       }
     },
     handleNodeLinkClick(event) {
@@ -2135,19 +1932,17 @@ export default {
       }
     },
     async restoreTodo(id) {
-      await window.api.restoreTodo(id)
-      await this.loadAllTodos()
-      await this.loadTodos()
+      await this.todosComposable.restoreTodo(id)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async permanentlyDeleteTodo(id) {
-      await window.api.permanentlyDeleteTodo(id)
+      await this.todosComposable.permanentlyDeleteTodo(id)
       // Remove node position on permanent delete (can't be undone)
       if (this.nodePositions[id]) {
         delete this.nodePositions[id]
         this.saveNodePositions()
       }
-      await this.loadAllTodos()
-      await this.loadTodos()
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     async emptyTrash() {
       if (confirm('Are you sure you want to permanently delete all items in trash?')) {
@@ -2167,6 +1962,8 @@ export default {
         }
         await this.loadAllTodos()
         await this.loadTodos()
+        // Force refresh the trash count
+        this.trashCount = 0
       }
     },
     async onDragEnd() {
@@ -2189,34 +1986,25 @@ export default {
       }
     },
     async onProjectDragEnd() {
-      const ids = this.projects.map(p => p.id)
-      await window.api.reorderProjects(ids)
+      await this.projectsComposable.onProjectDragEnd()
     },
     async onCategoryDragEnd() {
       const ids = this.categories.map(c => c.id)
       await window.api.reorderCategories(ids)
     },
     async onStatusDragEnd() {
-      const ids = this.statuses.map(s => s.id)
-      await window.api.reorderStatuses(ids)
+      await this.statusesComposable.onStatusDragEnd()
     },
     async onKanbanProjectChange(todoId, targetProjectId) {
-      console.log('onKanbanProjectChange called:', todoId, targetProjectId)
       if (!todoId) return
 
       const todo = this.allTodos.find(t => t.id === todoId)
-      console.log('Found todo:', todo, 'current project_id:', todo?.project_id)
       if (todo && todo.project_id !== targetProjectId) {
-        console.log('Updating project_id from', todo.project_id, 'to', targetProjectId)
         const todoData = this.toPlainTodo(todo)
         todoData.project_id = targetProjectId
         await window.api.updateTodo(todoData)
-        console.log('Update complete, reloading...')
         await this.loadAllTodos()
         await this.loadTodos()
-        console.log('Reload complete')
-      } else {
-        console.log('No update needed - same project or todo not found')
       }
     },
     async onKanbanDrop(event) {
@@ -2232,8 +2020,6 @@ export default {
         event.stopPropagation()
         if (window.api && window.api.openExternal) {
           window.api.openExternal(link.href)
-        } else {
-          console.error('window.api.openExternal is not available')
         }
         return
       }
@@ -2277,41 +2063,14 @@ export default {
       // Set the selected IDs from marquee selection
       this.selectedTodoIds = new Set(ids)
     },
-    async selectTodo(id) {
+    async selectTodo(_id) {
       // TODO: Will be implemented with popover editor
-      console.log('selectTodo called with id:', id)
     },
     toPlainTodo(todo) {
-      return {
-        id: todo.id,
-        title: todo.title,
-        notes: todo.notes,
-        notes_sensitive: todo.notes_sensitive,
-        end_date: todo.end_date,
-        start_date: todo.start_date,
-        completed: todo.completed,
-        importance: todo.importance,
-        project_id: todo.project_id,
-        category_id: todo.category_id,
-        status_id: todo.status_id,
-        sort_order: todo.sort_order,
-        type: todo.type,
-        parent_id: todo.parent_id,
-        milestone_date: todo.milestone_date,
-        topic_id: todo.topic_id
-      }
+      return this.todosComposable.toPlainTodo(todo)
     },
     async loadAllTags() {
       this.allTags = await window.api.getAllTags()
-    },
-    async toggleSubtask(subtask) {
-      await window.api.updateSubtask({
-        id: subtask.id,
-        title: subtask.title,
-        completed: !subtask.completed
-      })
-      await this.loadAllTodos()
-      await this.loadTodos()
     },
     async deleteSubtask(id) {
       await window.api.deleteSubtask(id)
@@ -2373,74 +2132,38 @@ export default {
       await this.loadProjects()
     },
     async addProjectFromSidebar(name) {
-      if (!name.trim()) return
-      const randomColor = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
-      await window.api.createProject(name.trim(), randomColor)
-      await this.loadProjects()
+      await this.projectsComposable.addProject(name)
+      this.projectsComposable.setAllTodos(this.allTodos)
     },
     cancelAddProject() {
-      this.newProjectName = ''
-      this.showProjectInput = false
+      this.projectsComposable.cancelAddProject()
     },
     async editProject(project) {
-      this.editingProject = { ...project }
-      this.showProjectPersonPicker = false
-      if (project.id) {
-        await this.loadProjectPersons(project.id)
-        this.editingProjectTags = await window.api.getProjectTags(project.id)
-      } else {
-        this.editingProjectTags = []
-      }
+      await this.projectsComposable.editProject(project)
     },
     cancelEditProject() {
-      this.editingProject = null
-      this.editingProjectTags = []
-      this.showProjectPersonPicker = false
+      this.projectsComposable.cancelEditProject()
     },
     async addProjectTag(tagName) {
-      if (!this.editingProject?.id || !tagName.trim()) return
-      await window.api.addProjectTag(this.editingProject.id, tagName.trim())
-      this.editingProjectTags = await window.api.getProjectTags(this.editingProject.id)
-      await this.loadAllTags()
+      await this.projectsComposable.addProjectTag(tagName, this.loadAllTags.bind(this))
     },
     async removeProjectTag(tagId) {
-      if (!this.editingProject?.id) return
-      await window.api.removeProjectTag(this.editingProject.id, tagId)
-      this.editingProjectTags = await window.api.getProjectTags(this.editingProject.id)
+      await this.projectsComposable.removeProjectTag(tagId)
     },
     async saveProject() {
-      try {
-        if (!this.editingProject) return
-        // Convert reactive proxy to plain object for IPC
-        const projectData = {
-          id: this.editingProject.id,
-          name: this.editingProject.name,
-          color: this.editingProject.color
-        }
-        await window.api.updateProject(projectData)
-        await this.loadProjects()
-        await this.loadAllTodos()
-        await this.loadTodos()
-        this.editingProject = null
-      } catch (error) {
-        console.error('Error saving project:', error)
-      }
+      await this.projectsComposable.saveProject(this.loadAllTodos.bind(this), this.loadTodos.bind(this))
     },
     async saveProjectFromModal(projectData) {
-      this.editingProject = projectData
+      this.projectsComposable.editingProject.value = projectData
       await this.saveProject()
     },
     async deleteProjectConfirm() {
-      if (confirm(`Delete project "${this.editingProject.name}"? Todos will be moved to Inbox.`)) {
-        await window.api.deleteProject(this.editingProject.id)
-        if (this.currentFilter === this.editingProject.id) {
-          this.currentFilter = null
-        }
-        this.editingProject = null
-        await this.loadProjects()
-        await this.loadAllTodos()
-        await this.loadTodos()
-      }
+      await this.projectsComposable.deleteProjectConfirm(
+        this.currentFilter,
+        (filter) => { this.currentFilter = filter },
+        this.loadAllTodos.bind(this),
+        this.loadTodos.bind(this)
+      )
     },
     // Category methods
     showAddCategory() {
@@ -2490,8 +2213,8 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         this.editingCategory = null
-      } catch (error) {
-        console.error('Error saving category:', error)
+      } catch {
+        // Category save failed
       }
     },
     async saveCategoryFromModal(categoryData) {
@@ -2526,50 +2249,32 @@ export default {
       await this.loadStatuses()
     },
     async addStatusFromSidebar(name) {
-      if (!name.trim()) return
-      const randomColor = this.statusColors[Math.floor(Math.random() * this.statusColors.length)]
-      await window.api.createStatus(name.trim(), randomColor)
-      await this.loadStatuses()
+      await this.statusesComposable.addStatus(name)
     },
     cancelAddStatus() {
-      this.newStatusName = ''
-      this.showStatusInput = false
+      this.statusesComposable.cancelAddStatus()
     },
     editStatus(status) {
-      this.editingStatus = { ...status }
+      this.statusesComposable.editStatus(status)
     },
     cancelEditStatus() {
-      this.editingStatus = null
+      this.statusesComposable.cancelEditStatus()
     },
     async saveStatus() {
-      try {
-        if (!this.editingStatus) return
-        const statusData = {
-          id: this.editingStatus.id,
-          name: this.editingStatus.name,
-          color: this.editingStatus.color
-        }
-        await window.api.updateStatus(statusData)
-        await this.loadStatuses()
+      await this.statusesComposable.saveStatus(async () => {
         await this.loadAllTodos()
         await this.loadTodos()
-        this.editingStatus = null
-      } catch (error) {
-        console.error('Error saving status:', error)
-      }
+      })
     },
     async saveStatusFromModal(statusData) {
-      this.editingStatus = statusData
+      this.statusesComposable.editingStatus.value = statusData
       await this.saveStatus()
     },
     async deleteStatusConfirm() {
-      if (confirm(`Delete status "${this.editingStatus.name}"?`)) {
-        await window.api.deleteStatus(this.editingStatus.id)
-        this.editingStatus = null
-        await this.loadStatuses()
+      await this.statusesComposable.deleteStatusConfirm(async () => {
         await this.loadAllTodos()
         await this.loadTodos()
-      }
+      })
     },
     formatCreatedDate(createdAt) {
       if (!createdAt) return ''
@@ -2920,22 +2625,9 @@ export default {
       // Calculate position without modifying state
       return this.calculateNodePosition(todoId).y
     },
-    isPersonLink(link) {
-      const sourceNode = this.graphNodes.find(n => n.id === link.source)
-      const targetNode = this.graphNodes.find(n => n.id === link.target)
-      return sourceNode?.type === 'person' || targetNode?.type === 'person'
-    },
     getLinkColor(link) {
       const sourceNode = this.graphNodes.find(n => n.id === link.source)
       const targetNode = this.graphNodes.find(n => n.id === link.target)
-
-      // For person-todo links, use the person's color
-      if (sourceNode?.type === 'person' && sourceNode.color) {
-        return sourceNode.color
-      }
-      if (targetNode?.type === 'person' && targetNode.color) {
-        return targetNode.color
-      }
 
       // Use the source node's project color for the link
       if (sourceNode?.project_color) {
@@ -2949,8 +2641,6 @@ export default {
       return '#0f4c75'
     },
     getNodeHalfWidth(nodeId) {
-      const node = this.graphNodes.find(n => n.id === nodeId)
-      if (node?.type === 'person') return 80
       const el = this.$el?.querySelector(`[data-node-id="${nodeId}"] .node-content-wrapper`)
       if (el) return el.offsetWidth / 2
       return 70
@@ -3072,7 +2762,7 @@ export default {
               this.loadAllLinks()
               this.altClickSourceId = null
             })
-            .catch(e => console.error('Failed to link:', e))
+            .catch(() => { /* Link creation failed */ })
         } else {
           // Set this node as the source for linking
           this.altClickSourceId = todo.id
@@ -3114,7 +2804,7 @@ export default {
               this.loadAllLinks()
               this.altClickSourceId = null
             })
-            .catch(e => console.error('Failed to link:', e))
+            .catch(() => { /* Link creation failed */ })
         } else {
           // Set this node as the source for linking
           this.altClickSourceId = todo.id
@@ -3222,8 +2912,6 @@ export default {
       if (this.graphLinkMode) return
       // Don't edit if modifier keys are held (used for linking/creating)
       if (event && (event.altKey || event.metaKey || event.ctrlKey)) return
-      // Don't edit person nodes
-      if (todo.type === 'person') return
       this.editingNodeId = todo.id
       this.editingNodeNotes = todo.notes || ''
       // Don't show 'Untitled' or 'New Node' in the input - show blank instead
@@ -3439,8 +3127,8 @@ export default {
             })
           })
         }
-      } catch (e) {
-        console.error('Failed to create connected node:', e)
+      } catch {
+        // Connected node creation failed
       }
     },
     optimizeNewNodePosition(newNodeId) {
@@ -3539,8 +3227,8 @@ export default {
           const newTodo = this.todos.find(t => t.id === todo.id)
           if (newTodo) this.startEditingNode(null, newTodo)
         }
-      } catch (e) {
-        console.error('Failed to create todo:', e)
+      } catch {
+        // Todo creation failed
       }
     },
     onGraphWheel(event) {
@@ -3659,7 +3347,7 @@ export default {
     removeLink(link) {
       window.api.unlinkTodos(link.source, link.target)
         .then(() => this.loadAllLinks())
-        .catch(e => console.error('Failed to unlink:', e))
+        .catch(() => { /* Unlink failed */ })
     },
     async removeLinkFromMenu() {
       if (this.linkContextMenu?.link) {
@@ -3702,8 +3390,8 @@ export default {
         // Reload data
         await this.loadTodos()
         await this.loadAllLinks()
-      } catch (e) {
-        console.error('Failed to insert node:', e)
+      } catch {
+        // Node insertion failed
       }
 
       this.linkContextMenu = null
@@ -3744,8 +3432,8 @@ export default {
         // Start editing the new node
         const newTodo = this.todos.find(t => t.id === todo.id)
         if (newTodo) this.startEditingNode(null, newTodo)
-      } catch (e) {
-        console.error('Failed to insert node:', e)
+      } catch {
+        // Node insertion failed
       }
       this.hoveredLink = null
     },
@@ -3787,10 +3475,6 @@ export default {
 
       const newPositions = {}
 
-      // Separate person nodes from todo nodes
-      const todoNodes = nodes.filter(n => n.type !== 'person')
-      const personNodes = nodes.filter(n => n.type === 'person')
-
       // Grid settings - distance slider controls spacing
       // Base node size + gap based on edge length setting
       const baseWidth = 200
@@ -3802,28 +3486,16 @@ export default {
       const startY = 100
 
       // Calculate columns based on number of nodes (aim for roughly square grid)
-      const totalTodos = todoNodes.length
+      const totalTodos = nodes.length
       const cols = Math.max(1, Math.ceil(Math.sqrt(totalTodos * 1.2)))
 
-      // Position todo nodes in grid
-      todoNodes.forEach((node, idx) => {
+      // Position nodes in grid
+      nodes.forEach((node, idx) => {
         const col = idx % cols
         const row = Math.floor(idx / cols)
         newPositions[node.id] = {
           x: startX + col * cellWidth,
           y: startY + row * cellHeight
-        }
-      })
-
-      // Position person nodes in a row below the todo grid
-      const todoRows = Math.ceil(totalTodos / cols)
-      const personStartY = startY + todoRows * cellHeight + 60
-      const personCellWidth = 160 + gap * 0.5
-
-      personNodes.forEach((person, idx) => {
-        newPositions[person.id] = {
-          x: startX + idx * personCellWidth,
-          y: personStartY
         }
       })
 
@@ -3835,8 +3507,8 @@ export default {
       this.orthogonalEdges = true
       this.saveOrthogonalSetting()
 
-      const nodes = this.graphNodes.filter(n => n.type !== 'person')
-      const links = this.graphLinks.filter(l => l.type !== 'person-todo')
+      const nodes = this.graphNodes
+      const links = this.graphLinks
 
       // Build adjacency list
       const children = {}
@@ -3947,52 +3619,6 @@ export default {
         }
       }
 
-      // Position person nodes in a column on the right
-      const personNodes = this.graphNodes.filter(n => n.type === 'person')
-      const personLinks = this.graphLinks.filter(l => l.type === 'person-todo')
-
-      // Find the rightmost todo X position
-      let maxTodoX = startX
-      Object.values(newPositions).forEach(pos => {
-        maxTodoX = Math.max(maxTodoX, pos.x)
-      })
-
-      // Person column is to the right of all todos
-      const personColumnX = maxTodoX + levelSpacing
-
-      // Sort person nodes by average Y of connected todos
-      const personAvgY = {}
-      personNodes.forEach(person => {
-        const connectedTodoIds = personLinks
-          .filter(l => l.source === person.id)
-          .map(l => l.target)
-
-        if (connectedTodoIds.length > 0) {
-          let sumY = 0, count = 0
-          connectedTodoIds.forEach(todoId => {
-            if (newPositions[todoId]) {
-              sumY += newPositions[todoId].y
-              count++
-            }
-          })
-          personAvgY[person.id] = count > 0 ? sumY / count : startY
-        } else {
-          personAvgY[person.id] = startY + Object.keys(personAvgY).length * nodeSpacing
-        }
-      })
-
-      // Sort persons by their average Y
-      personNodes.sort((a, b) => (personAvgY[a.id] || 0) - (personAvgY[b.id] || 0))
-
-      // Position person nodes with minimum spacing
-      let lastPersonY = -nodeSpacing
-      personNodes.forEach(person => {
-        const targetY = personAvgY[person.id] || startY
-        const personY = Math.max(targetY, lastPersonY + nodeSpacing)
-        newPositions[person.id] = { x: personColumnX, y: personY }
-        lastPersonY = personY
-      })
-
       this.nodePositions = newPositions
       this.saveNodePositions()
     },
@@ -4026,9 +3652,6 @@ export default {
         const todo = this.graphNodes.find(n => n.id === nodeId)
         if (!todo) return 80
 
-        // Person nodes are smaller
-        if (todo.type === 'person') return 40
-
         // Estimate node dimensions based on content (matching CSS min/max-width)
         const titleLength = todo.title?.length || 0
         const notesLength = todo.notes?.length || 0
@@ -4051,20 +3674,8 @@ export default {
       this.d3Simulation = d3Force.forceSimulation(nodes)
         .force('link', d3Force.forceLink(links)
           .id(d => d.id)
-          .distance(d => {
-            // Shorter distance for person-todo links
-            if (d.type === 'person-todo') {
-              return this.graphEdgeLength * 0.5
-            }
-            return this.graphEdgeLength * 2
-          })
-          .strength(d => {
-            // Stronger pull for person links to keep them closer
-            if (d.type === 'person-todo') {
-              return 0.9
-            }
-            return 0.5
-          }))
+          .distance(this.graphEdgeLength * 2)
+          .strength(0.5))
         .force('charge', d3Force.forceManyBody()
           .strength(this.graphRepulsion)
           .distanceMin(100)
@@ -4121,8 +3732,7 @@ export default {
         } else {
           this.nodePositions = {}
         }
-      } catch (e) {
-        console.error('Failed to load node positions:', e)
+      } catch {
         this.nodePositions = {}
       }
     },
@@ -4132,8 +3742,7 @@ export default {
         layoutType: this.graphLayoutType,
         edgeLength: this.graphEdgeLength,
         repulsion: this.graphRepulsion,
-        orthogonal: this.orthogonalEdges,
-        showPersons: this.showPersonsInGraph
+        orthogonal: this.orthogonalEdges
       }))
       // Also save as defaults
       localStorage.setItem('graph-repulsion', this.graphRepulsion)
@@ -4149,10 +3758,9 @@ export default {
           this.graphEdgeLength = settings.edgeLength || 100
           this.graphRepulsion = settings.repulsion || -300
           this.orthogonalEdges = settings.orthogonal || false
-          this.showPersonsInGraph = settings.showPersons || false
         }
-      } catch (e) {
-        console.error('Failed to load graph settings:', e)
+      } catch {
+        // Failed to load graph settings, using defaults
       }
     },
     onGraphSettingChange() {
@@ -4327,12 +3935,8 @@ export default {
       // Find the todo to get its project and type
       const todo = this.allTodos.find(t => t.id === todoId)
       if (todo) {
-        // Switch to correct tab based on type
-        if (todo.type === 'person') {
-          this.setTab('stakeholders')
-        } else {
-          this.setTab('items')
-        }
+        // Switch to items tab
+        this.setTab('items')
         // Navigate to correct project
         if (todo.project_id) {
           await this.setFilter(todo.project_id)
@@ -4350,12 +3954,6 @@ export default {
         // Fallback: just try to select the todo
         this.selectTodo(todoId)
       }
-    },
-    async onGlobalSearchSelectPerson(person) {
-      // Switch to stakeholders tab
-      this.setTab('stakeholders')
-      // Select the person in PersonsView
-      this.pendingPersonEdit = person
     },
     async onGlobalSearchSelectProject(project) {
       // Switch to items tab and navigate to project
@@ -4436,10 +4034,6 @@ export default {
       this.statusesCollapsed = !this.statusesCollapsed
       localStorage.setItem('statuses-collapsed', this.statusesCollapsed)
     },
-    togglePersonsCollapsed() {
-      this.personsCollapsed = !this.personsCollapsed
-      localStorage.setItem('persons-collapsed', this.personsCollapsed)
-    },
     toggleSettingsCollapsed() {
       this.settingsCollapsed = !this.settingsCollapsed
       localStorage.setItem('settings-collapsed', this.settingsCollapsed)
@@ -4447,123 +4041,6 @@ export default {
     saveOpenModePreference() {
       const mode = this.openTodosInWindow ? 'window' : 'sidebar'
       localStorage.setItem('todo-open-mode', mode)
-    },
-    openSettings() {
-      this.setFilter('persons')
-    },
-    openPersonDetails(person) {
-      this.pendingPersonEdit = person
-      this.setFilter('persons')
-    },
-    async loadPersons() {
-      this.persons = await window.api.getPersons()
-    },
-    async updateGraphData() {
-      // Save preference
-      localStorage.setItem('show-persons-in-graph', this.showPersonsInGraph)
-
-      // Load person assignments for all todos if enabled
-      if (this.showPersonsInGraph) {
-        this.todoPersons = {}
-        for (const todo of this.filteredTodos) {
-          const persons = await window.api.getTodoPersons(todo.id)
-          if (persons && persons.length > 0) {
-            this.todoPersons[todo.id] = persons
-          }
-        }
-      } else {
-        this.todoPersons = {}
-      }
-    },
-    async loadProjectPersons(projectId) {
-      const persons = await window.api.getProjectPersons(projectId)
-      this.projectPersons[projectId] = persons
-    },
-    async assignProjectPerson(person) {
-      if (!this.editingProject || !this.editingProject.id) return
-      // Check if already assigned
-      if (this.currentProjectPersons.some(p => p.id === person.id)) return
-
-      await window.api.linkProjectPerson(this.editingProject.id, person.id)
-      await this.loadProjectPersons(this.editingProject.id)
-      this.showProjectPersonPicker = false
-    },
-    async unassignProjectPerson(person) {
-      if (!this.editingProject || !this.editingProject.id) return
-
-      await window.api.unlinkProjectPerson(this.editingProject.id, person.id)
-      await this.loadProjectPersons(this.editingProject.id)
-    },
-    openStakeholderRegister() {
-      if (this.editingProject && this.editingProject.id) {
-        window.api.openStakeholderRegister(this.editingProject.id)
-      }
-    },
-    getRandomPersonColor() {
-      const colors = [
-        '#d93025', '#ea4335', '#ef5350', '#ff5252', '#ff1744',
-        '#c2185b', '#e91e63', '#f06292',
-        '#ef6c00', '#ff7043', '#ff9800', '#ff8f00',
-        '#f9a825', '#ffb300', '#ffc107', '#ffca28',
-        '#0f9d58', '#34a853', '#43a047', '#4caf50', '#7cb342', '#81c784',
-        '#009688', '#00897b', '#26a69a', '#4db6ac', '#00bfa5', '#1de9b6', '#64ffda',
-        '#00bcd4', '#00acc1',
-        '#0288d1', '#039be5', '#03a9f4', '#29b6f6', '#4285f4', '#1a73e8', '#0d47a1',
-        '#673ab7', '#5e35b1', '#7b1fa2', '#9c27b0', '#7e57c2', '#ab47bc', '#ba68c8', '#9575cd',
-        '#263238', '#37474f', '#455a64', '#546e7a', '#607d8b', '#78909c', '#90a4ae', '#b0bec5'
-      ]
-      return colors[Math.floor(Math.random() * colors.length)]
-    },
-    async addPersonFromHeader() {
-      if (!this.newPersonName.trim()) return
-      try {
-        const person = await window.api.createPerson({
-          name: this.newPersonName.trim(),
-          color: this.getRandomPersonColor()
-        })
-        this.newPersonName = ''
-        await this.loadPersons()
-        // If in stakeholders view with a project selected, also link the person
-        if (this.isProjectSelected) {
-          await window.api.linkProjectPerson(this.currentFilter, person.id)
-          await this.loadProjectPersons(this.currentFilter)
-        }
-      } catch (error) {
-        console.error('Failed to create person:', error)
-      }
-    },
-    async loadProjectStakeholders() {
-      await this.loadPersons()
-      if (this.isProjectSelected) {
-        await this.loadProjectPersons(this.currentFilter)
-      }
-    },
-    async assignStakeholder(person) {
-      if (!this.isProjectSelected) return
-      const stakeholders = this.projectPersons[this.currentFilter] || []
-      if (stakeholders.some(p => p.id === person.id)) return
-      await window.api.linkProjectPerson(this.currentFilter, person.id)
-      await this.loadProjectPersons(this.currentFilter)
-    },
-    onStakeholderInputBlur() {
-      setTimeout(() => {
-        this.showStakeholderPicker = false
-      }, 150)
-    },
-    async assignStakeholderFromPicker(person) {
-      await this.assignStakeholder(person)
-      this.newPersonName = ''
-      this.showStakeholderPicker = false
-    },
-    async unassignStakeholder(person) {
-      if (!this.isProjectSelected) return
-      await window.api.unlinkProjectPerson(this.currentFilter, person.id)
-      await this.loadProjectPersons(this.currentFilter)
-    },
-    async updateStakeholder(personId, data) {
-      if (!this.isProjectSelected) return
-      await window.api.updateProjectPersonStakeholder(this.currentFilter, personId, data)
-      await this.loadProjectPersons(this.currentFilter)
     },
     async handleExport() {
       try {
@@ -4576,12 +4053,9 @@ export default {
       }
     },
     async handleImport(mode) {
-      console.log('handleImport called with mode:', mode)
       try {
         this.showImportDialog = false
-        console.log('Calling window.api.importData...')
         const result = await window.api.importData(mode)
-        console.log('Import result:', result)
         if (result.success) {
           alert('Backup imported successfully! Reloading data...')
           await this.loadData()
@@ -4593,12 +4067,9 @@ export default {
       }
     },
     handleMarkdownClick(event) {
-      console.log('Click event:', event.target)
       // Check if clicked element is a link or inside a link
       const link = event.target.tagName === 'A' ? event.target : event.target.closest('a')
-      console.log('Found link:', link)
       if (link && link.href) {
-        console.log('Opening link:', link.href)
         event.preventDefault()
         event.stopPropagation()
         window.api.openExternal(link.href)
@@ -4613,8 +4084,8 @@ export default {
         document.querySelectorAll('.notes-preview pre.mermaid').forEach(el => {
           el.setAttribute('data-processed', 'true')
         })
-      } catch (e) {
-        console.error('Mermaid render error:', e)
+      } catch {
+        // Mermaid render failed
       }
     },
     async renderTooltipMermaid() {

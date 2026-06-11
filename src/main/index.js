@@ -6,6 +6,10 @@ import logger from './logger.js'
 import { initAutoUpdater, checkForUpdates } from './updater.js'
 import history from './history.js'
 import {
+  MAX_LENGTH,
+  MAX_IMPORT_FILE_SIZE
+} from '../config/constants.js'
+import {
   ValidationError,
   validateId,
   validateOptionalId,
@@ -14,11 +18,7 @@ import {
   validateIdArray,
   validateTodo,
   validateProject,
-  validateCategory,
   validateStatus,
-  validatePerson,
-  validateSubtask,
-  validateStakeholderData,
   validateSearchQuery,
   validateImportMode,
   validateUrl,
@@ -30,7 +30,14 @@ import {
 const log = logger.child({ module: 'main' })
 
 /**
- * Wrapper for IPC handlers that adds validation and error handling with logging
+ * Wraps IPC handlers with validation and error handling.
+ *
+ * This function provides centralized error handling for all IPC handlers,
+ * ensuring validation errors and general errors are properly logged with context.
+ *
+ * @param {Function} handler - The async IPC handler function to wrap
+ * @param {string} [handlerName='unknown'] - Name of the handler for logging purposes
+ * @returns {Function} Wrapped handler function with error handling
  */
 function handleWithValidation(handler, handlerName = 'unknown') {
   return async (...args) => {
@@ -54,7 +61,6 @@ function handleWithValidation(handler, handlerName = 'unknown') {
 }
 
 let mainWindow = null
-let stakeholderWindow = null
 let database = null
 
 function createMainWindow() {
@@ -84,34 +90,6 @@ function createMainWindow() {
   }
 }
 
-function createStakeholderWindow(projectId) {
-  if (stakeholderWindow) {
-    stakeholderWindow.focus()
-    return
-  }
-
-  stakeholderWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
-
-  if (process.env.NODE_ENV === 'development') {
-    stakeholderWindow.loadURL(`http://localhost:5173/stakeholder-register.html?projectId=${projectId}`)
-  } else {
-    stakeholderWindow.loadFile(join(__dirname, '../renderer/stakeholder-register.html'), {
-      query: { projectId: projectId.toString() }
-    })
-  }
-
-  stakeholderWindow.on('closed', () => {
-    stakeholderWindow = null
-  })
-}
 
 // Ensure consistent userData path in dev and production
 // In dev, Electron uses 'Electron' as the app name, but we want 'todo'
@@ -132,7 +110,7 @@ app.whenReady().then(() => {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self';" +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
+          "script-src 'self' 'unsafe-inline';" +
           "style-src 'self' 'unsafe-inline';" +
           "img-src 'self' data: blob:;" +
           "font-src 'self' data:;" +
@@ -158,7 +136,7 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('create-project', handleWithValidation((_, name, color) => {
     return database.createProject(
-      validateString(name, 'name', 200),
+      validateString(name, 'name', MAX_LENGTH.PROJECT_NAME),
       validateOptionalColor(color)
     )
   }))
@@ -176,24 +154,6 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('get-deleted-projects', () => database.getDeletedProjects())
 
-  // Category operations
-  ipcMain.handle('get-categories', () => database.getAllCategories())
-  ipcMain.handle('get-category', handleWithValidation((_, id) => {
-    return database.getCategory(validateId(id))
-  }))
-  ipcMain.handle('create-category', handleWithValidation((_, name, color) => {
-    return database.createCategory(
-      validateString(name, 'name', 100),
-      validateOptionalColor(color)
-    )
-  }))
-  ipcMain.handle('update-category', handleWithValidation((_, category) => {
-    return database.updateCategory(validateCategory(category))
-  }))
-  ipcMain.handle('delete-category', handleWithValidation((_, id) => {
-    return database.deleteCategory(validateId(id))
-  }))
-
   // Project Topic operations (project-specific buckets)
   ipcMain.handle('get-project-topics', handleWithValidation((_, projectId) => {
     return database.getProjectTopics(validateId(projectId))
@@ -204,7 +164,7 @@ app.whenReady().then(() => {
   ipcMain.handle('create-project-topic', handleWithValidation((_, projectId, name, color) => {
     return database.createProjectTopic(
       validateId(projectId),
-      validateString(name, 'name', 100),
+      validateString(name, 'name', MAX_LENGTH.CATEGORY_NAME),
       validateOptionalColor(color)
     )
   }))
@@ -212,7 +172,7 @@ app.whenReady().then(() => {
     if (!topic || typeof topic !== 'object') throw new Error('Invalid topic')
     return database.updateProjectTopic({
       id: validateId(topic.id),
-      name: validateString(topic.name, 'name', 100),
+      name: validateString(topic.name, 'name', MAX_LENGTH.CATEGORY_NAME),
       color: validateOptionalColor(topic.color)
     })
   }))
@@ -220,7 +180,7 @@ app.whenReady().then(() => {
     return database.deleteProjectTopic(validateId(id))
   }))
   ipcMain.handle('reorder-project-topics', handleWithValidation((_, ids) => {
-    return database.reorderProjectTopics(validateIds(ids))
+    return database.reorderProjectTopics(validateIdArray(ids))
   }))
 
   // Status operations
@@ -230,7 +190,7 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('create-status', handleWithValidation((_, name, color) => {
     return database.createStatus(
-      validateString(name, 'name', 100),
+      validateString(name, 'name', MAX_LENGTH.STATUS_NAME),
       validateOptionalColor(color)
     )
   }))
@@ -241,81 +201,18 @@ app.whenReady().then(() => {
     return database.deleteStatus(validateId(id))
   }))
 
-  // Person operations
-  ipcMain.handle('get-persons', () => database.getAllPersons())
-  ipcMain.handle('get-person', handleWithValidation((_, id) => {
-    return database.getPerson(validateId(id))
-  }))
-  ipcMain.handle('create-person', handleWithValidation((_, person) => {
-    return database.createPerson(validatePerson(person))
-  }))
-  ipcMain.handle('update-person', handleWithValidation((_, person) => {
-    return database.updatePerson(validatePerson(person))
-  }))
-  ipcMain.handle('delete-person', handleWithValidation((_, id) => {
-    return database.deletePerson(validateId(id))
-  }))
-  ipcMain.handle('reorder-persons', handleWithValidation((_, ids) => {
-    return database.reorderPersons(validateIdArray(ids))
-  }))
 
-  // Todo-Person linking
-  ipcMain.handle('get-todo-persons', handleWithValidation((_, todoId) => {
-    return database.getTodoPersons(validateId(todoId))
-  }))
-  ipcMain.handle('link-todo-person', handleWithValidation((_, todoId, personId) => {
-    return database.linkTodoPerson(validateId(todoId), validateId(personId))
-  }))
-  ipcMain.handle('unlink-todo-person', handleWithValidation((_, todoId, personId) => {
-    return database.unlinkTodoPerson(validateId(todoId), validateId(personId))
-  }))
-  ipcMain.handle('get-person-todos', handleWithValidation((_, personId) => {
-    return database.getPersonTodos(validateId(personId))
-  }))
 
-  // Project-Person linking
-  ipcMain.handle('get-project-persons', handleWithValidation((_, projectId) => {
-    return database.getProjectPersons(validateId(projectId))
-  }))
-  ipcMain.handle('link-project-person', handleWithValidation((_, projectId, personId, stakeholderData) => {
-    return database.linkProjectPerson(
-      validateId(projectId),
-      validateId(personId),
-      validateStakeholderData(stakeholderData)
-    )
-  }))
-  ipcMain.handle('update-project-person-stakeholder', handleWithValidation((_, projectId, personId, stakeholderData) => {
-    return database.updateProjectPersonStakeholder(
-      validateId(projectId),
-      validateId(personId),
-      validateStakeholderData(stakeholderData)
-    )
-  }))
-  ipcMain.handle('unlink-project-person', handleWithValidation((_, projectId, personId) => {
-    return database.unlinkProjectPerson(validateId(projectId), validateId(personId))
-  }))
-  ipcMain.handle('get-person-projects', handleWithValidation((_, personId) => {
-    return database.getPersonProjects(validateId(personId))
-  }))
 
   // Milestone operations
   ipcMain.handle('get-milestone-todos', handleWithValidation((_, milestoneId) => {
     return database.getMilestoneTodos(validateId(milestoneId))
-  }))
-  ipcMain.handle('get-milestone-persons', handleWithValidation((_, milestoneId) => {
-    return database.getMilestonePersons(validateId(milestoneId))
   }))
   ipcMain.handle('link-milestone-todo', handleWithValidation((_, milestoneId, todoId) => {
     return database.linkMilestoneTodo(validateId(milestoneId), validateId(todoId))
   }))
   ipcMain.handle('unlink-milestone-todo', handleWithValidation((_, milestoneId, todoId) => {
     return database.unlinkMilestoneTodo(validateId(milestoneId), validateId(todoId))
-  }))
-  ipcMain.handle('link-milestone-person', handleWithValidation((_, milestoneId, personId, role) => {
-    return database.linkMilestonePerson(validateId(milestoneId), validateId(personId), role || '')
-  }))
-  ipcMain.handle('unlink-milestone-person', handleWithValidation((_, milestoneId, personId) => {
-    return database.unlinkMilestonePerson(validateId(milestoneId), validateId(personId))
   }))
   ipcMain.handle('get-all-milestones', handleWithValidation((_, projectId) => {
     return database.getAllMilestones(validateOptionalId(projectId))
@@ -329,37 +226,28 @@ app.whenReady().then(() => {
     return database.getTodoTags(validateId(todoId))
   }))
   ipcMain.handle('add-todo-tag', handleWithValidation((_, todoId, tagName) => {
-    return database.addTodoTag(validateId(todoId), validateString(tagName, 'tagName', 100))
+    return database.addTodoTag(validateId(todoId), validateString(tagName, 'tagName', MAX_LENGTH.TAG_NAME))
   }))
   ipcMain.handle('remove-todo-tag', handleWithValidation((_, todoId, tagId) => {
     return database.removeTodoTag(validateId(todoId), validateId(tagId))
-  }))
-  ipcMain.handle('get-person-tags', handleWithValidation((_, personId) => {
-    return database.getPersonTags(validateId(personId))
-  }))
-  ipcMain.handle('add-person-tag', handleWithValidation((_, personId, tagName) => {
-    return database.addPersonTag(validateId(personId), validateString(tagName, 'tagName', 100))
-  }))
-  ipcMain.handle('remove-person-tag', handleWithValidation((_, personId, tagId) => {
-    return database.removePersonTag(validateId(personId), validateId(tagId))
   }))
   ipcMain.handle('get-project-tags', handleWithValidation((_, projectId) => {
     return database.getProjectTags(validateId(projectId))
   }))
   ipcMain.handle('add-project-tag', handleWithValidation((_, projectId, tagName) => {
-    return database.addProjectTag(validateId(projectId), validateString(tagName, 'tagName', 100))
+    return database.addProjectTag(validateId(projectId), validateString(tagName, 'tagName', MAX_LENGTH.TAG_NAME))
   }))
   ipcMain.handle('remove-project-tag', handleWithValidation((_, projectId, tagId) => {
     return database.removeProjectTag(validateId(projectId), validateId(tagId))
   }))
   ipcMain.handle('search-by-tag', handleWithValidation((_, tagName) => {
-    return database.searchByTag(validateString(tagName, 'tagName', 100))
+    return database.searchByTag(validateString(tagName, 'tagName', MAX_LENGTH.TAG_NAME))
   }))
 
   // Todo operations
   ipcMain.handle('get-todos', handleWithValidation((_, projectId) => {
-    // projectId can be null, 'inbox', or a number
-    if (projectId === null || projectId === 'inbox') {
+    // projectId can be null, 'inbox', 'archive', 'trash', or a number
+    if (projectId === null || projectId === 'inbox' || projectId === 'archive' || projectId === 'trash') {
       return database.getAllTodos(projectId)
     }
     return database.getAllTodos(validateId(projectId))
@@ -368,7 +256,7 @@ app.whenReady().then(() => {
     return database.getTodo(validateId(id))
   }))
   ipcMain.handle('create-todo', handleWithValidation((_, title, projectId, type = 'todo') => {
-    const validTitle = validateString(title, 'title', 500)
+    const validTitle = validateString(title, 'title', MAX_LENGTH.TODO_TITLE)
     const validProjectId = validateOptionalId(projectId)
     const validType = validateTodoType(type)
     const todo = database.createTodo(validTitle, validProjectId, validType)
@@ -414,7 +302,7 @@ app.whenReady().then(() => {
   ipcMain.on('update-todo-sync', (event, todo, options = {}) => {
     try {
       const validatedTodo = validateTodo(todo)
-      console.log('Sync save requested for todo:', validatedTodo.id, validatedTodo.title)
+      log.debug('Sync save requested for todo', { id: validatedTodo.id, title: validatedTodo.title })
       const oldTodo = database.getTodo(validatedTodo.id)
       database.updateTodo(validatedTodo)
 
@@ -433,10 +321,10 @@ app.whenReady().then(() => {
         }
       }
 
-      console.log('Sync save completed')
+      log.debug('Sync save completed')
       event.returnValue = true
     } catch (error) {
-      console.error('Sync save validation error:', error.message)
+      log.error('Sync save validation error', { error: error.message })
       event.returnValue = false
     }
   })
@@ -640,32 +528,6 @@ app.whenReady().then(() => {
     return database.getAllSettings()
   })
 
-  // Subtask handlers
-  ipcMain.handle('get-subtasks', handleWithValidation((_, todoId) => {
-    return database.getSubtasks(validateId(todoId))
-  }))
-  ipcMain.handle('get-all-subtasks', handleWithValidation(() => {
-    return database.getAllSubtasks()
-  }))
-  ipcMain.handle('create-subtask', handleWithValidation((_, todoId, title) => {
-    return database.createSubtask(
-      validateId(todoId),
-      validateString(title, 'title', 500)
-    )
-  }))
-  ipcMain.handle('update-subtask', handleWithValidation((_, subtask) => {
-    console.log('update-subtask called:', subtask)
-    const result = database.updateSubtask(validateSubtask(subtask))
-    console.log('update-subtask result:', result)
-    return result
-  }))
-  ipcMain.handle('delete-subtask', handleWithValidation((_, id) => {
-    return database.deleteSubtask(validateId(id))
-  }))
-  ipcMain.handle('reorder-subtasks', handleWithValidation((_, ids) => {
-    return database.reorderSubtasks(validateIdArray(ids))
-  }))
-
   // Recurrence handler
   ipcMain.handle('create-next-recurrence', handleWithValidation((_, todoId) => {
     return database.createNextRecurrence(validateId(todoId))
@@ -711,8 +573,8 @@ app.whenReady().then(() => {
       const importPath = filePaths[0]
       try {
         const fileContent = readFileSync(importPath, 'utf-8')
-        // Limit file size to 50MB
-        if (fileContent.length > 50 * 1024 * 1024) {
+        // Limit file size to prevent memory issues
+        if (fileContent.length > MAX_IMPORT_FILE_SIZE) {
           log.warn('Import file too large', { path: importPath, size: fileContent.length })
           return { success: false, error: 'File too large (max 50MB)' }
         }
@@ -736,10 +598,6 @@ app.whenReady().then(() => {
     return app.getVersion()
   })
 
-  // Window management
-  ipcMain.handle('open-stakeholder-register', handleWithValidation((_, projectId) => {
-    createStakeholderWindow(validateId(projectId))
-  }))
 
   // Notify main window of updates
   ipcMain.on('todo-updated', () => {

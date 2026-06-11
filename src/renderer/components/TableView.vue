@@ -59,12 +59,12 @@
               <td class="subtask-title" colspan="7" @dblclick="startEditSubtask(subtask)">
                 <template v-if="editingSubtaskId === subtask.id">
                   <input
+                    ref="subtaskInput"
                     v-model="editingSubtaskTitle"
                     class="subtask-inline-input"
                     @blur="saveSubtaskEdit(subtask)"
                     @keydown.enter="saveSubtaskEdit(subtask)"
                     @keydown.escape="cancelSubtaskEdit"
-                    ref="subtaskInput"
                   />
                 </template>
                 <template v-else>{{ subtask.title }}</template>
@@ -81,7 +81,7 @@
                 />
               </td>
               <td class="col-actions">
-                <button class="subtask-delete-btn" @click.stop="$emit('delete-subtask', subtask.id)" title="Delete">×</button>
+                <button class="subtask-delete-btn" title="Delete" @click.stop="$emit('delete-subtask', subtask.id)">×</button>
               </td>
             </tr>
             <!-- Add subtask row -->
@@ -91,13 +91,13 @@
               <td colspan="10" class="add-subtask-cell">
                 <template v-if="addingSubtaskForTodo === todo.id">
                   <input
+                    ref="newSubtaskInput"
                     v-model="newSubtaskTitle"
                     class="subtask-inline-input"
                     placeholder="New task..."
                     @blur="saveNewSubtask(todo.id)"
                     @keydown.enter="saveNewSubtask(todo.id)"
                     @keydown.escape="cancelAddSubtask"
-                    ref="newSubtaskInput"
                   />
                 </template>
                 <button v-else class="add-subtask-btn" @click="startAddSubtask(todo.id)">+ Add task</button>
@@ -140,12 +140,12 @@
             <td class="subtask-title" colspan="7" @dblclick="startEditSubtask(subtask)">
               <template v-if="editingSubtaskId === subtask.id">
                 <input
+                  ref="subtaskInput"
                   v-model="editingSubtaskTitle"
                   class="subtask-inline-input"
                   @blur="saveSubtaskEdit(subtask)"
                   @keydown.enter="saveSubtaskEdit(subtask)"
                   @keydown.escape="cancelSubtaskEdit"
-                  ref="subtaskInput"
                 />
               </template>
               <template v-else>{{ subtask.title }}</template>
@@ -162,7 +162,7 @@
               />
             </td>
             <td class="col-actions">
-              <button class="subtask-delete-btn" @click.stop="$emit('delete-subtask', subtask.id)" title="Delete">×</button>
+              <button class="subtask-delete-btn" title="Delete" @click.stop="$emit('delete-subtask', subtask.id)">×</button>
             </td>
           </tr>
           <!-- Add subtask row -->
@@ -172,13 +172,13 @@
             <td colspan="10" class="add-subtask-cell">
               <template v-if="addingSubtaskForTodo === todo.id">
                 <input
+                  ref="newSubtaskInput"
                   v-model="newSubtaskTitle"
                   class="subtask-inline-input"
                   placeholder="New task..."
                   @blur="saveNewSubtask(todo.id)"
                   @keydown.enter="saveNewSubtask(todo.id)"
                   @keydown.escape="cancelAddSubtask"
-                  ref="newSubtaskInput"
                 />
               </template>
               <button v-else class="add-subtask-btn" @click="startAddSubtask(todo.id)">+ Add task</button>
