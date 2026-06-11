@@ -1,6 +1,6 @@
 {
   "name": "todo",
-  "version": "0.3.2",
+  "version": "0.3.6",
   "description": "Markdown-based todo list with notes and deadlines",
   "author": {
     "name": "sdrwacker",
@@ -77,7 +77,7 @@
       "node_modules/better-sqlite3/**/*"
     ],
     "mac": {
-      "icon": "resources/icon-512.png",
+      "icon": "resources/icon.icns",
       "target": [
         "dmg",
         "zip"
