@@ -10,17 +10,41 @@ import { ref, computed } from 'vue'
  */
 const STATUS_COLORS = [
   // Blues
-  '#1a73e8', '#4285f4', '#0d47a1', '#039be5', '#00acc1',
+  '#1a73e8',
+  '#4285f4',
+  '#0d47a1',
+  '#039be5',
+  '#00acc1',
   // Greens
-  '#0f9d58', '#34a853', '#00897b', '#43a047', '#7cb342',
+  '#0f9d58',
+  '#34a853',
+  '#00897b',
+  '#43a047',
+  '#7cb342',
   // Reds & Pinks
-  '#d93025', '#ea4335', '#c2185b', '#e91e63', '#f06292',
+  '#d93025',
+  '#ea4335',
+  '#c2185b',
+  '#e91e63',
+  '#f06292',
   // Oranges & Yellows
-  '#f9a825', '#ff8f00', '#ef6c00', '#ff7043', '#ffb300',
+  '#f9a825',
+  '#ff8f00',
+  '#ef6c00',
+  '#ff7043',
+  '#ffb300',
   // Purples
-  '#7b1fa2', '#9c27b0', '#673ab7', '#5e35b1', '#7e57c2',
+  '#7b1fa2',
+  '#9c27b0',
+  '#673ab7',
+  '#5e35b1',
+  '#7e57c2',
   // Neutrals
-  '#455a64', '#607d8b', '#78909c', '#546e7a', '#37474f'
+  '#455a64',
+  '#607d8b',
+  '#78909c',
+  '#546e7a',
+  '#37474f'
 ]
 
 /**
@@ -152,7 +176,7 @@ async function deleteStatusConfirm(onSuccess) {
  * Handle status drag and drop reordering.
  */
 async function onStatusDragEnd() {
-  const ids = state.value.statuses.map(s => s.id)
+  const ids = state.value.statuses.map((s) => s.id)
   await window.api.reorderStatuses(ids)
 }
 
@@ -172,7 +196,7 @@ function toggleStatusesCollapsed() {
 function getStatusCounts(allTodos) {
   const counts = {}
   for (const status of state.value.statuses) {
-    counts[status.id] = allTodos.filter(t => t.status_id === status.id).length
+    counts[status.id] = allTodos.filter((t) => t.status_id === status.id).length
   }
   return counts
 }
@@ -187,11 +211,15 @@ export function useStatuses() {
     statuses: computed(() => state.value.statuses),
     editingStatus: computed({
       get: () => state.value.editingStatus,
-      set: (val) => { state.value.editingStatus = val }
+      set: (val) => {
+        state.value.editingStatus = val
+      }
     }),
     newStatusName: computed({
       get: () => state.value.newStatusName,
-      set: (val) => { state.value.newStatusName = val }
+      set: (val) => {
+        state.value.newStatusName = val
+      }
     }),
     showStatusInput: computed(() => state.value.showStatusInput),
     statusesCollapsed: computed(() => state.value.statusesCollapsed),

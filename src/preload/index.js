@@ -24,7 +24,8 @@ contextBridge.exposeInMainWorld('api', {
   // Todo operations
   getTodos: (projectId) => ipcRenderer.invoke('get-todos', projectId),
   getTodo: (id) => ipcRenderer.invoke('get-todo', id),
-  createTodo: (title, projectId, type = 'todo') => ipcRenderer.invoke('create-todo', title, projectId, type),
+  createTodo: (title, projectId, type = 'todo') =>
+    ipcRenderer.invoke('create-todo', title, projectId, type),
   updateTodo: (todo, options) => ipcRenderer.invoke('update-todo', todo, options),
   updateTodoSync: (todo, options) => ipcRenderer.sendSync('update-todo-sync', todo, options),
   deleteTodo: (id) => ipcRenderer.invoke('delete-todo', id),
@@ -40,13 +41,16 @@ contextBridge.exposeInMainWorld('api', {
   // Milestone operations (parent_id based - legacy)
   getChildTodos: (parentId) => ipcRenderer.invoke('get-child-todos', parentId),
   getMilestones: (projectId) => ipcRenderer.invoke('get-milestones', projectId),
-  assignToMilestone: (todoId, milestoneId) => ipcRenderer.invoke('assign-to-milestone', todoId, milestoneId),
+  assignToMilestone: (todoId, milestoneId) =>
+    ipcRenderer.invoke('assign-to-milestone', todoId, milestoneId),
   unassignFromMilestone: (todoId) => ipcRenderer.invoke('unassign-from-milestone', todoId),
 
   // Milestone operations (many-to-many)
   getMilestoneTodos: (milestoneId) => ipcRenderer.invoke('get-milestone-todos', milestoneId),
-  linkMilestoneTodo: (milestoneId, todoId) => ipcRenderer.invoke('link-milestone-todo', milestoneId, todoId),
-  unlinkMilestoneTodo: (milestoneId, todoId) => ipcRenderer.invoke('unlink-milestone-todo', milestoneId, todoId),
+  linkMilestoneTodo: (milestoneId, todoId) =>
+    ipcRenderer.invoke('link-milestone-todo', milestoneId, todoId),
+  unlinkMilestoneTodo: (milestoneId, todoId) =>
+    ipcRenderer.invoke('unlink-milestone-todo', milestoneId, todoId),
   getAllMilestones: (projectId) => ipcRenderer.invoke('get-all-milestones', projectId),
 
   // Tag operations
@@ -56,7 +60,8 @@ contextBridge.exposeInMainWorld('api', {
   removeTodoTag: (todoId, tagId) => ipcRenderer.invoke('remove-todo-tag', todoId, tagId),
   getProjectTags: (projectId) => ipcRenderer.invoke('get-project-tags', projectId),
   addProjectTag: (projectId, tagName) => ipcRenderer.invoke('add-project-tag', projectId, tagName),
-  removeProjectTag: (projectId, tagId) => ipcRenderer.invoke('remove-project-tag', projectId, tagId),
+  removeProjectTag: (projectId, tagId) =>
+    ipcRenderer.invoke('remove-project-tag', projectId, tagId),
   searchByTag: (tagName) => ipcRenderer.invoke('search-by-tag', tagName),
 
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),

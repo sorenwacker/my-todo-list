@@ -71,7 +71,7 @@ describe('Database', () => {
       expect(db.getAllProjects()).toHaveLength(0)
     })
 
-    it('should move a deleted project\'s todos to inbox', () => {
+    it("should move a deleted project's todos to inbox", () => {
       const project = db.createProject('Work')
       const todo = db.createTodo('Task', project.id)
 
@@ -112,8 +112,8 @@ describe('Database', () => {
     it('should seed default statuses on init', () => {
       const statuses = db.getAllStatuses()
       expect(statuses.length).toBeGreaterThanOrEqual(4)
-      expect(statuses.map(s => s.name)).toContain('Todo')
-      expect(statuses.map(s => s.name)).toContain('Done')
+      expect(statuses.map((s) => s.name)).toContain('Todo')
+      expect(statuses.map((s) => s.name)).toContain('Done')
     })
 
     it('should create a status', () => {
@@ -268,7 +268,7 @@ describe('Database', () => {
       db.reorderTodos([todo3.id, todo1.id, todo2.id])
 
       const todos = db.getAllTodos()
-      expect(todos.map(t => t.id)).toEqual([todo3.id, todo1.id, todo2.id])
+      expect(todos.map((t) => t.id)).toEqual([todo3.id, todo1.id, todo2.id])
     })
   })
 
@@ -457,7 +457,7 @@ describe('Database', () => {
       db.addTodoTag(todo.id, 'home')
 
       const all = db.getAllTags()
-      expect(all.map(t => t.name).sort()).toEqual(['home', 'urgent'])
+      expect(all.map((t) => t.name).sort()).toEqual(['home', 'urgent'])
     })
 
     it('should reuse an existing tag rather than duplicating it', () => {
@@ -466,7 +466,7 @@ describe('Database', () => {
       db.addTodoTag(todo1.id, 'shared')
       db.addTodoTag(todo2.id, 'shared')
 
-      expect(db.getAllTags().filter(t => t.name === 'shared')).toHaveLength(1)
+      expect(db.getAllTags().filter((t) => t.name === 'shared')).toHaveLength(1)
     })
 
     it('should remove a tag from a todo and clean up the orphan', () => {
@@ -541,9 +541,9 @@ describe('Database', () => {
       db.addTodoTag(todo.id, 'globaltag')
 
       const results = db.globalSearch('globaltag')
-      expect(results.tags.map(t => t.name)).toContain('globaltag')
+      expect(results.tags.map((t) => t.name)).toContain('globaltag')
       // The tagged todo is also matched via its tag.
-      expect(results.todos.map(t => t.id)).toContain(todo.id)
+      expect(results.todos.map((t) => t.id)).toContain(todo.id)
     })
 
     it('should return the { todos, projects, tags } shape', () => {

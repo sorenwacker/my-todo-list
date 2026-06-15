@@ -1,5 +1,11 @@
 <template>
-  <div class="kanban-view-wrapper" @dragover="onDragOver" @dragend="onDragEnd" @dragleave="onDragEnd" @drop="onDragEnd">
+  <div
+    class="kanban-view-wrapper"
+    @dragover="onDragOver"
+    @dragend="onDragEnd"
+    @dragleave="onDragEnd"
+    @drop="onDragEnd"
+  >
     <!-- Stacked Kanban Boards (when groupByProject is active) -->
     <template v-if="groupByProject && !isProjectSelected">
       <div class="kanban-stacked">
@@ -19,7 +25,9 @@
               <div class="column-header">
                 <span class="column-dot" :style="{ background: status.color }"></span>
                 <h3>{{ status.name }}</h3>
-                <span class="column-count">{{ getProjectStatusTodos(group.id, status.id).length }}</span>
+                <span class="column-count">{{
+                  getProjectStatusTodos(group.id, status.id).length
+                }}</span>
               </div>
               <draggable
                 :model-value="getProjectStatusTodos(group.id, status.id)"
@@ -27,7 +35,6 @@
                 class="kanban-cards"
                 group="kanban"
                 ghost-class="ghost"
-                
                 @end="onStackedKanbanDrop($event, group.id, status.id)"
               >
                 <template #item="{ element }">
@@ -57,7 +64,6 @@
                 class="kanban-cards"
                 group="kanban"
                 ghost-class="ghost"
-                
                 @end="onStackedKanbanDrop($event, group.id, null)"
               >
                 <template #item="{ element }">
@@ -108,9 +114,9 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
-                    @update-title="$emit('update-title', element, $event)"
-                    @update-notes="$emit('update-notes', element, $event)"
-                    @archive="$emit('archive-todo', element.id)"
+                @update-title="$emit('update-title', element, $event)"
+                @update-notes="$emit('update-notes', element, $event)"
+                @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -149,13 +155,15 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
-                    @update-title="$emit('update-title', element, $event)"
-                    @update-notes="$emit('update-notes', element, $event)"
-                    @archive="$emit('archive-todo', element.id)"
+                @update-title="$emit('update-title', element, $event)"
+                @update-notes="$emit('update-notes', element, $event)"
+                @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
-          <button class="kanban-add-btn" @click="$emit('add-todo-to-project', project.id)">+ Add</button>
+          <button class="kanban-add-btn" @click="$emit('add-todo-to-project', project.id)">
+            + Add
+          </button>
         </div>
       </template>
 
@@ -174,7 +182,6 @@
             group="kanban-category"
             ghost-class="ghost"
             data-category-id=""
-            
             @update:model-value="$emit('update-category-todos', null, $event)"
             @end="onKanbanDropCategory"
           >
@@ -187,23 +194,23 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
-                    @update-title="$emit('update-title', element, $event)"
-                    @update-notes="$emit('update-notes', element, $event)"
-                    @archive="$emit('archive-todo', element.id)"
+                @update-title="$emit('update-title', element, $event)"
+                @update-notes="$emit('update-notes', element, $event)"
+                @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
           <button class="kanban-add-btn" @click="$emit('add-todo-to-category', null)">+ Add</button>
         </div>
 
-        <div
-          v-for="category in categories"
-          :key="category.id"
-          class="kanban-column"
-        >
+        <div v-for="category in categories" :key="category.id" class="kanban-column">
           <div class="column-header">
             <span class="column-symbol">
-              <component :is="getIconComponent(category.symbol)" v-if="getIconComponent(category.symbol)" :size="16" />
+              <component
+                :is="getIconComponent(category.symbol)"
+                v-if="getIconComponent(category.symbol)"
+                :size="16"
+              />
               <span v-else>{{ category.symbol || '*' }}</span>
             </span>
             <h3>{{ category.name }}</h3>
@@ -216,7 +223,6 @@
             group="kanban-category"
             ghost-class="ghost"
             :data-category-id="category.id"
-            
             @update:model-value="$emit('update-category-todos', category.id, $event)"
             @end="onKanbanDropCategory"
           >
@@ -229,13 +235,15 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
-                    @update-title="$emit('update-title', element, $event)"
-                    @update-notes="$emit('update-notes', element, $event)"
-                    @archive="$emit('archive-todo', element.id)"
+                @update-title="$emit('update-title', element, $event)"
+                @update-notes="$emit('update-notes', element, $event)"
+                @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
-          <button class="kanban-add-btn" @click="$emit('add-todo-to-category', category.id)">+ Add</button>
+          <button class="kanban-add-btn" @click="$emit('add-todo-to-category', category.id)">
+            + Add
+          </button>
         </div>
       </template>
 
@@ -254,7 +262,6 @@
             group="kanban-status"
             ghost-class="ghost"
             data-status-id=""
-            
             @update:model-value="$emit('update-status-todos', null, $event)"
             @end="onKanbanDropStatus"
           >
@@ -267,9 +274,9 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
-                    @update-title="$emit('update-title', element, $event)"
-                    @update-notes="$emit('update-notes', element, $event)"
-                    @archive="$emit('archive-todo', element.id)"
+                @update-title="$emit('update-title', element, $event)"
+                @update-notes="$emit('update-notes', element, $event)"
+                @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
@@ -294,7 +301,6 @@
             group="kanban-status"
             ghost-class="ghost"
             :data-status-id="status.id"
-            
             @update:model-value="$emit('update-status-todos', status.id, $event)"
             @end="onKanbanDropStatus"
           >
@@ -307,13 +313,15 @@
                 @select="$emit('card-click', $event, element.id)"
                 @toggle-complete="$emit('toggle-complete', element)"
                 @delete="$emit('delete-todo', element.id)"
-                    @update-title="$emit('update-title', element, $event)"
-                    @update-notes="$emit('update-notes', element, $event)"
-                    @archive="$emit('archive-todo', element.id)"
+                @update-title="$emit('update-title', element, $event)"
+                @update-notes="$emit('update-notes', element, $event)"
+                @archive="$emit('archive-todo', element.id)"
               />
             </template>
           </draggable>
-          <button class="kanban-add-btn" @click="$emit('add-todo-to-status', status.id)">+ Add</button>
+          <button class="kanban-add-btn" @click="$emit('add-todo-to-status', status.id)">
+            + Add
+          </button>
         </div>
       </template>
     </div>
@@ -321,215 +329,278 @@
 </template>
 
 <script>
-import draggable from 'vuedraggable'
-import KanbanCard from './KanbanCard.vue'
-import {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
-} from 'lucide-vue-next'
+  import draggable from 'vuedraggable'
+  import KanbanCard from './KanbanCard.vue'
+  import {
+    Folder,
+    Home,
+    Briefcase,
+    ShoppingCart,
+    Heart,
+    BookOpen,
+    Target,
+    Star,
+    Calendar,
+    Clock,
+    Tag,
+    Flag,
+    Bookmark,
+    Zap,
+    Coffee,
+    Music,
+    Camera,
+    Film,
+    MessageCircle,
+    Mail,
+    Phone,
+    Users,
+    User,
+    Settings,
+    Search,
+    Plus,
+    Check,
+    AlertCircle,
+    Info,
+    HelpCircle,
+    Bell,
+    Gift,
+    Award,
+    Trophy,
+    Crown
+  } from 'lucide-vue-next'
 
-const iconMap = {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown
-}
+  const iconMap = {
+    Folder,
+    Home,
+    Briefcase,
+    ShoppingCart,
+    Heart,
+    BookOpen,
+    Target,
+    Star,
+    Calendar,
+    Clock,
+    Tag,
+    Flag,
+    Bookmark,
+    Zap,
+    Coffee,
+    Music,
+    Camera,
+    Film,
+    MessageCircle,
+    Mail,
+    Phone,
+    Users,
+    User,
+    Settings,
+    Search,
+    Plus,
+    Check,
+    AlertCircle,
+    Info,
+    HelpCircle,
+    Bell,
+    Gift,
+    Award,
+    Trophy,
+    Crown
+  }
 
-export default {
-  name: 'KanbanView',
-  components: {
-    draggable,
-    KanbanCard
-  },
-  props: {
-    kanbanGroupBy: {
-      type: String,
-      required: true
+  export default {
+    name: 'KanbanView',
+    components: {
+      draggable,
+      KanbanCard
     },
-    effectiveKanbanGroupBy: {
-      type: String,
-      required: true
-    },
-    isProjectSelected: {
-      type: Boolean,
-      default: false
-    },
-    groupByProject: {
-      type: Boolean,
-      default: false
-    },
-    groupedTodos: {
-      type: Array,
-      default: () => []
-    },
-    projects: {
-      type: Array,
-      default: () => []
-    },
-    categories: {
-      type: Array,
-      default: () => []
-    },
-    statuses: {
-      type: Array,
-      default: () => []
-    },
-    inboxTodos: {
-      type: Array,
-      default: () => []
-    },
-    uncategorizedTodos: {
-      type: Array,
-      default: () => []
-    },
-    noStatusTodos: {
-      type: Array,
-      default: () => []
-    },
-    selectedTodoId: {
-      type: Number,
-      default: null
-    },
-    selectedTodoIds: {
-      type: Set,
-      default: () => new Set()
-    },
-    allTodos: {
-      type: Array,
-      default: () => []
-    }
-  },
-  emits: [
-    'update:kanban-group-by',
-    'select-todo',
-    'card-click',
-    'toggle-complete',
-    'delete-todo',
-    'add-todo-to-project',
-    'add-todo-to-category',
-    'add-todo-to-status',
-    'update-project-todos',
-    'update-category-todos',
-    'update-status-todos',
-    'update-inbox-todos',
-    'kanban-drop',
-    'kanban-drop-category',
-    'kanban-drop-status',
-    'kanban-project-change',
-    'stacked-kanban-drop',
-    'update-title',
-    'update-notes',
-    'archive-todo'
-  ],
-  data() {
-    return {
-      scrollDirection: 0,
-      scrollAnimationId: null
-    }
-  },
-  computed: {
-    localInboxTodos: {
-      get() {
-        return this.inboxTodos
+    props: {
+      kanbanGroupBy: {
+        type: String,
+        required: true
       },
-      set(value) {
-        this.$emit('update-inbox-todos', value)
+      effectiveKanbanGroupBy: {
+        type: String,
+        required: true
+      },
+      isProjectSelected: {
+        type: Boolean,
+        default: false
+      },
+      groupByProject: {
+        type: Boolean,
+        default: false
+      },
+      groupedTodos: {
+        type: Array,
+        default: () => []
+      },
+      projects: {
+        type: Array,
+        default: () => []
+      },
+      categories: {
+        type: Array,
+        default: () => []
+      },
+      statuses: {
+        type: Array,
+        default: () => []
+      },
+      inboxTodos: {
+        type: Array,
+        default: () => []
+      },
+      uncategorizedTodos: {
+        type: Array,
+        default: () => []
+      },
+      noStatusTodos: {
+        type: Array,
+        default: () => []
+      },
+      selectedTodoId: {
+        type: Number,
+        default: null
+      },
+      selectedTodoIds: {
+        type: Set,
+        default: () => new Set()
+      },
+      allTodos: {
+        type: Array,
+        default: () => []
       }
-    }
-  },
-  methods: {
-    getIconComponent(name) {
-      return iconMap[name] || null
     },
-    getProjectTodos(projectId) {
-      return this.allTodos.filter(t => t.project_id === projectId && !t.deleted)
-    },
-    getCategoryTodos(categoryId) {
-      return this.allTodos.filter(t => t.category_id === categoryId && !t.deleted)
-    },
-    getStatusTodos(statusId) {
-      return this.allTodos.filter(t => t.status_id === statusId && !t.deleted)
-    },
-    getProjectStatusTodos(projectId, statusId) {
-      return this.allTodos.filter(t => {
-        // Handle inbox (no project) - group.id is 'inbox' but todos have project_id: null
-        const projectMatch = projectId === 'inbox' ? !t.project_id : t.project_id === projectId
-        const statusMatch = statusId === null ? !t.status_id : t.status_id === statusId
-        return projectMatch && statusMatch && !t.deleted
-      })
-    },
-    onKanbanDropProject(event) {
-      // Find the target project from the column element
-      const targetColumn = event.to?.closest('.kanban-column')
-      const targetProjectId = targetColumn?.dataset?.projectId
-      const parsedProjectId = targetProjectId === '' ? null : (targetProjectId ? parseInt(targetProjectId) : undefined)
-
-      const todoId = event.item?.__draggable_context?.element?.id
-
-      if (todoId && parsedProjectId !== undefined) {
-        this.$emit('kanban-project-change', todoId, parsedProjectId)
+    emits: [
+      'update:kanban-group-by',
+      'select-todo',
+      'card-click',
+      'toggle-complete',
+      'delete-todo',
+      'add-todo-to-project',
+      'add-todo-to-category',
+      'add-todo-to-status',
+      'update-project-todos',
+      'update-category-todos',
+      'update-status-todos',
+      'update-inbox-todos',
+      'kanban-drop',
+      'kanban-drop-category',
+      'kanban-drop-status',
+      'kanban-project-change',
+      'stacked-kanban-drop',
+      'update-title',
+      'update-notes',
+      'archive-todo'
+    ],
+    data() {
+      return {
+        scrollDirection: 0,
+        scrollAnimationId: null
       }
     },
-    onKanbanDrop(event) {
-      this.$emit('kanban-drop', event)
-    },
-    onKanbanDropCategory(event) {
-      this.$emit('kanban-drop-category', event)
-    },
-    onKanbanDropStatus(event) {
-      this.$emit('kanban-drop-status', event)
-    },
-    onStackedKanbanDrop(event, projectId, statusId) {
-      this.$emit('stacked-kanban-drop', event, projectId, statusId)
-    },
-    onDragOver(event) {
-      const kanbanView = this.$refs.kanbanView
-      if (!kanbanView) return
-
-      const rect = kanbanView.getBoundingClientRect()
-      const x = event.clientX
-      const edgeSize = 100
-
-      let newDirection = 0
-      if (x < rect.left + edgeSize) {
-        newDirection = -1
-      } else if (x > rect.right - edgeSize) {
-        newDirection = 1
-      }
-
-      if (newDirection !== this.scrollDirection) {
-        this.scrollDirection = newDirection
-        if (newDirection !== 0) {
-          this.startAutoScroll()
-        } else {
-          this.stopAutoScroll()
+    computed: {
+      localInboxTodos: {
+        get() {
+          return this.inboxTodos
+        },
+        set(value) {
+          this.$emit('update-inbox-todos', value)
         }
       }
     },
-    startAutoScroll() {
-      if (this.scrollAnimationId) return
-      const scrollSpeed = 8
-      const scroll = () => {
+    methods: {
+      getIconComponent(name) {
+        return iconMap[name] || null
+      },
+      getProjectTodos(projectId) {
+        return this.allTodos.filter((t) => t.project_id === projectId && !t.deleted)
+      },
+      getCategoryTodos(categoryId) {
+        return this.allTodos.filter((t) => t.category_id === categoryId && !t.deleted)
+      },
+      getStatusTodos(statusId) {
+        return this.allTodos.filter((t) => t.status_id === statusId && !t.deleted)
+      },
+      getProjectStatusTodos(projectId, statusId) {
+        return this.allTodos.filter((t) => {
+          // Handle inbox (no project) - group.id is 'inbox' but todos have project_id: null
+          const projectMatch = projectId === 'inbox' ? !t.project_id : t.project_id === projectId
+          const statusMatch = statusId === null ? !t.status_id : t.status_id === statusId
+          return projectMatch && statusMatch && !t.deleted
+        })
+      },
+      onKanbanDropProject(event) {
+        // Find the target project from the column element
+        const targetColumn = event.to?.closest('.kanban-column')
+        const targetProjectId = targetColumn?.dataset?.projectId
+        const parsedProjectId =
+          targetProjectId === '' ? null : targetProjectId ? parseInt(targetProjectId) : undefined
+
+        const todoId = event.item?.__draggable_context?.element?.id
+
+        if (todoId && parsedProjectId !== undefined) {
+          this.$emit('kanban-project-change', todoId, parsedProjectId)
+        }
+      },
+      onKanbanDrop(event) {
+        this.$emit('kanban-drop', event)
+      },
+      onKanbanDropCategory(event) {
+        this.$emit('kanban-drop-category', event)
+      },
+      onKanbanDropStatus(event) {
+        this.$emit('kanban-drop-status', event)
+      },
+      onStackedKanbanDrop(event, projectId, statusId) {
+        this.$emit('stacked-kanban-drop', event, projectId, statusId)
+      },
+      onDragOver(event) {
         const kanbanView = this.$refs.kanbanView
-        if (kanbanView && this.scrollDirection !== 0) {
-          kanbanView.scrollLeft += this.scrollDirection * scrollSpeed
-          this.scrollAnimationId = requestAnimationFrame(scroll)
+        if (!kanbanView) return
+
+        const rect = kanbanView.getBoundingClientRect()
+        const x = event.clientX
+        const edgeSize = 100
+
+        let newDirection = 0
+        if (x < rect.left + edgeSize) {
+          newDirection = -1
+        } else if (x > rect.right - edgeSize) {
+          newDirection = 1
         }
+
+        if (newDirection !== this.scrollDirection) {
+          this.scrollDirection = newDirection
+          if (newDirection !== 0) {
+            this.startAutoScroll()
+          } else {
+            this.stopAutoScroll()
+          }
+        }
+      },
+      startAutoScroll() {
+        if (this.scrollAnimationId) return
+        const scrollSpeed = 8
+        const scroll = () => {
+          const kanbanView = this.$refs.kanbanView
+          if (kanbanView && this.scrollDirection !== 0) {
+            kanbanView.scrollLeft += this.scrollDirection * scrollSpeed
+            this.scrollAnimationId = requestAnimationFrame(scroll)
+          }
+        }
+        this.scrollAnimationId = requestAnimationFrame(scroll)
+      },
+      stopAutoScroll() {
+        if (this.scrollAnimationId) {
+          cancelAnimationFrame(this.scrollAnimationId)
+          this.scrollAnimationId = null
+        }
+        this.scrollDirection = 0
+      },
+      onDragEnd() {
+        this.stopAutoScroll()
       }
-      this.scrollAnimationId = requestAnimationFrame(scroll)
-    },
-    stopAutoScroll() {
-      if (this.scrollAnimationId) {
-        cancelAnimationFrame(this.scrollAnimationId)
-        this.scrollAnimationId = null
-      }
-      this.scrollDirection = 0
-    },
-    onDragEnd() {
-      this.stopAutoScroll()
     }
   }
-}
 </script>

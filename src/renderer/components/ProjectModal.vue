@@ -12,24 +12,24 @@
 </template>
 
 <script>
-import EntityModal from './EntityModal.vue'
-import { projectColors } from '../utils/helpers.js'
+  import EntityModal from './EntityModal.vue'
+  import { projectColors } from '../utils/helpers.js'
 
-export default {
-  name: 'ProjectModal',
-  components: {
-    EntityModal
-  },
-  props: {
-    project: {
-      type: Object,
-      default: null
+  export default {
+    name: 'ProjectModal',
+    components: {
+      EntityModal
     },
-    colors: {
-      type: Array,
-      default: () => projectColors
-    }
-  },
-  emits: ['save', 'cancel', 'delete']
-}
+    props: {
+      project: {
+        type: Object,
+        default: null
+      },
+      colors: {
+        type: Array,
+        default: () => projectColors
+      }
+    },
+    emits: ['save', 'cancel', 'delete']
+  }
 </script>

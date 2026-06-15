@@ -61,19 +61,21 @@ export function initAutoUpdater(win) {
 
     // Show notification to user
     if (mainWindow) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: `Version ${info.version} has been downloaded.`,
-        detail: 'The update will be installed when you restart the app.',
-        buttons: ['Restart Now', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      }).then(({ response }) => {
-        if (response === 0) {
-          autoUpdater.quitAndInstall(false, true)
-        }
-      })
+      dialog
+        .showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Update Ready',
+          message: `Version ${info.version} has been downloaded.`,
+          detail: 'The update will be installed when you restart the app.',
+          buttons: ['Restart Now', 'Later'],
+          defaultId: 0,
+          cancelId: 1
+        })
+        .then(({ response }) => {
+          if (response === 0) {
+            autoUpdater.quitAndInstall(false, true)
+          }
+        })
     }
   })
 }

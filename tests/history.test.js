@@ -40,10 +40,14 @@ class TestDatabase {
   }
 
   updateTodo(todo) {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       UPDATE todos SET title = ?, notes = ?, completed = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', todo.completed ? 1 : 0, todo.id)
+    `
+      )
+      .run(todo.title, todo.notes || '', todo.completed ? 1 : 0, todo.id)
     return this.getTodo(todo.id)
   }
 
@@ -79,8 +83,12 @@ describe('ActionHistory', () => {
       let value = 1
       history.push({
         type: 'test',
-        undo: () => { value = 0 },
-        redo: () => { value = 1 }
+        undo: () => {
+          value = 0
+        },
+        redo: () => {
+          value = 1
+        }
       })
 
       expect(history.canUndo()).toBe(true)
@@ -94,8 +102,12 @@ describe('ActionHistory', () => {
       let value = 1
       history.push({
         type: 'test',
-        undo: () => { value = 0 },
-        redo: () => { value = 1 }
+        undo: () => {
+          value = 0
+        },
+        redo: () => {
+          value = 1
+        }
       })
 
       await history.undo()
@@ -108,8 +120,12 @@ describe('ActionHistory', () => {
       let value = 0
       history.push({
         type: 'set-1',
-        undo: () => { value = 0 },
-        redo: () => { value = 1 }
+        undo: () => {
+          value = 0
+        },
+        redo: () => {
+          value = 1
+        }
       })
       value = 1
 
@@ -120,8 +136,12 @@ describe('ActionHistory', () => {
       // Push new action - should clear redo stack
       history.push({
         type: 'set-2',
-        undo: () => { value = 0 },
-        redo: () => { value = 2 }
+        undo: () => {
+          value = 0
+        },
+        redo: () => {
+          value = 2
+        }
       })
       value = 2
 
@@ -136,24 +156,36 @@ describe('ActionHistory', () => {
       // Action 1: add 'a'
       history.push({
         type: 'add',
-        undo: () => { values.pop() },
-        redo: () => { values.push('a') }
+        undo: () => {
+          values.pop()
+        },
+        redo: () => {
+          values.push('a')
+        }
       })
       values.push('a')
 
       // Action 2: add 'b'
       history.push({
         type: 'add',
-        undo: () => { values.pop() },
-        redo: () => { values.push('b') }
+        undo: () => {
+          values.pop()
+        },
+        redo: () => {
+          values.push('b')
+        }
       })
       values.push('b')
 
       // Action 3: add 'c'
       history.push({
         type: 'add',
-        undo: () => { values.pop() },
-        redo: () => { values.push('c') }
+        undo: () => {
+          values.pop()
+        },
+        redo: () => {
+          values.push('c')
+        }
       })
       values.push('c')
 
@@ -177,11 +209,35 @@ describe('ActionHistory', () => {
     it('should handle multiple redos in sequence', async () => {
       const values = []
 
-      history.push({ type: 'add', undo: () => { values.pop() }, redo: () => { values.push('a') } })
+      history.push({
+        type: 'add',
+        undo: () => {
+          values.pop()
+        },
+        redo: () => {
+          values.push('a')
+        }
+      })
       values.push('a')
-      history.push({ type: 'add', undo: () => { values.pop() }, redo: () => { values.push('b') } })
+      history.push({
+        type: 'add',
+        undo: () => {
+          values.pop()
+        },
+        redo: () => {
+          values.push('b')
+        }
+      })
       values.push('b')
-      history.push({ type: 'add', undo: () => { values.pop() }, redo: () => { values.push('c') } })
+      history.push({
+        type: 'add',
+        undo: () => {
+          values.pop()
+        },
+        redo: () => {
+          values.push('c')
+        }
+      })
       values.push('c')
 
       // Undo all
@@ -206,11 +262,35 @@ describe('ActionHistory', () => {
     it('should handle alternating undo/redo', async () => {
       let value = 0
 
-      history.push({ type: 'set-1', undo: () => { value = 0 }, redo: () => { value = 1 } })
+      history.push({
+        type: 'set-1',
+        undo: () => {
+          value = 0
+        },
+        redo: () => {
+          value = 1
+        }
+      })
       value = 1
-      history.push({ type: 'set-2', undo: () => { value = 1 }, redo: () => { value = 2 } })
+      history.push({
+        type: 'set-2',
+        undo: () => {
+          value = 1
+        },
+        redo: () => {
+          value = 2
+        }
+      })
       value = 2
-      history.push({ type: 'set-3', undo: () => { value = 2 }, redo: () => { value = 3 } })
+      history.push({
+        type: 'set-3',
+        undo: () => {
+          value = 2
+        },
+        redo: () => {
+          value = 3
+        }
+      })
       value = 3
 
       // Undo twice
@@ -356,7 +436,7 @@ describe('History with Database Integration', () => {
 
       const todos = db.getAllTodos()
       expect(todos).toHaveLength(3)
-      expect(todos.map(t => t.id).sort()).toEqual([todo1.id, todo2.id, todo3.id].sort())
+      expect(todos.map((t) => t.id).sort()).toEqual([todo1.id, todo2.id, todo3.id].sort())
     })
   })
 
@@ -561,8 +641,11 @@ describe('History with Database Integration', () => {
       expect(db.getAllTodos()).toHaveLength(5)
 
       // Verify no duplicates - all original IDs
-      const currentIds = db.getAllTodos().map(t => t.id).sort()
-      const originalIds = todos.map(t => t.id).sort()
+      const currentIds = db
+        .getAllTodos()
+        .map((t) => t.id)
+        .sort()
+      const originalIds = todos.map((t) => t.id).sort()
       expect(currentIds).toEqual(originalIds)
     })
   })

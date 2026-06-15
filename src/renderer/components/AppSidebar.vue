@@ -1,5 +1,10 @@
 <template>
-  <aside class="sidebar" :class="{ 'light-theme': theme === 'light' }" @mouseleave="onMouseLeave && onMouseLeave()" @mouseenter="onMouseEnter && onMouseEnter()">
+  <aside
+    class="sidebar"
+    :class="{ 'light-theme': theme === 'light' }"
+    @mouseleave="onMouseLeave && onMouseLeave()"
+    @mouseenter="onMouseEnter && onMouseEnter()"
+  >
     <div class="sidebar-header">
       <h2>Todo</h2>
       <button
@@ -8,11 +13,26 @@
         :title="pinned ? 'Unpin sidebar' : 'Pin sidebar'"
         @click="$emit('toggle-pin')"
       >
-        <svg v-if="pinned" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z"/>
+        <svg
+          v-if="pinned"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          stroke="none"
+        >
+          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z" />
         </svg>
-        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z"/>
+        <svg
+          v-else
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z" />
         </svg>
       </button>
     </div>
@@ -53,7 +73,7 @@
       <div class="add-project">
         <input
           v-if="projectInput.showInput.value"
-          :ref="el => projectInput.inputRef.value = el"
+          :ref="(el) => (projectInput.inputRef.value = el)"
           v-model="projectInput.inputValue.value"
           placeholder="Project name..."
           type="text"
@@ -85,7 +105,10 @@
       </draggable>
     </nav>
 
-    <div class="sidebar-header status-header collapsible" @click.stop="statusesCollapsed = !statusesCollapsed">
+    <div
+      class="sidebar-header status-header collapsible"
+      @click.stop="statusesCollapsed = !statusesCollapsed"
+    >
       <ChevronRight v-if="statusesCollapsed" :size="14" class="collapse-icon" />
       <ChevronDown v-else :size="14" class="collapse-icon" />
       <h2>Statuses</h2>
@@ -100,10 +123,7 @@
         @end="$emit('statuses-reorder')"
       >
         <template #item="{ element: status }">
-          <div
-            class="nav-item status-item"
-            @click="$emit('edit-status', status)"
-          >
+          <div class="nav-item status-item" @click="$emit('edit-status', status)">
             <span class="status-dot" :style="{ background: status.color }"></span>
             <span class="status-name">{{ status.name }}</span>
             <span class="count">{{ getStatusCount(status.id) }}</span>
@@ -115,7 +135,7 @@
     <div v-show="!statusesCollapsed" class="add-status">
       <input
         v-if="statusInput.showInput.value"
-        :ref="el => statusInput.inputRef.value = el"
+        :ref="(el) => (statusInput.inputRef.value = el)"
         v-model="statusInput.inputValue.value"
         placeholder="Status name..."
         type="text"
@@ -126,7 +146,10 @@
     </div>
 
     <div class="settings-section">
-      <div class="sidebar-header settings-header collapsible" @click.stop="settingsCollapsed = !settingsCollapsed">
+      <div
+        class="sidebar-header settings-header collapsible"
+        @click.stop="settingsCollapsed = !settingsCollapsed"
+      >
         <ChevronRight v-if="settingsCollapsed" :size="14" class="collapse-icon" />
         <ChevronDown v-else :size="14" class="collapse-icon" />
         <h2>Settings</h2>
@@ -134,7 +157,11 @@
       <div v-show="!settingsCollapsed" class="settings-content">
         <div class="preference-item timezone-item">
           <label class="preference-label">Timezone</label>
-          <select :value="timezone" class="timezone-select" @change="$emit('update:timezone', $event.target.value)">
+          <select
+            :value="timezone"
+            class="timezone-select"
+            @change="$emit('update:timezone', $event.target.value)"
+          >
             <option value="auto">Auto ({{ detectedTimezone }})</option>
             <option v-for="tz in commonTimezones" :key="tz" :value="tz">{{ tz }}</option>
           </select>
@@ -149,488 +176,503 @@
         </div>
       </div>
     </div>
-
   </aside>
 </template>
 
 <script>
-import draggable from 'vuedraggable'
-import { List, Archive, Trash2, ChevronRight, ChevronDown } from 'lucide-vue-next'
-import { useAddInput } from '../composables/useAddInput'
+  import draggable from 'vuedraggable'
+  import { List, Archive, Trash2, ChevronRight, ChevronDown } from 'lucide-vue-next'
+  import { useAddInput } from '../composables/useAddInput'
 
-export default {
-  name: 'AppSidebar',
-  components: {
-    draggable,
-    List,
-    Archive,
-    Trash2,
-    ChevronRight,
-    ChevronDown
-  },
-  props: {
-    visible: { type: Boolean, default: true },
-    pinned: { type: Boolean, default: true },
-    theme: { type: String, default: 'dark' },
-    onMouseLeave: { type: Function, default: null },
-    onMouseEnter: { type: Function, default: null },
-    currentFilter: { type: [Number, String], default: null },
-    projects: { type: Array, default: () => [] },
-    statuses: { type: Array, default: () => [] },
-    allCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
-    inboxCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
-    trashCount: { type: Number, default: 0 },
-    archiveCount: { type: Number, default: 0 },
-    projectCounts: { type: Object, default: () => ({}) },
-    statusCounts: { type: Object, default: () => ({}) },
-    isProjectSelected: { type: Boolean, default: false },
-    timezone: { type: String, default: 'auto' },
-    databasePath: { type: String, default: '' },
-    appVersion: { type: String, default: '' }
-  },
-  emits: [
-    'set-filter',
-    'update:projects', 'projects-reorder', 'add-project', 'edit-project',
-    'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
-    'update:timezone',
-    'export', 'show-import',
-    'toggle-pin'
-  ],
-  setup(props, { emit }) {
-    const projectInput = useAddInput('project', emit)
-    const statusInput = useAddInput('status', emit)
+  export default {
+    name: 'AppSidebar',
+    components: {
+      draggable,
+      List,
+      Archive,
+      Trash2,
+      ChevronRight,
+      ChevronDown
+    },
+    props: {
+      visible: { type: Boolean, default: true },
+      pinned: { type: Boolean, default: true },
+      theme: { type: String, default: 'dark' },
+      onMouseLeave: { type: Function, default: null },
+      onMouseEnter: { type: Function, default: null },
+      currentFilter: { type: [Number, String], default: null },
+      projects: { type: Array, default: () => [] },
+      statuses: { type: Array, default: () => [] },
+      allCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
+      inboxCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
+      trashCount: { type: Number, default: 0 },
+      archiveCount: { type: Number, default: 0 },
+      projectCounts: { type: Object, default: () => ({}) },
+      statusCounts: { type: Object, default: () => ({}) },
+      isProjectSelected: { type: Boolean, default: false },
+      timezone: { type: String, default: 'auto' },
+      databasePath: { type: String, default: '' },
+      appVersion: { type: String, default: '' }
+    },
+    emits: [
+      'set-filter',
+      'update:projects',
+      'projects-reorder',
+      'add-project',
+      'edit-project',
+      'update:statuses',
+      'statuses-reorder',
+      'add-status',
+      'edit-status',
+      'update:timezone',
+      'export',
+      'show-import',
+      'toggle-pin'
+    ],
+    setup(props, { emit }) {
+      const projectInput = useAddInput('project', emit)
+      const statusInput = useAddInput('status', emit)
 
-    return {
-      projectInput,
-      statusInput
-    }
-  },
-  data() {
-    return {
-      statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
-      settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
-      commonTimezones: [
-        'UTC',
-        'America/New_York',
-        'America/Chicago',
-        'America/Denver',
-        'America/Los_Angeles',
-        'America/Anchorage',
-        'Pacific/Honolulu',
-        'Europe/London',
-        'Europe/Paris',
-        'Europe/Berlin',
-        'Europe/Moscow',
-        'Asia/Dubai',
-        'Asia/Kolkata',
-        'Asia/Singapore',
-        'Asia/Tokyo',
-        'Asia/Shanghai',
-        'Australia/Sydney',
-        'Pacific/Auckland'
-      ]
-    }
-  },
-  computed: {
-    detectedTimezone() {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone
-    }
-  },
-  watch: {
-    statusesCollapsed(val) {
-      localStorage.setItem('statuses-collapsed', val)
+      return {
+        projectInput,
+        statusInput
+      }
     },
-    settingsCollapsed(val) {
-      localStorage.setItem('settings-collapsed', val)
-    }
-  },
-  methods: {
-    formatProgress(count) {
-      if (!count || typeof count !== 'object') return count || 0
-      if (count.total === 0) return ''
-      if (count.done === 0) return count.total
-      return `${count.done}/${count.total}`
+    data() {
+      return {
+        statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
+        settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
+        commonTimezones: [
+          'UTC',
+          'America/New_York',
+          'America/Chicago',
+          'America/Denver',
+          'America/Los_Angeles',
+          'America/Anchorage',
+          'Pacific/Honolulu',
+          'Europe/London',
+          'Europe/Paris',
+          'Europe/Berlin',
+          'Europe/Moscow',
+          'Asia/Dubai',
+          'Asia/Kolkata',
+          'Asia/Singapore',
+          'Asia/Tokyo',
+          'Asia/Shanghai',
+          'Australia/Sydney',
+          'Pacific/Auckland'
+        ]
+      }
     },
-    getProjectCount(projectId) {
-      return this.projectCounts[projectId] || { done: 0, total: 0 }
+    computed: {
+      detectedTimezone() {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
     },
-    getStatusCount(statusId) {
-      return this.statusCounts[statusId] || 0
+    watch: {
+      statusesCollapsed(val) {
+        localStorage.setItem('statuses-collapsed', val)
+      },
+      settingsCollapsed(val) {
+        localStorage.setItem('settings-collapsed', val)
+      }
+    },
+    methods: {
+      formatProgress(count) {
+        if (!count || typeof count !== 'object') return count || 0
+        if (count.total === 0) return ''
+        if (count.done === 0) return count.total
+        return `${count.done}/${count.total}`
+      },
+      getProjectCount(projectId) {
+        return this.projectCounts[projectId] || { done: 0, total: 0 }
+      },
+      getStatusCount(statusId) {
+        return this.statusCounts[statusId] || 0
+      }
     }
   }
-}
 </script>
 
 <style scoped>
-.sidebar {
-  width: 240px;
-  background: #000;
-  border-right: 1px solid var(--border-color, #3a3f4b);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
+  .sidebar {
+    width: 240px;
+    background: #000;
+    border-right: 1px solid var(--border-color, #3a3f4b);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
 
-.sidebar-header {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  user-select: none;
-}
+  .sidebar-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
 
-.sidebar-header.collapsible {
-  cursor: pointer;
-  transition: background 0.15s;
-}
+  .sidebar-header.collapsible {
+    cursor: pointer;
+    transition: background 0.15s;
+  }
 
-.sidebar-header.collapsible:hover {
-  background: var(--bg-hover, #1a1a1a);
-}
+  .sidebar-header.collapsible:hover {
+    background: var(--bg-hover, #1a1a1a);
+  }
 
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary, #a0a0a0);
-}
+  .sidebar-header h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary, #a0a0a0);
+  }
 
-.collapse-indicator {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary, #a0a0a0);
-  width: 14px;
-  text-align: center;
-}
+  .collapse-indicator {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #a0a0a0);
+    width: 14px;
+    text-align: center;
+  }
 
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--text-primary, #e0e0e0);
-  transition: background 0.2s;
-}
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--text-primary, #e0e0e0);
+    transition: background 0.2s;
+  }
 
-.nav-item:hover {
-  background: var(--bg-hover, #2a2f3d);
-}
+  .nav-item:hover {
+    background: var(--bg-hover, #2a2f3d);
+  }
 
-.nav-item.active {
-  background: var(--accent-color, #0f4c75);
-}
+  .nav-item.active {
+    background: var(--accent-color, #0f4c75);
+  }
 
-.nav-icon {
-  width: 16px;
-  text-align: center;
-  color: var(--text-secondary, #a0a0a0);
-}
+  .nav-icon {
+    width: 16px;
+    text-align: center;
+    color: var(--text-secondary, #a0a0a0);
+  }
 
-.count {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--text-secondary, #a0a0a0);
-}
+  .count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-secondary, #a0a0a0);
+  }
 
-.nav-divider {
-  height: 1px;
-  background: var(--border-color, #3a3f4b);
-  margin: 8px 16px;
-}
+  .nav-divider {
+    height: 1px;
+    background: var(--border-color, #3a3f4b);
+    margin: 8px 16px;
+  }
 
-.add-project, .add-status {
-  padding: 8px 16px;
-}
+  .add-project,
+  .add-status {
+    padding: 8px 16px;
+  }
 
-.add-project input, .add-status input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 4px;
-  background: var(--bg-primary, #1a1f2e);
-  color: var(--text-primary, #e0e0e0);
-  font-size: 13px;
-  box-sizing: border-box;
-}
+  .add-project input,
+  .add-status input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color, #3a3f4b);
+    border-radius: 4px;
+    background: var(--bg-primary, #1a1f2e);
+    color: var(--text-primary, #e0e0e0);
+    font-size: 13px;
+    box-sizing: border-box;
+  }
 
-.add-project button, .add-status button {
-  width: 100%;
-  padding: 6px 8px;
-  background: transparent;
-  border: 1px dashed var(--border-color, #3a3f4b);
-  border-radius: 4px;
-  color: var(--text-secondary, #a0a0a0);
-  cursor: pointer;
-  font-size: 13px;
-}
+  .add-project button,
+  .add-status button {
+    width: 100%;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px dashed var(--border-color, #3a3f4b);
+    border-radius: 4px;
+    color: var(--text-secondary, #a0a0a0);
+    cursor: pointer;
+    font-size: 13px;
+  }
 
-.add-project button:hover, .add-status button:hover {
-  border-color: var(--accent-color, #0f4c75);
-  color: var(--accent-color, #0f4c75);
-}
+  .add-project button:hover,
+  .add-status button:hover {
+    border-color: var(--accent-color, #0f4c75);
+    color: var(--accent-color, #0f4c75);
+  }
 
-.project-dot, .status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+  .project-dot,
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
 
-/* Draggable project/status items */
-.project-item,
-.status-item {
-  cursor: grab;
-}
+  /* Draggable project/status items */
+  .project-item,
+  .status-item {
+    cursor: grab;
+  }
 
-.project-item:active,
-.status-item:active {
-  cursor: grabbing;
-}
+  .project-item:active,
+  .status-item:active {
+    cursor: grabbing;
+  }
 
-.project-item.sortable-ghost,
-.status-item.sortable-ghost {
-  opacity: 0.4;
-  background: var(--accent-color, #0f4c75);
-}
+  .project-item.sortable-ghost,
+  .status-item.sortable-ghost {
+    opacity: 0.4;
+    background: var(--accent-color, #0f4c75);
+  }
 
-.project-item.sortable-drag,
-.status-item.sortable-drag {
-  background: var(--bg-hover, #2a2f3d);
-}
+  .project-item.sortable-drag,
+  .status-item.sortable-drag {
+    background: var(--bg-hover, #2a2f3d);
+  }
 
-.project-name, .status-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  .project-name,
+  .status-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-.edit-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary, #a0a0a0);
-  cursor: pointer;
-  padding: 2px 6px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
+  .edit-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #a0a0a0);
+    cursor: pointer;
+    padding: 2px 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
 
-.nav-item:hover .edit-btn {
-  opacity: 1;
-}
+  .nav-item:hover .edit-btn {
+    opacity: 1;
+  }
 
-.settings-section, .sidebar-section {
-  border-top: 1px solid var(--border-color, #333);
-  margin-top: auto;
-}
+  .settings-section,
+  .sidebar-section {
+    border-top: 1px solid var(--border-color, #333);
+    margin-top: auto;
+  }
 
-.status-header {
-  border-top: 1px solid var(--border-color, #333);
-}
+  .status-header {
+    border-top: 1px solid var(--border-color, #333);
+  }
 
-.settings-content {
-  padding: 8px 16px;
-}
+  .settings-content {
+    padding: 8px 16px;
+  }
 
-.preference-item {
-  margin-bottom: 8px;
-}
+  .preference-item {
+    margin-bottom: 8px;
+  }
 
-.timezone-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+  .timezone-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
 
-.preference-label {
-  font-size: 12px;
-  color: var(--text-secondary, #888);
-}
+  .preference-label {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+  }
 
-.timezone-select {
-  width: 100%;
-  padding: 4px 8px;
-  background: var(--bg-secondary, #1e2330);
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 4px;
-  color: var(--text-primary, #e0e0e0);
-  font-size: 12px;
-}
+  .timezone-select {
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--bg-secondary, #1e2330);
+    border: 1px solid var(--border-color, #3a3f4b);
+    border-radius: 4px;
+    color: var(--text-primary, #e0e0e0);
+    font-size: 12px;
+  }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-primary, #e0e0e0);
-}
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary, #e0e0e0);
+  }
 
-.settings-btn {
-  width: 100%;
-  padding: 6px 8px;
-  margin-bottom: 8px;
-  background: var(--bg-primary, #1a1f2e);
-  border: 1px solid var(--border-color, #3a3f4b);
-  border-radius: 4px;
-  color: var(--text-primary, #e0e0e0);
-  cursor: pointer;
-  font-size: 13px;
-}
+  .settings-btn {
+    width: 100%;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    background: var(--bg-primary, #1a1f2e);
+    border: 1px solid var(--border-color, #3a3f4b);
+    border-radius: 4px;
+    color: var(--text-primary, #e0e0e0);
+    cursor: pointer;
+    font-size: 13px;
+  }
 
-.settings-btn:hover {
-  background: var(--bg-hover, #2a2f3d);
-}
+  .settings-btn:hover {
+    background: var(--bg-hover, #2a2f3d);
+  }
 
-.database-location,
-.app-version {
-  font-size: 11px;
-  color: var(--text-secondary, #a0a0a0);
-  word-break: break-all;
-}
+  .database-location,
+  .app-version {
+    font-size: 11px;
+    color: var(--text-secondary, #a0a0a0);
+    word-break: break-all;
+  }
 
-.pin-btn {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--text-secondary, #a0a0a0);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s;
-}
+  .pin-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-secondary, #a0a0a0);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background 0.2s,
+      color 0.2s;
+  }
 
-.pin-btn:hover {
-  background: var(--bg-hover, #2a2f3d);
-  color: var(--text-primary, #e0e0e0);
-}
+  .pin-btn:hover {
+    background: var(--bg-hover, #2a2f3d);
+    color: var(--text-primary, #e0e0e0);
+  }
 
-.pin-btn.pinned {
-  color: var(--accent-color, #0f4c75);
-}
+  .pin-btn.pinned {
+    color: var(--accent-color, #0f4c75);
+  }
 
-/* Light theme styles */
-.sidebar.light-theme {
-  background: #f5f5f5;
-  border-right-color: #e0e0e0;
-}
+  /* Light theme styles */
+  .sidebar.light-theme {
+    background: #f5f5f5;
+    border-right-color: #e0e0e0;
+  }
 
-.sidebar.light-theme .sidebar-header h2 {
-  color: #666;
-}
+  .sidebar.light-theme .sidebar-header h2 {
+    color: #666;
+  }
 
-.sidebar.light-theme .collapse-indicator {
-  color: #666;
-}
+  .sidebar.light-theme .collapse-indicator {
+    color: #666;
+  }
 
-.sidebar.light-theme .nav-item {
-  color: #333;
-}
+  .sidebar.light-theme .nav-item {
+    color: #333;
+  }
 
-.sidebar.light-theme .nav-item:hover {
-  background: #e8e8e8;
-}
+  .sidebar.light-theme .nav-item:hover {
+    background: #e8e8e8;
+  }
 
-.sidebar.light-theme .nav-item.active {
-  background: #d0e7f7;
-}
+  .sidebar.light-theme .nav-item.active {
+    background: #d0e7f7;
+  }
 
-.sidebar.light-theme .nav-icon {
-  color: #666;
-}
+  .sidebar.light-theme .nav-icon {
+    color: #666;
+  }
 
-.sidebar.light-theme .count {
-  color: #888;
-}
+  .sidebar.light-theme .count {
+    color: #888;
+  }
 
-.sidebar.light-theme .nav-divider {
-  background: #ddd;
-}
+  .sidebar.light-theme .nav-divider {
+    background: #ddd;
+  }
 
-.sidebar.light-theme .add-project input,
-.sidebar.light-theme .add-status input {
-  border-color: #ddd;
-  background: #fff;
-  color: #333;
-}
+  .sidebar.light-theme .add-project input,
+  .sidebar.light-theme .add-status input {
+    border-color: #ddd;
+    background: #fff;
+    color: #333;
+  }
 
-.sidebar.light-theme .add-project button,
-.sidebar.light-theme .add-status button {
-  border-color: #ccc;
-  color: #666;
-}
+  .sidebar.light-theme .add-project button,
+  .sidebar.light-theme .add-status button {
+    border-color: #ccc;
+    color: #666;
+  }
 
-.sidebar.light-theme .add-project button:hover,
-.sidebar.light-theme .add-status button:hover {
-  border-color: #3498db;
-  color: #3498db;
-}
+  .sidebar.light-theme .add-project button:hover,
+  .sidebar.light-theme .add-status button:hover {
+    border-color: #3498db;
+    color: #3498db;
+  }
 
-.sidebar.light-theme .edit-btn {
-  color: #888;
-}
+  .sidebar.light-theme .edit-btn {
+    color: #888;
+  }
 
-.sidebar.light-theme .settings-section,
-.sidebar.light-theme .sidebar-section {
-  border-top-color: #ddd;
-}
+  .sidebar.light-theme .settings-section,
+  .sidebar.light-theme .sidebar-section {
+    border-top-color: #ddd;
+  }
 
-.sidebar.light-theme .status-header {
-  border-top-color: #ddd;
-}
+  .sidebar.light-theme .status-header {
+    border-top-color: #ddd;
+  }
 
-.sidebar.light-theme .preference-label {
-  color: #666;
-}
+  .sidebar.light-theme .preference-label {
+    color: #666;
+  }
 
-.sidebar.light-theme .timezone-select {
-  background: #fff;
-  border-color: #ddd;
-  color: #333;
-}
+  .sidebar.light-theme .timezone-select {
+    background: #fff;
+    border-color: #ddd;
+    color: #333;
+  }
 
-.sidebar.light-theme .checkbox-label {
-  color: #333;
-}
+  .sidebar.light-theme .checkbox-label {
+    color: #333;
+  }
 
-.sidebar.light-theme .settings-btn {
-  background: #fff;
-  border-color: #ddd;
-  color: #333;
-}
+  .sidebar.light-theme .settings-btn {
+    background: #fff;
+    border-color: #ddd;
+    color: #333;
+  }
 
-.sidebar.light-theme .settings-btn:hover {
-  background: #e8e8e8;
-}
+  .sidebar.light-theme .settings-btn:hover {
+    background: #e8e8e8;
+  }
 
-.sidebar.light-theme .database-location,
-.sidebar.light-theme .app-version {
-  color: #888;
-}
+  .sidebar.light-theme .database-location,
+  .sidebar.light-theme .app-version {
+    color: #888;
+  }
 
-.sidebar.light-theme .pin-btn {
-  color: #888;
-}
+  .sidebar.light-theme .pin-btn {
+    color: #888;
+  }
 
-.sidebar.light-theme .pin-btn:hover {
-  background: #e8e8e8;
-  color: #333;
-}
+  .sidebar.light-theme .pin-btn:hover {
+    background: #e8e8e8;
+    color: #333;
+  }
 
-.sidebar.light-theme .project-item.sortable-ghost,
-.sidebar.light-theme .status-item.sortable-ghost {
-  background: #d0e7f7;
-}
+  .sidebar.light-theme .project-item.sortable-ghost,
+  .sidebar.light-theme .status-item.sortable-ghost {
+    background: #d0e7f7;
+  }
 
-.sidebar.light-theme .project-item.sortable-drag,
-.sidebar.light-theme .status-item.sortable-drag {
-  background: #e8e8e8;
-}
+  .sidebar.light-theme .project-item.sortable-drag,
+  .sidebar.light-theme .status-item.sortable-drag {
+    background: #e8e8e8;
+  }
 </style>

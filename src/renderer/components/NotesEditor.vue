@@ -1,176 +1,188 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { EditorState, EditorSelection, Prec } from '@codemirror/state'
-import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { markdown, markdownKeymap } from '@codemirror/lang-markdown'
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
-import { darkEditorTheme } from '../editorTheme'
+  import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+  import { EditorState, EditorSelection, Prec } from '@codemirror/state'
+  import {
+    EditorView,
+    keymap,
+    lineNumbers,
+    highlightActiveLine,
+    drawSelection
+  } from '@codemirror/view'
+  import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+  import { markdown, markdownKeymap } from '@codemirror/lang-markdown'
+  import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+  import { darkEditorTheme } from '../editorTheme'
 
-// Custom keymap for multi-cursor (Cmd+Alt+Up/Down)
-const multiCursorKeymap = [
-  {
-    key: 'Alt-ArrowUp',
-    mac: 'Cmd-Alt-ArrowUp',
-    run: view => {
-      const { state } = view
-      const ranges = []
-      for (const range of state.selection.ranges) {
-        const line = state.doc.lineAt(range.head)
-        if (line.number > 1) {
-          const prevLine = state.doc.line(line.number - 1)
-          const col = Math.min(range.head - line.from, prevLine.length)
-          const newPos = prevLine.from + col
-          ranges.push(EditorSelection.cursor(newPos))
+  // Custom keymap for multi-cursor (Cmd+Alt+Up/Down)
+  const multiCursorKeymap = [
+    {
+      key: 'Alt-ArrowUp',
+      mac: 'Cmd-Alt-ArrowUp',
+      run: (view) => {
+        const { state } = view
+        const ranges = []
+        for (const range of state.selection.ranges) {
+          const line = state.doc.lineAt(range.head)
+          if (line.number > 1) {
+            const prevLine = state.doc.line(line.number - 1)
+            const col = Math.min(range.head - line.from, prevLine.length)
+            const newPos = prevLine.from + col
+            ranges.push(EditorSelection.cursor(newPos))
+          }
+          ranges.push(range)
         }
-        ranges.push(range)
-      }
-      if (ranges.length > state.selection.ranges.length) {
-        view.dispatch({
-          selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from)),
-        })
-        return true
-      }
-      return false
-    },
-  },
-  {
-    key: 'Alt-ArrowDown',
-    mac: 'Cmd-Alt-ArrowDown',
-    run: view => {
-      const { state } = view
-      const ranges = []
-      for (const range of state.selection.ranges) {
-        ranges.push(range)
-        const line = state.doc.lineAt(range.head)
-        if (line.number < state.doc.lines) {
-          const nextLine = state.doc.line(line.number + 1)
-          const col = Math.min(range.head - line.from, nextLine.length)
-          const newPos = nextLine.from + col
-          ranges.push(EditorSelection.cursor(newPos))
+        if (ranges.length > state.selection.ranges.length) {
+          view.dispatch({
+            selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from))
+          })
+          return true
         }
+        return false
       }
-      if (ranges.length > state.selection.ranges.length) {
-        view.dispatch({
-          selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from)),
-        })
-        return true
-      }
-      return false
     },
-  },
-]
+    {
+      key: 'Alt-ArrowDown',
+      mac: 'Cmd-Alt-ArrowDown',
+      run: (view) => {
+        const { state } = view
+        const ranges = []
+        for (const range of state.selection.ranges) {
+          ranges.push(range)
+          const line = state.doc.lineAt(range.head)
+          if (line.number < state.doc.lines) {
+            const nextLine = state.doc.line(line.number + 1)
+            const col = Math.min(range.head - line.from, nextLine.length)
+            const newPos = nextLine.from + col
+            ranges.push(EditorSelection.cursor(newPos))
+          }
+        }
+        if (ranges.length > state.selection.ranges.length) {
+          view.dispatch({
+            selection: EditorSelection.create(ranges.sort((a, b) => a.from - b.from))
+          })
+          return true
+        }
+        return false
+      }
+    }
+  ]
 
-const props = defineProps({
-  modelValue: { type: String, default: '' },
-})
+  const props = defineProps({
+    modelValue: { type: String, default: '' }
+  })
 
-const emit = defineEmits(['update:modelValue', 'blur'])
+  const emit = defineEmits(['update:modelValue', 'blur'])
 
-const container = ref(null)
-let editor = null
+  const container = ref(null)
+  let editor = null
 
-function setupEditor() {
-  if (!container.value) return
+  function setupEditor() {
+    if (!container.value) return
 
-  if (editor) {
-    editor.destroy()
-    editor = null
+    if (editor) {
+      editor.destroy()
+      editor = null
+    }
+
+    const startDoc = props.modelValue || ''
+
+    editor = new EditorView({
+      parent: container.value,
+      state: EditorState.create({
+        doc: startDoc,
+        extensions: [
+          lineNumbers(),
+          highlightActiveLine(),
+          drawSelection(),
+          highlightSelectionMatches(),
+          history(),
+          markdown(),
+          Prec.highest(keymap.of(markdownKeymap)),
+          keymap.of([
+            ...multiCursorKeymap,
+            indentWithTab,
+            ...defaultKeymap,
+            ...historyKeymap,
+            ...searchKeymap
+          ]),
+          darkEditorTheme,
+          EditorView.lineWrapping,
+          EditorState.allowMultipleSelections.of(true),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              emit('update:modelValue', update.state.doc.toString())
+            }
+            if (update.focusChanged && !update.view.hasFocus) {
+              emit('blur')
+            }
+          })
+        ]
+      })
+    })
   }
 
-  const startDoc = props.modelValue || ''
+  watch(
+    () => props.modelValue,
+    (newVal) => {
+      if (!editor) return
+      const current = editor.state.doc.toString()
+      if (newVal !== current) {
+        editor.dispatch({
+          changes: { from: 0, to: editor.state.doc.length, insert: newVal || '' }
+        })
+      }
+    }
+  )
 
-  editor = new EditorView({
-    parent: container.value,
-    state: EditorState.create({
-      doc: startDoc,
-      extensions: [
-        lineNumbers(),
-        highlightActiveLine(),
-        drawSelection(),
-        highlightSelectionMatches(),
-        history(),
-        markdown(),
-        Prec.highest(keymap.of(markdownKeymap)),
-        keymap.of([...multiCursorKeymap, indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
-        darkEditorTheme,
-        EditorView.lineWrapping,
-        EditorState.allowMultipleSelections.of(true),
-        EditorView.updateListener.of(update => {
-          if (update.docChanged) {
-            emit('update:modelValue', update.state.doc.toString())
-          }
-          if (update.focusChanged && !update.view.hasFocus) {
-            emit('blur')
-          }
-        }),
-      ],
-    }),
+  onMounted(() => {
+    nextTick(setupEditor)
   })
-}
 
-watch(
-  () => props.modelValue,
-  newVal => {
+  onUnmounted(() => {
+    if (editor) {
+      editor.destroy()
+      editor = null
+    }
+  })
+
+  // Expose methods for selection handling
+  function getSelection() {
+    if (!editor) return { text: '', from: 0, to: 0 }
+    const state = editor.state
+    const { from, to } = state.selection.main
+    const text = state.sliceDoc(from, to)
+    return { text, from, to }
+  }
+
+  function replaceSelection(newText) {
     if (!editor) return
-    const current = editor.state.doc.toString()
-    if (newVal !== current) {
-      editor.dispatch({
-        changes: { from: 0, to: editor.state.doc.length, insert: newVal || '' },
-      })
+    const { from, to } = editor.state.selection.main
+    editor.dispatch({
+      changes: { from, to, insert: newText }
+    })
+  }
+
+  function getScrollElement() {
+    if (!editor) return null
+    return editor.scrollDOM
+  }
+
+  function getScrollInfo() {
+    if (!editor) return { scrollTop: 0, scrollHeight: 0, clientHeight: 0 }
+    const el = editor.scrollDOM
+    return {
+      scrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight
     }
   }
-)
 
-onMounted(() => {
-  nextTick(setupEditor)
-})
-
-onUnmounted(() => {
-  if (editor) {
-    editor.destroy()
-    editor = null
+  function setScrollTop(scrollTop) {
+    if (!editor) return
+    editor.scrollDOM.scrollTop = scrollTop
   }
-})
 
-// Expose methods for selection handling
-function getSelection() {
-  if (!editor) return { text: '', from: 0, to: 0 }
-  const state = editor.state
-  const { from, to } = state.selection.main
-  const text = state.sliceDoc(from, to)
-  return { text, from, to }
-}
-
-function replaceSelection(newText) {
-  if (!editor) return
-  const { from, to } = editor.state.selection.main
-  editor.dispatch({
-    changes: { from, to, insert: newText },
-  })
-}
-
-function getScrollElement() {
-  if (!editor) return null
-  return editor.scrollDOM
-}
-
-function getScrollInfo() {
-  if (!editor) return { scrollTop: 0, scrollHeight: 0, clientHeight: 0 }
-  const el = editor.scrollDOM
-  return {
-    scrollTop: el.scrollTop,
-    scrollHeight: el.scrollHeight,
-    clientHeight: el.clientHeight,
-  }
-}
-
-function setScrollTop(scrollTop) {
-  if (!editor) return
-  editor.scrollDOM.scrollTop = scrollTop
-}
-
-defineExpose({ getSelection, replaceSelection, getScrollElement, getScrollInfo, setScrollTop })
+  defineExpose({ getSelection, replaceSelection, getScrollElement, getScrollInfo, setScrollTop })
 </script>
 
 <template>
@@ -178,31 +190,31 @@ defineExpose({ getSelection, replaceSelection, getScrollElement, getScrollInfo, 
 </template>
 
 <style scoped>
-.cm-container {
-  height: 100%;
-  min-height: 150px;
-  background: var(--bg-secondary);
-  border-radius: 4px;
-  overflow: hidden;
-}
+  .cm-container {
+    height: 100%;
+    min-height: 150px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+  }
 
-.cm-container :deep(.cm-editor) {
-  height: 100%;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
+  .cm-container :deep(.cm-editor) {
+    height: 100%;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
 
-.cm-container :deep(.cm-gutters) {
-  background: var(--bg-tertiary);
-  color: var(--text-tertiary);
-  border: none;
-}
+  .cm-container :deep(.cm-gutters) {
+    background: var(--bg-tertiary);
+    color: var(--text-tertiary);
+    border: none;
+  }
 
-.cm-container :deep(.cm-activeLineGutter) {
-  background: var(--bg-hover);
-}
+  .cm-container :deep(.cm-activeLineGutter) {
+    background: var(--bg-hover);
+  }
 
-.cm-container :deep(.cm-activeLine) {
-  background: var(--bg-hover);
-}
+  .cm-container :deep(.cm-activeLine) {
+    background: var(--bg-hover);
+  }
 </style>

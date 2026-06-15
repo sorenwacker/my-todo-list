@@ -18,9 +18,7 @@ const currentLevel = LOG_LEVELS[process.env.LOG_LEVEL?.toUpperCase()] ?? LOG_LEV
  */
 function formatMessage(level, message, context = {}) {
   const timestamp = new Date().toISOString()
-  const contextStr = Object.keys(context).length > 0
-    ? ` ${JSON.stringify(context)}`
-    : ''
+  const contextStr = Object.keys(context).length > 0 ? ` ${JSON.stringify(context)}` : ''
   return `[${timestamp}] [${level}] ${message}${contextStr}`
 }
 

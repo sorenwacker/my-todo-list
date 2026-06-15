@@ -54,7 +54,11 @@ function validateString(value, fieldName = 'value', maxLength = MAX_LENGTH.GENER
 /**
  * Validate that value is a string (can be empty)
  */
-function validateOptionalString(value, fieldName = 'value', maxLength = MAX_LENGTH.OPTIONAL_STRING) {
+function validateOptionalString(
+  value,
+  fieldName = 'value',
+  maxLength = MAX_LENGTH.OPTIONAL_STRING
+) {
   if (value === null || value === undefined) {
     return ''
   }
@@ -171,7 +175,11 @@ function validateTodo(todo) {
     status_id: validateOptionalId(todo.status_id, 'todo.status_id'),
     importance: validateOptionalImportance(todo.importance),
     recurrence_type: validateOptionalRecurrenceType(todo.recurrence_type),
-    recurrence_interval: validateOptionalPositiveInt(todo.recurrence_interval, 'todo.recurrence_interval', MAX_ARRAY_SIZE.RECURRENCE_INTERVAL),
+    recurrence_interval: validateOptionalPositiveInt(
+      todo.recurrence_interval,
+      'todo.recurrence_interval',
+      MAX_ARRAY_SIZE.RECURRENCE_INTERVAL
+    ),
     recurrence_end_date: validateOptionalDate(todo.recurrence_end_date, 'todo.recurrence_end_date'),
     notes_sensitive: validateBoolean(todo.notes_sensitive, 'todo.notes_sensitive'),
     type: validateTodoType(todo.type),
@@ -198,7 +206,11 @@ function validateOptionalRecurrenceType(value) {
 /**
  * Validate optional positive integer
  */
-function validateOptionalPositiveInt(value, fieldName = 'value', max = MAX_ARRAY_SIZE.POSITIVE_INT) {
+function validateOptionalPositiveInt(
+  value,
+  fieldName = 'value',
+  max = MAX_ARRAY_SIZE.POSITIVE_INT
+) {
   if (value === null || value === undefined) {
     return 1
   }
@@ -238,7 +250,6 @@ function validateStatus(status) {
     color: validateOptionalColor(status.color, 'status.color')
   }
 }
-
 
 /**
  * Validate search query
@@ -316,7 +327,9 @@ function validateSettingKey(key) {
     throw new ValidationError('setting key must be a string')
   }
   if (!VALID_SETTING_KEYS.includes(key)) {
-    throw new ValidationError(`Invalid setting key: ${key}. Valid keys are: ${VALID_SETTING_KEYS.join(', ')}`)
+    throw new ValidationError(
+      `Invalid setting key: ${key}. Valid keys are: ${VALID_SETTING_KEYS.join(', ')}`
+    )
   }
   return key
 }

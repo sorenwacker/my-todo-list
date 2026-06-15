@@ -12,24 +12,24 @@
 </template>
 
 <script>
-import EntityModal from './EntityModal.vue'
-import { statusColors } from '../utils/helpers.js'
+  import EntityModal from './EntityModal.vue'
+  import { statusColors } from '../utils/helpers.js'
 
-export default {
-  name: 'StatusModal',
-  components: {
-    EntityModal
-  },
-  props: {
-    status: {
-      type: Object,
-      default: null
+  export default {
+    name: 'StatusModal',
+    components: {
+      EntityModal
     },
-    colors: {
-      type: Array,
-      default: () => statusColors
-    }
-  },
-  emits: ['save', 'cancel', 'delete']
-}
+    props: {
+      status: {
+        type: Object,
+        default: null
+      },
+      colors: {
+        type: Array,
+        default: () => statusColors
+      }
+    },
+    emits: ['save', 'cancel', 'delete']
+  }
 </script>

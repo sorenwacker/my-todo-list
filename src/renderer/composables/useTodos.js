@@ -249,15 +249,20 @@ export function useTodos() {
     // Apply search query filter
     if (state._searchQuery.trim()) {
       const query = state._searchQuery.toLowerCase().trim()
-      todos = todos.filter(t =>
-        (t.title && t.title.toLowerCase().includes(query)) ||
-        (t.notes && t.notes.toLowerCase().includes(query))
+      todos = todos.filter(
+        (t) =>
+          (t.title && t.title.toLowerCase().includes(query)) ||
+          (t.notes && t.notes.toLowerCase().includes(query))
       )
     }
 
     // Hide completed items if not showing them (but always show in archive/trash views)
-    if (!state._showCompleted && state._currentFilter !== 'archive' && state._currentFilter !== 'trash') {
-      todos = todos.filter(t => !t.completed)
+    if (
+      !state._showCompleted &&
+      state._currentFilter !== 'archive' &&
+      state._currentFilter !== 'trash'
+    ) {
+      todos = todos.filter((t) => !t.completed)
     }
 
     return todos
@@ -277,7 +282,7 @@ export function useTodos() {
 
   const completedCount = computed(() => {
     const todos = state._currentFilter === null ? state.allTodos : state.todos
-    return todos.filter(t => t.completed).length
+    return todos.filter((t) => t.completed).length
   })
 
   const focusedTodo = computed(() => {

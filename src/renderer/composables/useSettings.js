@@ -38,7 +38,7 @@ async function loadSettings(force = false) {
   try {
     const settings = await window.api.getAllSettings()
     // Merge loaded settings with defaults
-    Object.keys(defaultSettings).forEach(key => {
+    Object.keys(defaultSettings).forEach((key) => {
       if (settings[key] !== undefined) {
         state[key] = settings[key]
       }

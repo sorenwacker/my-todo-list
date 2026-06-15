@@ -9,11 +9,7 @@
     @mouseleave="onContainerMouseUp"
   >
     <!-- Selection Box -->
-    <div
-      v-if="isSelecting"
-      class="selection-box"
-      :style="selectionBoxStyle"
-    ></div>
+    <div v-if="isSelecting" class="selection-box" :style="selectionBoxStyle"></div>
     <template v-if="groupByProject">
       <div class="cards-groups-container" :style="{ '--card-columns': cardColumns }">
         <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
@@ -22,7 +18,9 @@
             <span class="group-name">{{ group.name }}</span>
             <span class="group-count">{{ group.todos.length }}</span>
           </div>
-          <button class="add-card-btn" @click="$emit('add-todo-to-project', group.id)">+ Add</button>
+          <button class="add-card-btn" @click="$emit('add-todo-to-project', group.id)">
+            + Add
+          </button>
           <draggable
             :model-value="group.todos"
             item-key="id"
@@ -102,218 +100,223 @@
 </template>
 
 <script>
-import draggable from 'vuedraggable'
-import CardItem from './CardItem.vue'
+  import draggable from 'vuedraggable'
+  import CardItem from './CardItem.vue'
 
-export default {
-  name: 'CardsView',
-  components: {
-    draggable,
-    CardItem
-  },
-  props: {
-    theme: {
-      type: String,
-      default: 'dark'
+  export default {
+    name: 'CardsView',
+    components: {
+      draggable,
+      CardItem
     },
-    sortedTodos: {
-      type: Array,
-      default: () => []
+    props: {
+      theme: {
+        type: String,
+        default: 'dark'
+      },
+      sortedTodos: {
+        type: Array,
+        default: () => []
+      },
+      groupedTodos: {
+        type: Array,
+        default: () => []
+      },
+      groupByProject: {
+        type: Boolean,
+        default: false
+      },
+      selectedTodoId: {
+        type: Number,
+        default: null
+      },
+      selectedTodoIds: {
+        type: Set,
+        default: () => new Set()
+      },
+      focusedTodoId: {
+        type: Number,
+        default: null
+      },
+      isTrashView: {
+        type: Boolean,
+        default: false
+      },
+      isArchiveView: {
+        type: Boolean,
+        default: false
+      },
+      cardColumns: {
+        type: Number,
+        default: 3
+      },
+      sortBy: {
+        type: String,
+        default: 'manual'
+      },
+      currentFilter: {
+        type: [Number, String],
+        default: null
+      },
+      isProjectView: {
+        type: Boolean,
+        default: false
+      },
+      projects: {
+        type: Array,
+        default: () => []
+      }
     },
-    groupedTodos: {
-      type: Array,
-      default: () => []
-    },
-    groupByProject: {
-      type: Boolean,
-      default: false
-    },
-    selectedTodoId: {
-      type: Number,
-      default: null
-    },
-    selectedTodoIds: {
-      type: Set,
-      default: () => new Set()
-    },
-    focusedTodoId: {
-      type: Number,
-      default: null
-    },
-    isTrashView: {
-      type: Boolean,
-      default: false
-    },
-    isArchiveView: {
-      type: Boolean,
-      default: false
-    },
-    cardColumns: {
-      type: Number,
-      default: 3
-    },
-    sortBy: {
-      type: String,
-      default: 'manual'
-    },
-    currentFilter: {
-      type: [Number, String],
-      default: null
-    },
-    isProjectView: {
-      type: Boolean,
-      default: false
-    },
-    projects: {
-      type: Array,
-      default: () => []
-    }
-  },
-  emits: [
-    'card-click',
-    'toggle-complete',
-    'delete-todo',
-    'restore-todo',
-    'permanent-delete-todo',
-    'unarchive-todo',
-    'update-sorted-todos',
-    'drag-end',
-    'update-group-todos',
-    'group-drag-end',
-    'add-todo-to-project',
-    'marquee-select',
-    'update-title',
-    'update-notes',
-    'archive-todo',
-    'move-to-project'
-  ],
-  data() {
-    return {
-      // Marquee selection
-      isSelecting: false,
-      selectionStart: { x: 0, y: 0 },
-      selectionCurrent: { x: 0, y: 0 }
-    }
-  },
-  computed: {
-    selectionBoxStyle() {
-      const left = Math.min(this.selectionStart.x, this.selectionCurrent.x)
-      const top = Math.min(this.selectionStart.y, this.selectionCurrent.y)
-      const width = Math.abs(this.selectionCurrent.x - this.selectionStart.x)
-      const height = Math.abs(this.selectionCurrent.y - this.selectionStart.y)
+    emits: [
+      'card-click',
+      'toggle-complete',
+      'delete-todo',
+      'restore-todo',
+      'permanent-delete-todo',
+      'unarchive-todo',
+      'update-sorted-todos',
+      'drag-end',
+      'update-group-todos',
+      'group-drag-end',
+      'add-todo-to-project',
+      'marquee-select',
+      'update-title',
+      'update-notes',
+      'archive-todo',
+      'move-to-project'
+    ],
+    data() {
       return {
-        left: left + 'px',
-        top: top + 'px',
-        width: width + 'px',
-        height: height + 'px'
+        // Marquee selection
+        isSelecting: false,
+        selectionStart: { x: 0, y: 0 },
+        selectionCurrent: { x: 0, y: 0 }
       }
-    }
-  },
-  methods: {
-    getCardStyle(todoId, projectColor) {
-      const style = {}
-      if (projectColor) {
-        style.borderLeftColor = projectColor
-      }
-      return style
     },
-    // Marquee selection methods
-    onContainerMouseDown(event) {
-      // Only start selection if clicking on empty space (not on a card or interactive element)
-      const target = event.target
-      const isCard = target.closest('.todo-card, .kanban-card, button, input, select, a')
-      if (isCard) return
-
-      // Get position relative to container
-      const container = this.$refs.cardsViewRef
-      const rect = container.getBoundingClientRect()
-      const x = event.clientX - rect.left + container.scrollLeft
-      const y = event.clientY - rect.top + container.scrollTop
-
-      this.isSelecting = true
-      this.selectionStart = { x, y }
-      this.selectionCurrent = { x, y }
-
-      // Prevent text selection
-      event.preventDefault()
-    },
-    onContainerMouseMove(event) {
-      if (!this.isSelecting) return
-
-      const container = this.$refs.cardsViewRef
-      const rect = container.getBoundingClientRect()
-      const x = event.clientX - rect.left + container.scrollLeft
-      const y = event.clientY - rect.top + container.scrollTop
-
-      this.selectionCurrent = { x, y }
-
-      // Find cards that intersect with selection box
-      this.updateSelectionFromBox()
-    },
-    onContainerMouseUp() {
-      if (!this.isSelecting) return
-
-      // Finalize selection
-      this.updateSelectionFromBox()
-      this.isSelecting = false
-    },
-    updateSelectionFromBox() {
-      const container = this.$refs.cardsViewRef
-      if (!container) return
-
-      // Calculate selection box bounds
-      const boxLeft = Math.min(this.selectionStart.x, this.selectionCurrent.x)
-      const boxTop = Math.min(this.selectionStart.y, this.selectionCurrent.y)
-      const boxRight = Math.max(this.selectionStart.x, this.selectionCurrent.x)
-      const boxBottom = Math.max(this.selectionStart.y, this.selectionCurrent.y)
-
-      // Skip if selection is too small (likely just a click)
-      if (boxRight - boxLeft < 10 && boxBottom - boxTop < 10) return
-
-      // Find all cards in the container
-      const cards = container.querySelectorAll('.todo-card')
-      const containerRect = container.getBoundingClientRect()
-      const selectedIds = []
-
-      cards.forEach(card => {
-        const cardRect = card.getBoundingClientRect()
-        // Convert card rect to container-relative coordinates
-        const cardLeft = cardRect.left - containerRect.left + container.scrollLeft
-        const cardTop = cardRect.top - containerRect.top + container.scrollTop
-        const cardRight = cardLeft + cardRect.width
-        const cardBottom = cardTop + cardRect.height
-
-        // Check intersection
-        const intersects = !(cardRight < boxLeft || cardLeft > boxRight || cardBottom < boxTop || cardTop > boxBottom)
-
-        if (intersects) {
-          // Get todo ID from data attribute
-          const todoId = parseInt(card.dataset.todoId)
-          if (todoId) {
-            selectedIds.push(todoId)
-          }
+    computed: {
+      selectionBoxStyle() {
+        const left = Math.min(this.selectionStart.x, this.selectionCurrent.x)
+        const top = Math.min(this.selectionStart.y, this.selectionCurrent.y)
+        const width = Math.abs(this.selectionCurrent.x - this.selectionStart.x)
+        const height = Math.abs(this.selectionCurrent.y - this.selectionStart.y)
+        return {
+          left: left + 'px',
+          top: top + 'px',
+          width: width + 'px',
+          height: height + 'px'
         }
-      })
+      }
+    },
+    methods: {
+      getCardStyle(todoId, projectColor) {
+        const style = {}
+        if (projectColor) {
+          style.borderLeftColor = projectColor
+        }
+        return style
+      },
+      // Marquee selection methods
+      onContainerMouseDown(event) {
+        // Only start selection if clicking on empty space (not on a card or interactive element)
+        const target = event.target
+        const isCard = target.closest('.todo-card, .kanban-card, button, input, select, a')
+        if (isCard) return
 
-      if (selectedIds.length > 0) {
-        this.$emit('marquee-select', selectedIds)
+        // Get position relative to container
+        const container = this.$refs.cardsViewRef
+        const rect = container.getBoundingClientRect()
+        const x = event.clientX - rect.left + container.scrollLeft
+        const y = event.clientY - rect.top + container.scrollTop
+
+        this.isSelecting = true
+        this.selectionStart = { x, y }
+        this.selectionCurrent = { x, y }
+
+        // Prevent text selection
+        event.preventDefault()
+      },
+      onContainerMouseMove(event) {
+        if (!this.isSelecting) return
+
+        const container = this.$refs.cardsViewRef
+        const rect = container.getBoundingClientRect()
+        const x = event.clientX - rect.left + container.scrollLeft
+        const y = event.clientY - rect.top + container.scrollTop
+
+        this.selectionCurrent = { x, y }
+
+        // Find cards that intersect with selection box
+        this.updateSelectionFromBox()
+      },
+      onContainerMouseUp() {
+        if (!this.isSelecting) return
+
+        // Finalize selection
+        this.updateSelectionFromBox()
+        this.isSelecting = false
+      },
+      updateSelectionFromBox() {
+        const container = this.$refs.cardsViewRef
+        if (!container) return
+
+        // Calculate selection box bounds
+        const boxLeft = Math.min(this.selectionStart.x, this.selectionCurrent.x)
+        const boxTop = Math.min(this.selectionStart.y, this.selectionCurrent.y)
+        const boxRight = Math.max(this.selectionStart.x, this.selectionCurrent.x)
+        const boxBottom = Math.max(this.selectionStart.y, this.selectionCurrent.y)
+
+        // Skip if selection is too small (likely just a click)
+        if (boxRight - boxLeft < 10 && boxBottom - boxTop < 10) return
+
+        // Find all cards in the container
+        const cards = container.querySelectorAll('.todo-card')
+        const containerRect = container.getBoundingClientRect()
+        const selectedIds = []
+
+        cards.forEach((card) => {
+          const cardRect = card.getBoundingClientRect()
+          // Convert card rect to container-relative coordinates
+          const cardLeft = cardRect.left - containerRect.left + container.scrollLeft
+          const cardTop = cardRect.top - containerRect.top + container.scrollTop
+          const cardRight = cardLeft + cardRect.width
+          const cardBottom = cardTop + cardRect.height
+
+          // Check intersection
+          const intersects = !(
+            cardRight < boxLeft ||
+            cardLeft > boxRight ||
+            cardBottom < boxTop ||
+            cardTop > boxBottom
+          )
+
+          if (intersects) {
+            // Get todo ID from data attribute
+            const todoId = parseInt(card.dataset.todoId)
+            if (todoId) {
+              selectedIds.push(todoId)
+            }
+          }
+        })
+
+        if (selectedIds.length > 0) {
+          this.$emit('marquee-select', selectedIds)
+        }
       }
     }
   }
-}
 </script>
 
 <style scoped>
-.cards-view {
-  position: relative;
-}
+  .cards-view {
+    position: relative;
+  }
 
-.selection-box {
-  position: absolute;
-  border: 2px solid rgba(26, 111, 171, 0.8);
-  background: rgba(26, 111, 171, 0.15);
-  pointer-events: none;
-  z-index: 100;
-  border-radius: 2px;
-}
+  .selection-box {
+    position: absolute;
+    border: 2px solid rgba(26, 111, 171, 0.8);
+    background: rgba(26, 111, 171, 0.15);
+    pointer-events: none;
+    z-index: 100;
+    border-radius: 2px;
+  }
 </style>
