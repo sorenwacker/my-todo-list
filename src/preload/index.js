@@ -14,14 +14,6 @@ contextBridge.exposeInMainWorld('api', {
   permanentlyDeleteProject: (id) => ipcRenderer.invoke('permanently-delete-project', id),
   getDeletedProjects: () => ipcRenderer.invoke('get-deleted-projects'),
 
-  // Project Topic operations (project-specific buckets)
-  getProjectTopics: (projectId) => ipcRenderer.invoke('get-project-topics', projectId),
-  getProjectTopic: (id) => ipcRenderer.invoke('get-project-topic', id),
-  createProjectTopic: (projectId, name, color) => ipcRenderer.invoke('create-project-topic', projectId, name, color),
-  updateProjectTopic: (topic) => ipcRenderer.invoke('update-project-topic', topic),
-  deleteProjectTopic: (id) => ipcRenderer.invoke('delete-project-topic', id),
-  reorderProjectTopics: (ids) => ipcRenderer.invoke('reorder-project-topics', ids),
-
   // Status operations
   getStatuses: () => ipcRenderer.invoke('get-statuses'),
   getStatus: (id) => ipcRenderer.invoke('get-status', id),

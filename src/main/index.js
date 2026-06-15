@@ -154,34 +154,6 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('get-deleted-projects', () => database.getDeletedProjects())
 
-  // Project Topic operations (project-specific buckets)
-  ipcMain.handle('get-project-topics', handleWithValidation((_, projectId) => {
-    return database.getProjectTopics(validateId(projectId))
-  }))
-  ipcMain.handle('get-project-topic', handleWithValidation((_, id) => {
-    return database.getProjectTopic(validateId(id))
-  }))
-  ipcMain.handle('create-project-topic', handleWithValidation((_, projectId, name, color) => {
-    return database.createProjectTopic(
-      validateId(projectId),
-      validateString(name, 'name', MAX_LENGTH.CATEGORY_NAME),
-      validateOptionalColor(color)
-    )
-  }))
-  ipcMain.handle('update-project-topic', handleWithValidation((_, topic) => {
-    if (!topic || typeof topic !== 'object') throw new Error('Invalid topic')
-    return database.updateProjectTopic({
-      id: validateId(topic.id),
-      name: validateString(topic.name, 'name', MAX_LENGTH.CATEGORY_NAME),
-      color: validateOptionalColor(topic.color)
-    })
-  }))
-  ipcMain.handle('delete-project-topic', handleWithValidation((_, id) => {
-    return database.deleteProjectTopic(validateId(id))
-  }))
-  ipcMain.handle('reorder-project-topics', handleWithValidation((_, ids) => {
-    return database.reorderProjectTopics(validateIdArray(ids))
-  }))
 
   // Status operations
   ipcMain.handle('get-statuses', () => database.getAllStatuses())
@@ -453,9 +425,6 @@ app.whenReady().then(() => {
   }))
   ipcMain.handle('reorder-projects', handleWithValidation((_, ids) => {
     return database.reorderProjects(validateIdArray(ids))
-  }))
-  ipcMain.handle('reorder-categories', handleWithValidation((_, ids) => {
-    return database.reorderCategories(validateIdArray(ids))
   }))
   ipcMain.handle('reorder-statuses', handleWithValidation((_, ids) => {
     return database.reorderStatuses(validateIdArray(ids))

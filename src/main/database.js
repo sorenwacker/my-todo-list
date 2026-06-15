@@ -342,47 +342,6 @@ export class Database {
     return true
   }
 
-  // Project Topic operations (project-specific buckets)
-  getProjectTopics(projectId) {
-    return this.db.prepare('SELECT * FROM project_topics WHERE project_id = ? ORDER BY sort_order ASC').all(projectId)
-  }
-
-  getProjectTopic(id) {
-    return this.db.prepare('SELECT * FROM project_topics WHERE id = ?').get(id)
-  }
-
-  createProjectTopic(projectId, name, color = '#666') {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM project_topics WHERE project_id = ?').get(projectId)
-    const sortOrder = (maxOrder?.max || 0) + 1
-
-    const result = this.db.prepare(
-      'INSERT INTO project_topics (project_id, name, color, sort_order) VALUES (?, ?, ?, ?)'
-    ).run(projectId, name, color, sortOrder)
-
-    return this.getProjectTopic(result.lastInsertRowid)
-  }
-
-  updateProjectTopic(topic) {
-    this.db.prepare(
-      'UPDATE project_topics SET name = ?, color = ? WHERE id = ?'
-    ).run(topic.name, topic.color, topic.id)
-
-    return this.getProjectTopic(topic.id)
-  }
-
-  deleteProjectTopic(id) {
-    // Clear topic_id from any todos using this topic
-    this.db.prepare('UPDATE todos SET topic_id = NULL WHERE topic_id = ?').run(id)
-    this.db.prepare('DELETE FROM project_topics WHERE id = ?').run(id)
-    return true
-  }
-
-  reorderProjectTopics(ids) {
-    const stmt = this.db.prepare('UPDATE project_topics SET sort_order = ? WHERE id = ?')
-    ids.forEach((id, index) => stmt.run(index, id))
-    return true
-  }
-
   // Status operations
   getAllStatuses() {
     return this.db.prepare('SELECT * FROM statuses ORDER BY sort_order ASC').all()
