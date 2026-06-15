@@ -6,7 +6,7 @@
     <div class="search-overlay" @click.self="close">
     <div class="search-modal" @click.stop>
       <div class="search-input-wrapper">
-        <Search class="search-icon" :size="20" />
+        <SearchIcon class="search-icon" :size="20" />
         <input
           ref="searchInput"
           v-model="query"
@@ -140,14 +140,14 @@
 </template>
 
 <script>
-import { Search, CheckSquare, FileText, Folder, Tag, Clock } from 'lucide-vue-next'
+import { Search as SearchIcon, CheckSquare, FileText, Folder, Tag, Clock } from 'lucide-vue-next'
 import { debounce } from '../utils/helpers.js'
 import ItemPreview from './ItemPreview.vue'
 
 export default {
   name: 'GlobalSearch',
   components: {
-    Search,
+    SearchIcon,
     CheckSquare,
     FileText,
     Folder,

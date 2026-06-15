@@ -48,7 +48,7 @@
 </template>
 
 <script>
-import { iconMap, getIconComponent, availableIcons, projectColors, statusColors } from '../utils/helpers.js'
+import { getIconComponent, availableIcons, projectColors } from '../utils/helpers.js'
 
 export default {
   name: 'EntityModal',

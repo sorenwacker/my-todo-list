@@ -428,12 +428,6 @@ function validateLocalStorage() {
       localStorage.setItem('todo-theme', 'dark')
     }
 
-    // Validate detail-layout
-    const layout = localStorage.getItem('detail-layout')
-    if (layout && !validLayouts.includes(layout)) {
-      localStorage.setItem('detail-layout', 'auto')
-    }
-
     // Validate JSON settings
     const jsonSettings = ['card-sizes-v2', 'card-widths']
     for (const key of jsonSettings) {

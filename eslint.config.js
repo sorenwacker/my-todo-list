@@ -25,6 +25,7 @@ export default [
         clearTimeout: 'readonly',
         clearInterval: 'readonly',
         requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
         fetch: 'readonly',
         URL: 'readonly',
         Blob: 'readonly',
