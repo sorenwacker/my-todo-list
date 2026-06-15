@@ -155,28 +155,18 @@
 
 <script>
 import draggable from 'vuedraggable'
-import {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
-  Inbox, Archive, Trash2, List, ChevronRight, ChevronDown
-} from 'lucide-vue-next'
+import { List, Archive, Trash2, ChevronRight, ChevronDown } from 'lucide-vue-next'
 import { useAddInput } from '../composables/useAddInput'
-
-const iconMap = {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
-  Inbox, Archive, Trash2, List, ChevronRight, ChevronDown
-}
 
 export default {
   name: 'AppSidebar',
   components: {
     draggable,
-    ...iconMap
+    List,
+    Archive,
+    Trash2,
+    ChevronRight,
+    ChevronDown
   },
   props: {
     visible: { type: Boolean, default: true },
@@ -193,11 +183,7 @@ export default {
     archiveCount: { type: Number, default: 0 },
     projectCounts: { type: Object, default: () => ({}) },
     statusCounts: { type: Object, default: () => ({}) },
-    topics: { type: Array, default: () => [] },
-    selectedTopicId: { type: Number, default: null },
-    topicCounts: { type: Object, default: () => ({}) },
     isProjectSelected: { type: Boolean, default: false },
-    openTodosInWindow: { type: Boolean, default: false },
     timezone: { type: String, default: 'auto' },
     databasePath: { type: String, default: '' },
     appVersion: { type: String, default: '' }
@@ -206,26 +192,22 @@ export default {
     'set-filter',
     'update:projects', 'projects-reorder', 'add-project', 'edit-project',
     'update:statuses', 'statuses-reorder', 'add-status', 'edit-status',
-    'select-topic', 'add-topic', 'edit-topic', 'delete-topic', 'topics-reorder',
-    'update:open-todos-in-window', 'update:timezone',
+    'update:timezone',
     'export', 'show-import',
-    'toggle-pin', 'mouseleave', 'mouseenter'
+    'toggle-pin'
   ],
   setup(props, { emit }) {
     const projectInput = useAddInput('project', emit)
     const statusInput = useAddInput('status', emit)
-    const topicInput = useAddInput('topic', emit)
 
     return {
       projectInput,
-      statusInput,
-      topicInput
+      statusInput
     }
   },
   data() {
     return {
       statusesCollapsed: localStorage.getItem('statuses-collapsed') !== 'false',
-      topicsCollapsed: localStorage.getItem('topics-collapsed') !== 'false',
       settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
       commonTimezones: [
         'UTC',
@@ -258,17 +240,11 @@ export default {
     statusesCollapsed(val) {
       localStorage.setItem('statuses-collapsed', val)
     },
-    topicsCollapsed(val) {
-      localStorage.setItem('topics-collapsed', val)
-    },
     settingsCollapsed(val) {
       localStorage.setItem('settings-collapsed', val)
     }
   },
   methods: {
-    getIconComponent(name) {
-      return iconMap[name] || null
-    },
     formatProgress(count) {
       if (!count || typeof count !== 'object') return count || 0
       if (count.total === 0) return ''
@@ -280,9 +256,6 @@ export default {
     },
     getStatusCount(statusId) {
       return this.statusCounts[statusId] || 0
-    },
-    getTopicCount(topicId) {
-      return this.topicCounts[topicId] || 0
     }
   }
 }
@@ -369,11 +342,11 @@ export default {
   margin: 8px 16px;
 }
 
-.add-project, .add-status, .add-topic {
+.add-project, .add-status {
   padding: 8px 16px;
 }
 
-.add-project input, .add-status input, .add-topic input {
+.add-project input, .add-status input {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-color, #3a3f4b);
@@ -384,7 +357,7 @@ export default {
   box-sizing: border-box;
 }
 
-.add-project button, .add-status button, .add-topic button {
+.add-project button, .add-status button {
   width: 100%;
   padding: 6px 8px;
   background: transparent;
@@ -395,12 +368,12 @@ export default {
   font-size: 13px;
 }
 
-.add-project button:hover, .add-status button:hover, .add-topic button:hover {
+.add-project button:hover, .add-status button:hover {
   border-color: var(--accent-color, #0f4c75);
   color: var(--accent-color, #0f4c75);
 }
 
-.project-dot, .status-dot, .topic-dot {
+.project-dot, .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -429,7 +402,7 @@ export default {
   background: var(--bg-hover, #2a2f3d);
 }
 
-.project-name, .status-name, .topic-name {
+.project-name, .status-name {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -582,24 +555,20 @@ export default {
 }
 
 .sidebar.light-theme .add-project input,
-.sidebar.light-theme .add-status input,
-.sidebar.light-theme .add-category input,
-.sidebar.light-theme .add-topic input {
+.sidebar.light-theme .add-status input {
   border-color: #ddd;
   background: #fff;
   color: #333;
 }
 
 .sidebar.light-theme .add-project button,
-.sidebar.light-theme .add-status button,
-.sidebar.light-theme .add-topic button {
+.sidebar.light-theme .add-status button {
   border-color: #ccc;
   color: #666;
 }
 
 .sidebar.light-theme .add-project button:hover,
-.sidebar.light-theme .add-status button:hover,
-.sidebar.light-theme .add-topic button:hover {
+.sidebar.light-theme .add-status button:hover {
   border-color: #3498db;
   color: #3498db;
 }
