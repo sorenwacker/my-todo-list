@@ -93,17 +93,10 @@ export function renderMarkdown(markdown) {
 }
 
 /**
- * Render markdown with truncation for card previews
- * @param {string} markdown - The markdown string to render
- * @param {number} maxLength - Maximum length before truncation (default 500)
- * @returns {string} - Sanitized HTML string
+ * Render markdown for card previews. Currently identical to renderMarkdown;
+ * card-specific clamping is handled in CSS, not here.
  */
-export function renderCardMarkdown(markdown) {
-  if (!markdown) return ''
-  const processed = preprocessMarkdown(markdown)
-  const html = marked(processed)
-  return DOMPurify.sanitize(html, purifyConfig)
-}
+export const renderCardMarkdown = renderMarkdown
 
 /**
  * Render inline markdown (no paragraph wrapper) for titles

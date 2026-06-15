@@ -413,6 +413,7 @@ export default {
     'update-project-todos',
     'update-category-todos',
     'update-status-todos',
+    'update-inbox-todos',
     'kanban-drop',
     'kanban-drop-category',
     'kanban-drop-status',

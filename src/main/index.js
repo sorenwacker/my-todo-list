@@ -359,9 +359,12 @@ app.whenReady().then(() => {
     return result
   }))
   ipcMain.handle('archive-completed-todos', handleWithValidation((_, projectId) => {
+    // projectId can be null (all), 'inbox', or a numeric project id
+    const validProjectId =
+      projectId === null || projectId === 'inbox' ? projectId : validateId(projectId)
     // Get completed todos before archiving for undo
-    const completedIds = database.getCompletedTodoIds(projectId)
-    const count = database.archiveCompletedTodos(projectId)
+    const completedIds = database.getCompletedTodoIds(validProjectId)
+    const count = database.archiveCompletedTodos(validProjectId)
 
     if (count > 0) {
       history.push({
