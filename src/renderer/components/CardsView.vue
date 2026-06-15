@@ -86,7 +86,6 @@
             :projects="projects"
             @click="$emit('card-click', $event, element.id)"
             @toggle-complete="$emit('toggle-complete', element)"
-            @toggle-subtask="$emit('toggle-subtask', $event)"
             @delete="$emit('delete-todo', element.id)"
             @restore="$emit('restore-todo', element.id)"
             @permanent-delete="$emit('permanent-delete-todo', element.id)"
@@ -158,6 +157,7 @@ export default {
       default: 'manual'
     },
     currentFilter: {
+      type: [Number, String],
       default: null
     },
     isProjectView: {

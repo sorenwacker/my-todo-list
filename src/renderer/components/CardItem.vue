@@ -6,7 +6,6 @@
     :data-todo-id="todo.id"
     :draggable="isDraggable ? 'true' : 'false'"
     @click="handleClick($event)"
-    @dblclick="$emit('edit', $event)"
     @dragstart="onDragStart"
     @contextmenu.prevent="showContextMenu($event)"
   >
