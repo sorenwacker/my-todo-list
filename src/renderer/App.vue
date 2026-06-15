@@ -390,18 +390,10 @@
 </template>
 
 <script>
-import { renderMarkdown, renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
+import { renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
 import mermaid from 'mermaid'
-import draggable from 'vuedraggable'
 import GlobalSearch from './components/GlobalSearch.vue'
 import { AppSidebar, CardsView, CardItem, KanbanView, StatusModal, ProjectModal } from './components/index.js'
-import {
-  Folder, Home, Briefcase, ShoppingCart, Heart, BookOpen, Target, Star,
-  Calendar, Clock, Tag, Flag, Bookmark, Zap, Coffee, Music, Camera, Film,
-  MessageCircle, Mail, Phone, Users, User, Settings, Search, Plus, Check,
-  AlertCircle, Info, HelpCircle, Bell, Gift, Award, Trophy, Crown,
-  Inbox, Archive, Trash2
-} from 'lucide-vue-next'
 
 import { useTodos } from './composables/useTodos.js'
 import { useProjects } from './composables/useProjects.js'
@@ -532,17 +524,13 @@ marked.use(mermaidExtension)
 export default {
   name: 'App',
   components: {
-    draggable,
     AppSidebar,
     CardsView,
     CardItem,
     GlobalSearch,
     KanbanView,
     StatusModal,
-    ProjectModal,
-    Inbox,
-    Archive,
-    Trash2
+    ProjectModal
   },
   setup() {
     const todosComposable = useTodos()
@@ -607,33 +595,7 @@ export default {
       dropTargetRowId: null,
       dragOverProjectId: null,
       draggingInboxTodo: null,
-      graphLinkMode: false,
-      graphLinkSource: null,
-      editingNodeId: null,
-      editingNodeNotes: '',
-      editingNodeTitle: '',
-      graphWidth: 1600,
-      graphHeight: 1200,
-      nodePositions: {},
-      allLinks: [],
-      graphZoom: 1,
-      graphPan: { x: 0, y: 0 },
-      draggingNode: null,
-      wasDragging: false,
-      creatingNodeFromId: null,
-      linkingNodeId: null,
-      altClickSourceId: null,
       altKeyHeld: false,
-      dragOffset: { x: 0, y: 0 },
-      selectedNodeIds: [],
-      isPanning: false,
-      lastMousePos: { x: 0, y: 0 },
-      hoveredNode: null,
-      linkContextMenu: null,
-      hoveredLink: null,
-      selectedLink: null,
-      mousePos: { x: 0, y: 0 },
-      isSimulating: false,
       // View transition properties
       viewTransitionDirection: 'forward',
       previousViewIndex: 0,
@@ -642,14 +604,6 @@ export default {
       tabTransitionDirection: 'forward',
       // projectColors now from projectsComposable
       // statusColors now from statusesComposable
-      // Graph layout parameters
-      // d3-force parameters
-      graphRepulsion: parseInt(localStorage.getItem('graph-repulsion')) || -800,
-      graphEdgeLength: parseInt(localStorage.getItem('graph-edge-length')) || 200,
-      graphLayoutType: localStorage.getItem('graph-layout-type') || 'force',
-      showGraphSettings: false,
-      orthogonalEdges: localStorage.getItem('orthogonal-edges') === 'true',
-      d3Simulation: null,
       // Theme
       theme: localStorage.getItem('todo-theme') || 'dark',
       // Sidebar visibility
@@ -672,14 +626,6 @@ export default {
       showImportDialog: false,
       databasePath: '',
       appVersion: '',
-      // Project Topics (buckets)
-      projectTopics: [],
-      selectedTopicId: null,
-      showTopicInput: false,
-      newTopicName: '',
-      editingTopic: null,
-      topicsExpanded: true,
-      dragOverTopicId: null,
       // History state
       historyState: {
         canUndo: false,
@@ -726,12 +672,6 @@ export default {
     },
     focusedTodoIndex() {
       return this.todosComposable.focusedTodoIndex.value
-    },
-    focusedTodo() {
-      return this.todosComposable.focusedTodo.value
-    },
-    allSubtasksMap() {
-      return this.todosComposable.allSubtasksMap.value
     },
     editingProject() {
       return this.projectsComposable.editingProject.value
@@ -792,41 +732,18 @@ export default {
       if (this.currentFilter === 'inbox') return 'Inbox'
       if (this.currentFilter === 'trash') return 'Trash'
       const project = this.projects.find(p => p.id === this.currentFilter)
-      const projectName = project ? project.name : 'Items'
-      // Add topic name to breadcrumb when filtered
-      if (this.selectedTopicId !== null) {
-        const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
-        if (topic) {
-          return `${projectName} / ${topic.name}`
-        }
-      }
-      return projectName
+      return project ? project.name : 'Items'
     },
     currentProjectName() {
       if (!this.isProjectSelected) return ''
       const project = this.projects.find(p => p.id === this.currentFilter)
       return project ? project.name : ''
-    },
-    currentTopicName() {
-      if (this.selectedTopicId === null) return ''
-      const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
-      return topic ? topic.name : ''
     },
     isTrashView() {
       return this.currentFilter === 'trash'
     },
     isArchiveView() {
       return this.currentFilter === 'archive'
-    },
-    currentProjectName() {
-      if (!this.isProjectSelected) return ''
-      const project = this.projects.find(p => p.id === this.currentFilter)
-      return project ? project.name : ''
-    },
-    currentTopicName() {
-      if (this.selectedTopicId === null) return ''
-      const topic = this.projectTopics.find(t => t.id === this.selectedTopicId)
-      return topic ? topic.name : ''
     },
     allCount() {
       const total = this.allTodos.length
@@ -844,13 +761,6 @@ export default {
     },
     statusCounts() {
       return this.statusesComposable.getStatusCounts(this.allTodos)
-    },
-    topicCounts() {
-      const counts = {}
-      for (const topic of this.projectTopics) {
-        counts[topic.id] = this.todos.filter(t => t.topic_id === topic.id).length
-      }
-      return counts
     },
     // Tab-related computed properties
     itemsCount() {
@@ -1056,40 +966,6 @@ export default {
       if (this.timelineScale >= 25) return 7      // Weekly
       return 14                                    // Every 2 weeks
     },
-    graphNodes() {
-      let todos = [...this.allTodos]
-
-      // Apply project filter
-      if (this.currentFilter === null || this.currentFilter === 'inbox') {
-        todos = todos.filter(t => t.project_id === null)
-      } else if (typeof this.currentFilter === 'number') {
-        todos = todos.filter(t => t.project_id === this.currentFilter)
-      }
-
-      // Apply showCompleted filter
-      if (!this.showCompleted) {
-        todos = todos.filter(t => !t.completed)
-      }
-
-      return todos
-    },
-    tooltipStyle() {
-      return {
-        right: '16px',
-        top: '80px',
-        left: 'auto'
-      }
-    },
-    graphLinks() {
-      // Use graphNodes to get the actual visible todo IDs (respects project filtering)
-      const todoIds = new Set(this.graphNodes.map(t => t.id))
-      // Filter links to only include those where both ends are visible
-      const links = this.allLinks.filter(link =>
-        todoIds.has(link.source) && todoIds.has(link.target)
-      )
-
-      return links
-    },
     ganttRows() {
       const rows = []
       const todos = this.timelineTodos
@@ -1149,21 +1025,6 @@ export default {
             rows.push({ id: project.id, name: project.name, color: project.color, todos: projectTodos, todoLanes, laneCount })
           }
         }
-      } else if (this.ganttGroupBy === 'category') {
-        // Uncategorized row
-        const uncatTodos = todos.filter(t => !t.category_id)
-        if (uncatTodos.length > 0) {
-          const { todoLanes, laneCount } = assignLanes(uncatTodos)
-          rows.push({ id: 'uncat', name: 'Uncategorized', color: '#666', todos: uncatTodos, todoLanes, laneCount })
-        }
-        // Category rows
-        for (const category of this.categories) {
-          const catTodos = todos.filter(t => t.category_id === category.id)
-          if (catTodos.length > 0) {
-            const { todoLanes, laneCount } = assignLanes(catTodos)
-            rows.push({ id: category.id, name: category.name, color: category.color, todos: catTodos, todoLanes, laneCount })
-          }
-        }
       } else if (this.ganttGroupBy === 'importance') {
         // Group by importance (5 to 1)
         for (let i = 5; i >= 1; i--) {
@@ -1220,13 +1081,6 @@ export default {
     }
   },
   watch: {
-    showLinkSearch(val) {
-      if (val) {
-        this.$nextTick(() => {
-          this.$refs.linkInput?.focus()
-        })
-      }
-    },
     currentView(val, oldVal) {
       // Determine transition direction based on view order
       const views = this.availableViews
@@ -1235,17 +1089,8 @@ export default {
       this.viewTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
       this.previousViewIndex = oldIndex
 
-      // Handle leaving graph view
-      if (oldVal === 'graph') {
-        this.stopForceLayout()
-      }
       // Handle entering new view
-      if (val === 'graph') {
-        this.$nextTick(() => {
-          this.updateGraphSize()
-          this.initializeNodePositions()
-        })
-      } else if (val === 'cards') {
+      if (val === 'cards') {
         this.$nextTick(() => {
           this.applyMasonryLayout()
         })
@@ -1259,9 +1104,6 @@ export default {
       const oldIndex = tabOrder.indexOf(oldVal)
       const newIndex = tabOrder.indexOf(val)
       this.tabTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
-
-      // Clear topic filter when switching tabs
-      this.selectedTopicId = null
     },
     currentFilter(val, oldVal) {
       // Determine project transition direction
@@ -1277,15 +1119,6 @@ export default {
       const newIndex = getFilterIndex(val)
       this.projectTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
       this.previousProjectFilter = oldVal
-
-      // Clear topic selection when project changes
-      this.selectedTopicId = null
-      // Load project topics when a project is selected
-      if (typeof val === 'number') {
-        this.loadProjectTopics(val)
-      } else {
-        this.projectTopics = []
-      }
     },
     ganttGroupBy(val) {
       // Load milestone relations when grouping by milestone
@@ -1319,23 +1152,6 @@ export default {
     },
     sortBy(val) {
       localStorage.setItem('sort-by', val)
-    },
-    hoveredNode(val) {
-      if (val && val.notes) {
-        this.$nextTick(() => {
-          this.renderTooltipMermaid()
-        })
-      }
-    },
-    detailTab(val) {
-      if (val === 'preview' || val === 'split') {
-        this.renderMermaid()
-      }
-    },
-    renderedNotes() {
-      if (this.detailTab === 'preview' || this.detailTab === 'split') {
-        this.renderMermaid()
-      }
     }
   },
   async mounted() {
@@ -1364,23 +1180,17 @@ export default {
     }
 
     await this.loadTodos()
-    await this.loadAllLinks()
     this.databasePath = await window.api.getDatabasePath()
     this.appVersion = await window.api.getAppVersion()
-    this.loadNodePositions()
-
 
     window.api.onRefreshTodos(() => {
       this.loadAllTodos()
       this.loadTodos()
-      this.loadAllLinks()
       // Reapply masonry layout when todos are refreshed (e.g., after editing notes)
       if (this.currentView === 'cards') {
         this.applyMasonryLayout()
       }
     })
-
-    window.addEventListener('resize', this.updateGraphSize)
 
     // Keyboard shortcuts
     window.addEventListener('keydown', this.handleKeyDown)
@@ -1423,10 +1233,8 @@ export default {
     })
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.updateGraphSize)
     window.removeEventListener('keydown', this.handleKeyDown)
     window.removeEventListener('keyup', this.handleKeyUp)
-    this.stopForceLayout()
     if (this.cardResizeObserver) {
       this.cardResizeObserver.disconnect()
     }
@@ -1451,12 +1259,6 @@ export default {
         })
       }
     },
-    isIconName(symbol) {
-      return symbol && this.categorySymbols.includes(symbol)
-    },
-    getIconComponent(name) {
-      return categoryIcons[name] || null
-    },
     getInitials(name) {
       if (!name) return ''
       const parts = name.trim().split(' ')
@@ -1472,11 +1274,6 @@ export default {
       this.timezone = value
       localStorage.setItem('timezone', value)
     },
-    onOpenTodosInWindowChange(value) {
-      this.openTodosInWindow = value
-      const mode = value ? 'window' : 'sidebar'
-      localStorage.setItem('todo-open-mode', mode)
-    },
     async loadProjects() {
       await this.projectsComposable.loadProjects()
       // Sync allTodos to projects composable for projectCounts
@@ -1485,112 +1282,6 @@ export default {
     async loadStatuses() {
       await this.statusesComposable.loadStatuses()
     },
-    // Project Topic methods
-    async loadProjectTopics(projectId) {
-      if (!projectId) {
-        this.projectTopics = []
-        return
-      }
-      this.projectTopics = await window.api.getProjectTopics(projectId)
-    },
-    selectTopic(topicId) {
-      this.selectedTopicId = this.selectedTopicId === topicId ? null : topicId
-    },
-    getTopicCount(topicId) {
-      return this.todos.filter(t => t.topic_id === topicId).length
-    },
-    async addTopic() {
-      if (!this.newTopicName.trim() || !this.isProjectSelected) return
-      const color = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
-      await window.api.createProjectTopic(this.currentFilter, this.newTopicName.trim(), color)
-      await this.loadProjectTopics(this.currentFilter)
-      this.newTopicName = ''
-      this.showTopicInput = false
-    },
-    async updateTopic(topic) {
-      await window.api.updateProjectTopic(topic)
-      await this.loadProjectTopics(this.currentFilter)
-      this.editingTopic = null
-    },
-    async deleteTopic(topicId) {
-      if (!confirm('Delete this topic? Items will be unassigned from it.')) return
-      await window.api.deleteProjectTopic(topicId)
-      if (this.selectedTopicId === topicId) {
-        this.selectedTopicId = null
-      }
-      await this.loadProjectTopics(this.currentFilter)
-      await this.loadTodos()
-    },
-    async addTopicFromSidebar(name) {
-      if (!name.trim() || !this.isProjectSelected) return
-      const color = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
-      await window.api.createProjectTopic(this.currentFilter, name.trim(), color)
-      await this.loadProjectTopics(this.currentFilter)
-    },
-    editTopic(topic) {
-      // Simple rename dialog for now
-      const newName = prompt('Rename topic:', topic.name)
-      if (newName && newName.trim() !== topic.name) {
-        this.updateTopic({ ...topic, name: newName.trim() })
-      }
-    },
-    async dropOnTopic(event, topicId) {
-      this.dragOverTopicId = null
-      const todoId = parseInt(event.dataTransfer.getData('text/plain'))
-      if (!todoId) return
-      const todo = this.allTodos.find(t => t.id === todoId)
-      if (!todo) return
-      // Update the todo's topic_id
-      await window.api.updateTodo({ ...todo, topic_id: topicId })
-      await this.loadAllTodos()
-    },
-    async handleDropOnTopic(todoIds, topicId) {
-      // Handle both single ID (legacy) and array of IDs
-      const ids = Array.isArray(todoIds) ? todoIds : [todoIds]
-
-      for (const todoId of ids) {
-        const todo = this.allTodos.find(t => t.id === todoId)
-        if (!todo) {
-          continue
-        }
-        await window.api.updateTodo({ ...todo, topic_id: topicId })
-
-        // Directly update local state for immediate reactivity
-        const allTodoIndex = this.allTodos.findIndex(t => t.id === todoId)
-        if (allTodoIndex !== -1) {
-          this.allTodos[allTodoIndex] = { ...this.allTodos[allTodoIndex], topic_id: topicId }
-        }
-        const todoIndex = this.todos.findIndex(t => t.id === todoId)
-        if (todoIndex !== -1) {
-          this.todos[todoIndex] = { ...this.todos[todoIndex], topic_id: topicId }
-        }
-      }
-
-      // Trigger reactivity by reassigning arrays
-      this.allTodos = [...this.allTodos]
-      this.todos = [...this.todos]
-
-      // Clear multi-selection after drop
-      this.selectedTodoIds.clear()
-      this.selectedTodoIds = new Set()
-    },
-    async addTopicFromCards(name) {
-      if (!name.trim() || !this.isProjectSelected) return
-      const color = this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
-      await window.api.createProjectTopic(this.currentFilter, name.trim(), color)
-      await this.loadProjectTopics(this.currentFilter)
-    },
-    async addTodoToTopic(topicId) {
-      const projectId = this.isProjectSelected ? this.currentFilter : null
-      const type = 'todo'
-      const todo = await window.api.createTodo('Untitled', projectId, type)
-      if (todo && topicId !== null && topicId !== undefined) {
-        await window.api.updateTodo({ ...todo, topic_id: topicId })
-      }
-      await this.loadAllTodos()
-      await this.loadTodos()
-      this.selectTodo(todo.id)
-    },
     async loadAllTodos() {
       await this.todosComposable.loadAllTodos()
       // Always show global counts since archive/trash views show all items
@@ -1598,9 +1289,6 @@ export default {
       this.archiveCount = await window.api.getArchiveCount()
       // Sync allTodos to projects composable for projectCounts
       this.projectsComposable.setAllTodos(this.allTodos)
-    },
-    async loadAllSubtasks() {
-      // Now handled by todosComposable.loadAllTodos()
     },
     async loadTodos() {
       await this.todosComposable.loadTodos(this.currentFilter)
@@ -1622,12 +1310,6 @@ export default {
       // Render full notes - CSS handles overflow with scrolling for resizable cards
       return renderCardMarkdown(processed)
     },
-    getCategoryCount(categoryId) {
-      return this.allTodos.filter(t => t.category_id === categoryId).length
-    },
-    getCategoryTodos(categoryId) {
-      return this.filteredTodos.filter(t => t.category_id === categoryId)
-    },
     getStatusCount(statusId) {
       return this.allTodos.filter(t => t.status_id === statusId).length
     },
@@ -1643,32 +1325,12 @@ export default {
     updateProjectTodos(_projectId, _todos) {
       // Used by draggable for reactive updates
     },
-    updateCategoryTodos(_categoryId, _todos) {
-      // Used by draggable for reactive updates
-    },
     updateStatusTodos(_statusId, _todos) {
       // Used by draggable for reactive updates
     },
     updateSortedTodos(todos) {
       // Update the internal todos array for drag-and-drop
       this.todos = todos
-    },
-    async onKanbanDropCategory(event) {
-      const todoId = event.item?.__draggable_context?.element?.id
-      if (!todoId) return
-
-      // Get target category from the drop target element
-      const targetCategoryId = event.to?.dataset?.categoryId
-      const parsedCategoryId = targetCategoryId === '' ? null : parseInt(targetCategoryId)
-
-      const todo = this.allTodos.find(t => t.id === todoId)
-      if (todo && todo.category_id !== parsedCategoryId) {
-        const todoData = this.toPlainTodo(todo)
-        todoData.category_id = parsedCategoryId
-        await window.api.updateTodo(todoData)
-        await this.loadAllTodos()
-        await this.loadTodos()
-      }
     },
     async onKanbanDropStatus(event) {
       const todoId = event.item?.__draggable_context?.element?.id
@@ -1714,13 +1376,6 @@ export default {
       // Refresh archive/trash counts (always global)
       this.trashCount = await window.api.getTrashCount()
       this.archiveCount = await window.api.getArchiveCount()
-      // Load project-specific graph settings and positions
-      this.loadGraphSettings()
-      this.loadNodePositions()
-      // Load stakeholders if in stakeholders view and a project is selected
-      if (this.currentView === 'stakeholders' && typeof filter === 'number') {
-        await this.loadProjectPersons(filter)
-      }
     },
     async addTodo() {
       if (!this.newTodoTitle.trim()) return
@@ -1729,9 +1384,6 @@ export default {
         : null
       const type = 'todo'
       const updates = { start_date: new Date().toISOString().split('T')[0] }
-      if (this.selectedTopicId !== null) {
-        updates.topic_id = this.selectedTopicId
-      }
       await this.todosComposable.addTodo(this.newTodoTitle.trim(), projectId, type, updates)
       this.newTodoTitle = ''
       this.projectsComposable.setAllTodos(this.allTodos)
@@ -1830,23 +1482,6 @@ export default {
       await this.loadTodos()
       this.selectTodo(todo.id)
     },
-    async addTodoToCategory(categoryId) {
-      try {
-        const projectId = this.isProjectSelected ? this.currentFilter : null
-        const type = 'todo'
-        const todo = await window.api.createTodo('Untitled', projectId, type)
-        if (categoryId !== null) {
-          const todoData = this.toPlainTodo(todo)
-          todoData.category_id = categoryId
-          await window.api.updateTodo(todoData)
-        }
-        await this.loadAllTodos()
-        await this.loadTodos()
-        if (todo) this.selectTodo(todo)
-      } catch {
-        // Todo creation failed
-      }
-    },
     async addTodoToStatus(statusId) {
       try {
         const projectId = this.isProjectSelected ? this.currentFilter : null
@@ -1901,65 +1536,17 @@ export default {
       await this.todosComposable.moveToProject(todo, projectId)
       this.projectsComposable.setAllTodos(this.allTodos)
     },
-    async deleteTodoFromGraph(id) {
-      const todo = this.graphNodes.find(n => n.id === id)
-      const title = todo?.title || 'this item'
-      if (confirm(`Delete "${title}"?`)) {
-        // Keep node position for undo - only remove on permanent delete
-        await this.deleteTodo(id)
-      }
-    },
-    handleNodeLinkClick(event) {
-      // Check if clicked element is a link
-      const link = event.target.closest('a')
-      if (link && link.href) {
-        event.preventDefault()
-        event.stopPropagation()
-        // Open link in default browser
-        window.api.openExternal(link.href)
-      }
-    },
-    handleNodeNotesClick(event, todo) {
-      // Check if clicked element is a link
-      const link = event.target.closest('a')
-      if (link && link.href) {
-        event.preventDefault()
-        // Open link in default browser
-        window.api.openExternal(link.href)
-      } else {
-        // Not a link - start editing
-        this.startEditingNode(null, todo)
-      }
-    },
     async restoreTodo(id) {
       await this.todosComposable.restoreTodo(id)
       this.projectsComposable.setAllTodos(this.allTodos)
     },
     async permanentlyDeleteTodo(id) {
       await this.todosComposable.permanentlyDeleteTodo(id)
-      // Remove node position on permanent delete (can't be undone)
-      if (this.nodePositions[id]) {
-        delete this.nodePositions[id]
-        this.saveNodePositions()
-      }
       this.projectsComposable.setAllTodos(this.allTodos)
     },
     async emptyTrash() {
       if (confirm('Are you sure you want to permanently delete all items in trash?')) {
-        // Get trashed items before emptying to clean up positions
-        const trashedIds = this.allTodos.filter(t => t.deleted).map(t => t.id)
         await window.api.emptyTrash()
-        // Clean up node positions for permanently deleted items
-        let positionsChanged = false
-        trashedIds.forEach(id => {
-          if (this.nodePositions[id]) {
-            delete this.nodePositions[id]
-            positionsChanged = true
-          }
-        })
-        if (positionsChanged) {
-          this.saveNodePositions()
-        }
         await this.loadAllTodos()
         await this.loadTodos()
         // Force refresh the trash count
@@ -1987,10 +1574,6 @@ export default {
     },
     async onProjectDragEnd() {
       await this.projectsComposable.onProjectDragEnd()
-    },
-    async onCategoryDragEnd() {
-      const ids = this.categories.map(c => c.id)
-      await window.api.reorderCategories(ids)
     },
     async onStatusDragEnd() {
       await this.statusesComposable.onStatusDragEnd()
@@ -2072,34 +1655,6 @@ export default {
     async loadAllTags() {
       this.allTags = await window.api.getAllTags()
     },
-    async deleteSubtask(id) {
-      await window.api.deleteSubtask(id)
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async deleteSubtaskFromTable(id) {
-      await window.api.deleteSubtask(id)
-      await this.loadAllSubtasks()
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async addSubtaskFromTable({ todoId, title }) {
-      await window.api.createSubtask(todoId, title)
-      await this.loadAllSubtasks()
-      await this.loadSubtasks()
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateSubtaskFromTable({ id, title }) {
-      await window.api.updateSubtask({ id, title })
-      await this.loadAllSubtasks()
-      await this.loadAllTodos()
-      await this.loadTodos()
-    },
-    async updateSubtaskDueDate({ id, due_date }) {
-      await window.api.updateSubtask({ id, due_date })
-      await this.loadAllSubtasks()
-    },
     formatDeadline(deadline) {
       if (!deadline) return ''
       const date = new Date(deadline)
@@ -2164,71 +1719,6 @@ export default {
         this.loadAllTodos.bind(this),
         this.loadTodos.bind(this)
       )
-    },
-    // Category methods
-    showAddCategory() {
-      this.showCategoryInput = true
-      this.$nextTick(() => {
-        this.$refs.categoryInput?.focus()
-      })
-    },
-    async addCategory() {
-      if (!this.newCategoryName.trim()) {
-        this.cancelAddCategory()
-        return
-      }
-      const randomSymbol = this.categorySymbols[Math.floor(Math.random() * this.categorySymbols.length)]
-      await window.api.createCategory(this.newCategoryName.trim(), randomSymbol)
-      this.newCategoryName = ''
-      this.showCategoryInput = false
-      await this.loadCategories()
-    },
-    async addCategoryFromSidebar(name) {
-      if (!name.trim()) return
-      const randomSymbol = this.categorySymbols[Math.floor(Math.random() * this.categorySymbols.length)]
-      await window.api.createCategory(name.trim(), randomSymbol)
-      await this.loadCategories()
-    },
-    cancelAddCategory() {
-      this.newCategoryName = ''
-      this.showCategoryInput = false
-    },
-    editCategory(category) {
-      this.editingCategory = { ...category }
-    },
-    cancelEditCategory() {
-      this.editingCategory = null
-    },
-    async saveCategory() {
-      try {
-        if (!this.editingCategory) return
-        // Convert reactive proxy to plain object for IPC
-        const categoryData = {
-          id: this.editingCategory.id,
-          name: this.editingCategory.name,
-          symbol: this.editingCategory.symbol
-        }
-        await window.api.updateCategory(categoryData)
-        await this.loadCategories()
-        await this.loadAllTodos()
-        await this.loadTodos()
-        this.editingCategory = null
-      } catch {
-        // Category save failed
-      }
-    },
-    async saveCategoryFromModal(categoryData) {
-      this.editingCategory = categoryData
-      await this.saveCategory()
-    },
-    async deleteCategoryConfirm() {
-      if (confirm(`Delete category "${this.editingCategory.name}"?`)) {
-        await window.api.deleteCategory(this.editingCategory.id)
-        this.editingCategory = null
-        await this.loadCategories()
-        await this.loadAllTodos()
-        await this.loadTodos()
-      }
     },
     // Status methods
     showAddStatus() {
@@ -2588,670 +2078,6 @@ export default {
         this.filterProjectId = projectId
       }
     },
-    toggleCategoryFilter(categoryId) {
-      if (this.filterCategoryId === categoryId) {
-        this.filterCategoryId = null
-      } else {
-        this.filterCategoryId = categoryId
-      }
-    },
-    // Graph methods
-    async loadAllLinks() {
-      const links = []
-      const seen = new Set()
-      for (const todo of this.allTodos) {
-        const linked = await window.api.getLinkedTodos(todo.id)
-        for (const l of linked) {
-          const key = [Math.min(todo.id, l.id), Math.max(todo.id, l.id)].join('-')
-          if (!seen.has(key)) {
-            seen.add(key)
-            links.push({ source: todo.id, target: l.id })
-          }
-        }
-      }
-      this.allLinks = links
-    },
-    getNodeX(todoId) {
-      if (this.nodePositions[todoId]) {
-        return this.nodePositions[todoId].x
-      }
-      // Calculate position without modifying state
-      return this.calculateNodePosition(todoId).x
-    },
-    getNodeY(todoId) {
-      if (this.nodePositions[todoId]) {
-        return this.nodePositions[todoId].y
-      }
-      // Calculate position without modifying state
-      return this.calculateNodePosition(todoId).y
-    },
-    getLinkColor(link) {
-      const sourceNode = this.graphNodes.find(n => n.id === link.source)
-      const targetNode = this.graphNodes.find(n => n.id === link.target)
-
-      // Use the source node's project color for the link
-      if (sourceNode?.project_color) {
-        return sourceNode.project_color
-      }
-      // Fallback to target node's color
-      if (targetNode?.project_color) {
-        return targetNode.project_color
-      }
-      // Default color
-      return '#0f4c75'
-    },
-    getNodeHalfWidth(nodeId) {
-      const el = this.$el?.querySelector(`[data-node-id="${nodeId}"] .node-content-wrapper`)
-      if (el) return el.offsetWidth / 2
-      return 70
-    },
-    getEdgePath(link) {
-      const cx1 = this.getNodeX(link.source)
-      const cy1 = this.getNodeY(link.source)
-      const cx2 = this.getNodeX(link.target)
-      const cy2 = this.getNodeY(link.target)
-
-      if (!this.orthogonalEdges) {
-        return `M ${cx1} ${cy1} L ${cx2} ${cy2}`
-      }
-
-      const hw1 = this.getNodeHalfWidth(link.source)
-      const hw2 = this.getNodeHalfWidth(link.target)
-      const key = `${link.source}-${link.target}`
-      const channel = this._edgeChannels?.[key] || { offset: 0, portY1: 0, portY2: 0 }
-
-      if (cx2 > cx1) {
-        // Left to right
-        const x1 = cx1 + hw1
-        const y1 = cy1 + channel.portY1
-        const x2 = cx2 - hw2
-        const y2 = cy2 + channel.portY2
-        const midX = x1 + (x2 - x1) * 0.5 + channel.offset
-        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
-      } else if (cx1 > cx2) {
-        // Right to left
-        const x1 = cx1 - hw1
-        const y1 = cy1 + channel.portY1
-        const x2 = cx2 + hw2
-        const y2 = cy2 + channel.portY2
-        const midX = Math.min(x1, x2) - 20 + channel.offset
-        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
-      } else {
-        // Vertically aligned: route around the side
-        const side = cy2 > cy1 ? 1 : -1
-        const x1 = cx1 + hw1 + channel.offset
-        const x2 = cx2 + hw2 + channel.offset
-        const midX = Math.max(x1, x2) + 20
-        return `M ${cx1 + hw1} ${cy1} L ${midX} ${cy1} L ${midX} ${cy2} L ${cx2 + hw2} ${cy2}`
-      }
-    },
-    saveOrthogonalSetting() {
-      localStorage.setItem('orthogonal-edges', this.orthogonalEdges)
-    },
-    calculateNodePosition(todoId) {
-      const nodes = this.graphNodes
-      const index = nodes.findIndex(t => t.id === todoId)
-      const width = this.graphWidth || 800
-      const height = this.graphHeight || 600
-      const padding = 100
-      const cols = Math.ceil(Math.sqrt(nodes.length * (width / height)))
-      const rows = Math.ceil(nodes.length / cols)
-      const col = index % cols
-      const row = Math.floor(index / cols)
-      const cellWidth = (width - padding * 2) / Math.max(cols, 1)
-      const cellHeight = (height - padding * 2) / Math.max(rows, 1)
-      return {
-        x: padding + col * cellWidth + cellWidth / 2,
-        y: padding + row * cellHeight + cellHeight / 2
-      }
-    },
-    async onGraphNodeClick(todo) {
-      this.selectedLink = null
-      if (this.graphLinkMode) {
-        if (this.graphLinkSource) {
-          if (this.graphLinkSource.id !== todo.id) {
-            // Create link between source and target
-            await window.api.linkTodos(this.graphLinkSource.id, todo.id)
-            await this.loadAllLinks()
-          }
-          this.graphLinkSource = null
-          this.graphLinkMode = false
-        } else {
-          this.graphLinkSource = todo
-        }
-      } else {
-        this.selectTodo(todo.id)
-      }
-    },
-    toggleGraphLinkMode() {
-      this.graphLinkMode = !this.graphLinkMode
-      if (!this.graphLinkMode) {
-        this.graphLinkSource = null
-      }
-    },
-    updateGraphSize() {
-      // Use fixed viewBox dimensions so layout doesn't shift when detail panel opens
-      // The SVG will scale to fit the container via CSS
-      // Only set initial size if not already set
-      if (!this.graphWidth) this.graphWidth = 1600
-      if (!this.graphHeight) this.graphHeight = 1200
-    },
-    screenToSvgCoords(event) {
-      const svg = this.$refs.graphSvg
-      // Use native SVG coordinate transform (handles preserveAspectRatio correctly)
-      const point = svg.createSVGPoint()
-      point.x = event.clientX
-      point.y = event.clientY
-      const viewBoxPoint = point.matrixTransform(svg.getScreenCTM().inverse())
-      // Then apply inverse of pan and zoom transforms
-      const x = (viewBoxPoint.x - this.graphPan.x) / this.graphZoom
-      const y = (viewBoxPoint.y - this.graphPan.y) / this.graphZoom
-      return { x, y }
-    },
-    onNodeContentMouseDown(event, todo) {
-      // Handle modifier key actions for foreignObject content
-      if (event.altKey) {
-        event.preventDefault()
-        event.stopPropagation()
-        this.linkingNodeId = todo.id
-        setTimeout(() => { this.linkingNodeId = null }, 500)
-        // Option-click linking: first click sets source, second click creates link
-        if (this.altClickSourceId && this.altClickSourceId !== todo.id) {
-          window.api.linkTodos(this.altClickSourceId, todo.id)
-            .then(() => {
-              this.loadAllLinks()
-              this.altClickSourceId = null
-            })
-            .catch(() => { /* Link creation failed */ })
-        } else {
-          // Set this node as the source for linking
-          this.altClickSourceId = todo.id
-        }
-        return
-      }
-      if (event.metaKey || event.ctrlKey) {
-        event.preventDefault()
-        event.stopPropagation()
-        this.creatingNodeFromId = todo.id
-        setTimeout(() => { this.creatingNodeFromId = null }, 500)
-        this.createConnectedNode(event, todo)
-        return
-      }
-    },
-    onNodeMouseDown(event, todo) {
-      if (this.graphLinkMode) {
-        // In link mode, handle as click
-        this.onGraphNodeClick(todo)
-        return
-      }
-
-      // Cmd/Ctrl+click creates a new connected node
-      if (event.metaKey || event.ctrlKey) {
-        this.creatingNodeFromId = todo.id
-        setTimeout(() => { this.creatingNodeFromId = null }, 500)
-        this.createConnectedNode(event, todo)
-        return
-      }
-
-      // Option/Alt+click to link nodes
-      if (event.altKey) {
-        event.preventDefault()
-        event.stopPropagation()
-        // Option-click linking: first click sets source, second click creates link
-        if (this.altClickSourceId && this.altClickSourceId !== todo.id) {
-          window.api.linkTodos(this.altClickSourceId, todo.id)
-            .then(() => {
-              this.loadAllLinks()
-              this.altClickSourceId = null
-            })
-            .catch(() => { /* Link creation failed */ })
-        } else {
-          // Set this node as the source for linking
-          this.altClickSourceId = todo.id
-        }
-        return
-      }
-
-      // Clear multi-select if clicking without modifier
-      if (this.selectedNodeIds.length > 0) {
-        this.selectedNodeIds = []
-      }
-
-      this.draggingNode = todo
-      // Initialize position if not set
-      if (!this.nodePositions[todo.id]) {
-        this.nodePositions[todo.id] = { x: this.getNodeX(todo.id), y: this.getNodeY(todo.id) }
-      }
-      // Store offset from node center to mouse position for smooth dragging
-      const coords = this.screenToSvgCoords(event)
-      const nodePos = this.nodePositions[todo.id]
-      this.dragOffset = { x: nodePos.x - coords.x, y: nodePos.y - coords.y }
-      this.lastMousePos = { x: event.clientX, y: event.clientY }
-      // If simulation is running, fix this node's position
-      if (this.d3Simulation) {
-        const simNode = this.d3Simulation.nodes().find(n => n.id === todo.id)
-        if (simNode) {
-          simNode.fx = nodePos.x
-          simNode.fy = nodePos.y
-        }
-        this.d3Simulation.alphaTarget(0.3).restart()
-      }
-    },
-    onGraphMouseDown(event) {
-      // Close context menu if open
-      if (this.linkContextMenu) {
-        this.linkContextMenu = null
-        return
-      }
-      if (this.draggingNode) return
-      // Start panning
-      this.isPanning = true
-      this.lastMousePos = { x: event.clientX, y: event.clientY }
-    },
-    onGraphMouseMove(event) {
-      // Update mouse position for tooltip
-      this.mousePos = { x: event.clientX, y: event.clientY }
-
-      if (this.draggingNode) {
-        const coords = this.screenToSvgCoords(event)
-        // Apply stored offset to keep node under cursor
-        const x = coords.x + (this.dragOffset?.x || 0)
-        const y = coords.y + (this.dragOffset?.y || 0)
-        this.nodePositions[this.draggingNode.id] = { x, y }
-        // Force reactivity
-        this.nodePositions = { ...this.nodePositions }
-        // Update simulation node if running
-        if (this.d3Simulation) {
-          const simNode = this.d3Simulation.nodes().find(n => n.id === this.draggingNode.id)
-          if (simNode) {
-            simNode.fx = x
-            simNode.fy = y
-          }
-        }
-      } else if (this.isPanning) {
-        const svg = this.$refs.graphSvg
-        const ctm = svg.getScreenCTM()
-        // Convert screen pixel deltas to viewBox coordinate deltas
-        const dx = (event.clientX - this.lastMousePos.x) / ctm.a
-        const dy = (event.clientY - this.lastMousePos.y) / ctm.d
-        this.graphPan.x += dx
-        this.graphPan.y += dy
-        this.lastMousePos = { x: event.clientX, y: event.clientY }
-      }
-    },
-    onGraphMouseUp(event) {
-      if (this.draggingNode) {
-        // Check if it was just a click (minimal movement)
-        const dx = Math.abs(event.clientX - this.lastMousePos.x)
-        const dy = Math.abs(event.clientY - this.lastMousePos.y)
-        if (dx >= 5 || dy >= 5) {
-          // Was actually dragging - set flag to prevent click handler from opening edit
-          this.wasDragging = true
-          setTimeout(() => { this.wasDragging = false }, 100)
-        }
-        // Release fixed position in simulation
-        if (this.d3Simulation) {
-          const simNode = this.d3Simulation.nodes().find(n => n.id === this.draggingNode.id)
-          if (simNode) {
-            simNode.fx = null
-            simNode.fy = null
-          }
-          this.d3Simulation.alphaTarget(0)
-        }
-      }
-      this.draggingNode = null
-      this.isPanning = false
-      this.saveNodePositions()
-    },
-    startEditingNode(event, todo) {
-      // Don't open edit if we just finished dragging or if this is the parent node of a new node being created
-      if (this.wasDragging) return
-      if (this.creatingNodeFromId === todo.id) return
-      if (this.linkingNodeId === todo.id) return
-      // Don't edit if link mode is active
-      if (this.graphLinkMode) return
-      // Don't edit if modifier keys are held (used for linking/creating)
-      if (event && (event.altKey || event.metaKey || event.ctrlKey)) return
-      this.editingNodeId = todo.id
-      this.editingNodeNotes = todo.notes || ''
-      // Don't show 'Untitled' or 'New Node' in the input - show blank instead
-      this.editingNodeTitle = (todo.title === 'Untitled' || todo.title === 'New Node') ? '' : (todo.title || '')
-      // Focus textarea after DOM update
-      this.$nextTick(() => {
-        const editor = this.$refs.nodeNotesEditor
-        if (editor) {
-          // Handle both single element and array (from v-for)
-          const el = Array.isArray(editor) ? editor[0] : editor
-          if (el && el.focus) {
-            el.focus()
-            this.autoResizeNodeEditor()
-          }
-        }
-      })
-    },
-    onNodeTitleClick(event, todo) {
-      // If clicking on a link, open in system browser
-      if (event.target.tagName === 'A' && event.target.href) {
-        event.preventDefault()
-        window.api.openExternal(event.target.href)
-        return
-      }
-      // Otherwise start editing
-      this.startEditingNode(event, todo)
-    },
-    onNotesClick(event) {
-      // If clicking on a link in notes, open in system browser
-      if (event.target.tagName === 'A' && event.target.href) {
-        event.preventDefault()
-        event.stopPropagation()
-        window.api.openExternal(event.target.href)
-      }
-    },
-    autoResizeNodeEditor() {
-      const editor = this.$refs.nodeNotesEditor
-      if (editor) {
-        const el = Array.isArray(editor) ? editor[0] : editor
-        if (el && el.style) {
-          el.style.height = 'auto'
-          el.style.height = Math.min(el.scrollHeight, 300) + 'px'
-        }
-      }
-      // Auto-save with debounce
-      this.debouncedSaveNode()
-    },
-    focusNotesEditor() {
-      const editor = this.$refs.nodeNotesEditor
-      if (editor) {
-        const el = Array.isArray(editor) ? editor[0] : editor
-        if (el && el.focus) el.focus()
-      }
-    },
-    debouncedSaveNode() {
-      clearTimeout(this.nodeSaveTimeout)
-      this.nodeSaveTimeout = setTimeout(() => {
-        if (this.editingNodeId) {
-          const todo = this.todos.find(t => t.id === this.editingNodeId)
-          if (todo) {
-            this.saveNodeNotesQuiet(todo)
-          }
-        }
-      }, 500)
-    },
-    async saveNodeNotesQuiet(todo) {
-      // Save without closing edit mode
-      const notesChanged = this.editingNodeNotes !== (todo.notes || '')
-      const titleChanged = this.editingNodeTitle !== (todo.title || '')
-      if (notesChanged || titleChanged) {
-        const updatedTodo = {
-          ...todo,
-          notes: this.editingNodeNotes,
-          title: this.editingNodeTitle || 'Untitled'
-        }
-        await window.api.updateTodo(updatedTodo)
-        await this.loadAllTodos()
-        await this.loadTodos()
-      }
-    },
-    async saveNodeContent(todo) {
-      if (this.editingNodeId !== todo.id) return
-      // Clear pending debounced save
-      clearTimeout(this.nodeSaveTimeout)
-      const notesChanged = this.editingNodeNotes !== (todo.notes || '')
-      const titleChanged = this.editingNodeTitle !== (todo.title || '')
-      // Save if anything changed
-      if (notesChanged || titleChanged) {
-        const updatedTodo = {
-          ...todo,
-          notes: this.editingNodeNotes,
-          title: this.editingNodeTitle || 'Untitled'
-        }
-        await window.api.updateTodo(updatedTodo)
-        // Update in-place to avoid full reload and graph reset
-        const idx = this.allTodos.findIndex(t => t.id === todo.id)
-        if (idx !== -1) {
-          this.allTodos[idx] = { ...this.allTodos[idx], notes: updatedTodo.notes, title: updatedTodo.title }
-        }
-        const todosIdx = this.todos.findIndex(t => t.id === todo.id)
-        if (todosIdx !== -1) {
-          this.todos[todosIdx] = { ...this.todos[todosIdx], notes: updatedTodo.notes, title: updatedTodo.title }
-        }
-      }
-    },
-    async saveAndCloseNode(todo) {
-      await this.saveNodeContent(todo)
-      this.editingNodeId = null
-      this.editingNodeNotes = ''
-      this.editingNodeTitle = ''
-    },
-    onNodeBlur(event, todo) {
-      // Check if focus is moving to another element within the same node
-      const relatedTarget = event.relatedTarget
-      const wrapper = event.target.closest('.node-content-wrapper')
-      if (wrapper && relatedTarget && wrapper.contains(relatedTarget)) {
-        // Focus is staying within the node, just save without closing
-        this.saveNodeContent(todo)
-        return
-      }
-      // Focus left the node, save and close
-      this.saveAndCloseNode(todo)
-    },
-    onNodeNotesBlur(event, todo) {
-      this.onNodeBlur(event, todo)
-    },
-    onNodeTitleBlur(event, todo) {
-      this.onNodeBlur(event, todo)
-    },
-    async saveNodeNotes(todo) {
-      // Legacy method - now calls saveAndCloseNode
-      await this.saveAndCloseNode(todo)
-    },
-    cancelEditingNode() {
-      this.editingNodeId = null
-      this.editingNodeNotes = ''
-      this.editingNodeTitle = ''
-    },
-    async closeEverything() {
-      // Save any pending edits before closing
-      if (this.editingNodeId) {
-        clearTimeout(this.nodeSaveTimeout)
-        const todo = this.todos.find(t => t.id === this.editingNodeId)
-        if (todo) {
-          const notesChanged = this.editingNodeNotes !== (todo.notes || '')
-          const titleChanged = this.editingNodeTitle !== (todo.title || '') &&
-            !(this.editingNodeTitle === '' && (todo.title === 'Untitled' || todo.title === 'New Node'))
-          if (notesChanged || titleChanged) {
-            const updatedTodo = {
-              ...todo,
-              notes: this.editingNodeNotes,
-              title: this.editingNodeTitle || 'Untitled'
-            }
-            await window.api.updateTodo(updatedTodo)
-            await this.loadAllTodos()
-            await this.loadTodos()
-          }
-        }
-      }
-      // Close all open views: editing, detail panel, fullscreen, detached windows
-      this.editingNodeId = null
-      this.editingNodeNotes = ''
-      this.editingNodeTitle = ''
-      this.focusedTodoIndex = -1
-    },
-    onGraphCanvasClick(event) {
-      // Clear selected link when clicking on canvas
-      this.selectedLink = null
-      // Close editing if clicking outside nodes (on the canvas background)
-      if (event.target.classList.contains('graph-svg') || event.target.tagName === 'svg') {
-        if (this.editingNodeId) {
-          // Find the todo being edited and save
-          const todo = this.todos.find(t => t.id === this.editingNodeId)
-          if (todo) {
-            this.saveNodeNotes(todo)
-          } else {
-            this.cancelEditingNode()
-          }
-        }
-      }
-    },
-    async createConnectedNode(event, parentTodo) {
-      // Get position offset from parent node
-      const parentPos = this.nodePositions[parentTodo.id] || { x: 400, y: 300 }
-
-      // Use the same project as the parent todo
-      const projectId = parentTodo.project_id
-      const type = 'todo'
-
-      try {
-        const todo = await window.api.createTodo('Untitled', projectId, type)
-        await this.loadAllTodos()
-        await this.loadTodos()
-
-        if (todo) {
-          // Initial position close to parent (will be optimized by layout)
-          this.nodePositions[todo.id] = {
-            x: parentPos.x + 120,
-            y: parentPos.y + 80
-          }
-          this.nodePositions = { ...this.nodePositions }
-
-          // Link to parent
-          await window.api.linkTodos(parentTodo.id, todo.id)
-          await this.loadAllLinks()
-
-          // Run quick layout optimization for new node, then start editing
-          this.$nextTick(() => {
-            this.optimizeNewNodePosition(todo.id)
-            this.$nextTick(() => {
-              const newTodo = this.todos.find(t => t.id === todo.id)
-              if (newTodo) this.startEditingNode(null, newTodo)
-            })
-          })
-        }
-      } catch {
-        // Connected node creation failed
-      }
-    },
-    optimizeNewNodePosition(newNodeId) {
-      // Run a quick force simulation to find optimal position for new node
-      const nodes = this.graphNodes.map(n => {
-        const x = this.nodePositions[n.id]?.x ?? this.getNodeX(n.id)
-        const y = this.nodePositions[n.id]?.y ?? this.getNodeY(n.id)
-        return {
-          id: n.id,
-          x,
-          y,
-          // Fix all nodes except the new one
-          fx: n.id === newNodeId ? null : x,
-          fy: n.id === newNodeId ? null : y
-        }
-      })
-
-      const links = this.graphLinks.map(l => ({
-        source: l.source,
-        target: l.target
-      }))
-
-      const getNodeRadius = (nodeId) => {
-        const todo = this.graphNodes.find(n => n.id === nodeId)
-        if (!todo) return 80
-        const titleLength = todo.title?.length || 0
-        const notesLength = todo.notes?.length || 0
-        const estimatedWidth = Math.min(280, 120 + titleLength * 4 + (notesLength > 0 ? 60 : 0))
-        const notesLines = notesLength > 0 ? Math.ceil(notesLength / 35) : 0
-        const estimatedHeight = 50 + notesLines * 18
-        const diagonal = Math.sqrt(estimatedWidth * estimatedWidth + estimatedHeight * estimatedHeight)
-        return diagonal / 2 + 20
-      }
-
-      const simulation = d3Force.forceSimulation(nodes)
-        .force('link', d3Force.forceLink(links)
-          .id(d => d.id)
-          .distance(this.graphEdgeLength * 2)
-          .strength(1))
-        .force('charge', d3Force.forceManyBody()
-          .strength(this.graphRepulsion))
-        .force('collision', d3Force.forceCollide()
-          .radius(d => getNodeRadius(d.id))
-          .strength(1))
-        .alphaDecay(0.1)
-        .on('end', () => {
-          const newNode = nodes.find(n => n.id === newNodeId)
-          if (newNode) {
-            // Keep within bounds
-            const padding = 150
-            const x = Math.max(padding, Math.min(this.graphWidth - padding, newNode.x))
-            const y = Math.max(padding, Math.min(this.graphHeight - padding, newNode.y))
-            this.nodePositions[newNodeId] = { x, y }
-            this.nodePositions = { ...this.nodePositions }
-            this.saveNodePositions()
-          }
-        })
-
-      // Run simulation quickly
-      simulation.tick(50)
-      simulation.stop()
-
-      const newNode = nodes.find(n => n.id === newNodeId)
-      if (newNode) {
-        const padding = 150
-        const x = Math.max(padding, Math.min(this.graphWidth - padding, newNode.x))
-        const y = Math.max(padding, Math.min(this.graphHeight - padding, newNode.y))
-        this.nodePositions[newNodeId] = { x, y }
-        this.nodePositions = { ...this.nodePositions }
-        this.saveNodePositions()
-      }
-    },
-    async onGraphDblClick(event) {
-      // Don't create if clicking on a node
-      if (event.target.closest('.graph-node')) return
-
-      // Get position in graph coordinates
-      const coords = this.screenToSvgCoords(event)
-
-      // Determine project ID - use current filter if it's a project
-      const projectId = this.isProjectSelected ? this.currentFilter : null
-      const type = 'todo'
-
-      try {
-        const todo = await window.api.createTodo('Untitled', projectId, type)
-        await this.loadAllTodos()
-        await this.loadTodos()
-
-        // Set position for the new node
-        if (todo) {
-          this.nodePositions[todo.id] = { x: coords.x, y: coords.y }
-          this.nodePositions = { ...this.nodePositions }
-          this.saveNodePositions()
-
-          // Start editing the new node
-          const newTodo = this.todos.find(t => t.id === todo.id)
-          if (newTodo) this.startEditingNode(null, newTodo)
-        }
-      } catch {
-        // Todo creation failed
-      }
-    },
-    onGraphWheel(event) {
-      // Smoother zoom using exponential scaling
-      const zoomSpeed = 0.002
-      const zoomFactor = Math.exp(-event.deltaY * zoomSpeed)
-      const newZoom = Math.max(0.2, Math.min(4, this.graphZoom * zoomFactor))
-
-      // Zoom towards mouse position in viewBox coordinates
-      const svg = this.$refs.graphSvg
-      const point = svg.createSVGPoint()
-      point.x = event.clientX
-      point.y = event.clientY
-      const vbPoint = point.matrixTransform(svg.getScreenCTM().inverse())
-      const mouseX = vbPoint.x
-      const mouseY = vbPoint.y
-
-      const zoomRatio = newZoom / this.graphZoom
-      this.graphPan.x = mouseX - (mouseX - this.graphPan.x) * zoomRatio
-      this.graphPan.y = mouseY - (mouseY - this.graphPan.y) * zoomRatio
-
-      this.graphZoom = newZoom
-    },
     onTimelineWheel(event) {
       if (event.ctrlKey || event.metaKey) {
         // Ctrl/Cmd + scroll = zoom
@@ -3264,531 +2090,6 @@ export default {
         // Regular scroll = horizontal scroll
         this.timelineOffset += event.deltaX || event.deltaY
       }
-    },
-    resetGraphView() {
-      // Ensure node positions exist for all nodes
-      this.graphNodes.forEach(node => {
-        if (!this.nodePositions[node.id]) {
-          this.nodePositions[node.id] = this.calculateNodePosition(node.id)
-        }
-      })
-
-      // Only consider positions for nodes currently in the graph
-      const nodeIds = new Set(this.graphNodes.map(n => n.id))
-      const positions = Object.entries(this.nodePositions)
-        .filter(([id]) => nodeIds.has(Number(id)))
-        .map(([, pos]) => pos)
-
-      if (positions.length === 0) {
-        this.graphZoom = 1
-        this.graphPan = { x: 0, y: 0 }
-        return
-      }
-
-      // Calculate bounding box of all nodes (with padding for node size)
-      const nodeWidth = 300
-      const nodeHeight = 200
-      const padding = 50
-
-      const xs = positions.map(p => p.x)
-      const ys = positions.map(p => p.y)
-      const minX = Math.min(...xs) - nodeWidth / 2 - padding
-      const maxX = Math.max(...xs) + nodeWidth / 2 + padding
-      const minY = Math.min(...ys) - nodeHeight / 2 - padding
-      const maxY = Math.max(...ys) + nodeHeight / 2 + padding
-
-      const boundingWidth = maxX - minX
-      const boundingHeight = maxY - minY
-      const centerX = (minX + maxX) / 2
-      const centerY = (minY + maxY) / 2
-
-      // Get SVG container size
-      const svg = this.$refs.graphSvg
-      if (svg) {
-        const rect = svg.getBoundingClientRect()
-        // Scale viewBox dimensions to screen
-        const scaleX = this.graphWidth / rect.width
-        const scaleY = this.graphHeight / rect.height
-        const viewWidth = rect.width * scaleX
-        const viewHeight = rect.height * scaleY
-
-        // Calculate zoom to fit all nodes
-        const zoomX = viewWidth / boundingWidth
-        const zoomY = viewHeight / boundingHeight
-        const fitZoom = Math.min(zoomX, zoomY, 2) // Cap at 2x zoom
-        this.graphZoom = Math.max(0.3, fitZoom * 0.9) // 90% to add margin, min 0.3
-
-        // Center the view
-        this.graphPan = {
-          x: viewWidth / 2 - centerX * this.graphZoom,
-          y: viewHeight / 2 - centerY * this.graphZoom
-        }
-      }
-    },
-    onLinkRightClick(event, link) {
-      // Show context menu at mouse position
-      this.linkContextMenu = {
-        x: event.clientX,
-        y: event.clientY,
-        link: link
-      }
-    },
-    onLinkClick(event, link) {
-      event.stopPropagation()
-      // Option/Alt-click to remove link directly
-      if (event.altKey) {
-        event.preventDefault()
-        this.removeLink(link)
-        return
-      }
-      // Toggle selection - click to show buttons, click again to hide
-      this.selectedLink = (this.selectedLink === link) ? null : link
-    },
-    removeLink(link) {
-      window.api.unlinkTodos(link.source, link.target)
-        .then(() => this.loadAllLinks())
-        .catch(() => { /* Unlink failed */ })
-    },
-    async removeLinkFromMenu() {
-      if (this.linkContextMenu?.link) {
-        const { source, target } = this.linkContextMenu.link
-        await window.api.unlinkTodos(source, target)
-        await this.loadAllLinks()
-      }
-      this.linkContextMenu = null
-    },
-    async insertNodeInLink() {
-      if (!this.linkContextMenu?.link) return
-      const { source, target } = this.linkContextMenu.link
-      const sourceNode = this.graphNodes.find(n => n.id === source)
-
-      // Calculate midpoint position
-      const sourcePos = this.nodePositions[source] || { x: 400, y: 300 }
-      const targetPos = this.nodePositions[target] || { x: 500, y: 300 }
-      const midX = (sourcePos.x + targetPos.x) / 2
-      const midY = (sourcePos.y + targetPos.y) / 2
-
-      // Use project from source node
-      const projectId = sourceNode?.project_id || null
-      const type = 'todo'
-
-      try {
-        // Create new node
-        const todo = await window.api.createTodo('Untitled', projectId, type)
-
-        // Position at midpoint
-        this.nodePositions[todo.id] = { x: midX, y: midY }
-        this.saveNodePositions()
-
-        // Remove old link
-        await window.api.unlinkTodos(source, target)
-
-        // Create new links: source -> new -> target
-        await window.api.linkTodos(source, todo.id)
-        await window.api.linkTodos(todo.id, target)
-
-        // Reload data
-        await this.loadTodos()
-        await this.loadAllLinks()
-      } catch {
-        // Node insertion failed
-      }
-
-      this.linkContextMenu = null
-    },
-    async insertNodeInLinkDirect(link) {
-      const { source, target } = link
-      const sourceNode = this.graphNodes.find(n => n.id === source)
-
-      // Calculate midpoint position
-      const sourcePos = this.nodePositions[source] || { x: 400, y: 300 }
-      const targetPos = this.nodePositions[target] || { x: 500, y: 300 }
-      const midX = (sourcePos.x + targetPos.x) / 2
-      const midY = (sourcePos.y + targetPos.y) / 2
-
-      // Use project from source node
-      const projectId = sourceNode?.project_id || null
-      const type = 'todo'
-
-      try {
-        // Create new node
-        const todo = await window.api.createTodo('Untitled', projectId, type)
-
-        // Position at midpoint
-        this.nodePositions[todo.id] = { x: midX, y: midY }
-        this.saveNodePositions()
-
-        // Remove old link
-        await window.api.unlinkTodos(source, target)
-
-        // Create new links: source -> new -> target
-        await window.api.linkTodos(source, todo.id)
-        await window.api.linkTodos(todo.id, target)
-
-        // Reload data
-        await this.loadTodos()
-        await this.loadAllLinks()
-
-        // Start editing the new node
-        const newTodo = this.todos.find(t => t.id === todo.id)
-        if (newTodo) this.startEditingNode(null, newTodo)
-      } catch {
-        // Node insertion failed
-      }
-      this.hoveredLink = null
-    },
-    initializeNodePositions() {
-      // Initialize positions for all nodes
-      const newPositions = { ...this.nodePositions }
-      this.graphNodes.forEach(node => {
-        if (!newPositions[node.id]) {
-          newPositions[node.id] = this.calculateNodePosition(node.id)
-        }
-      })
-      this.nodePositions = newPositions
-    },
-    onLayoutTypeChange() {
-      localStorage.setItem('graph-layout-type', this.graphLayoutType)
-    },
-    runLayout() {
-      // Stop any running force simulation first
-      if (this.d3Simulation) {
-        this.stopForceLayout()
-      }
-      switch (this.graphLayoutType) {
-        case 'force':
-          this.runForceLayout()
-          break
-        case 'tree':
-          this.runTreeLayout()
-          break
-        case 'grid':
-          this.runGridLayout()
-          break
-        default:
-          this.runForceLayout()
-      }
-    },
-    runGridLayout() {
-      const nodes = this.graphNodes
-      if (nodes.length === 0) return
-
-      const newPositions = {}
-
-      // Grid settings - distance slider controls spacing
-      // Base node size + gap based on edge length setting
-      const baseWidth = 200
-      const baseHeight = 120
-      const gap = this.graphEdgeLength
-      const cellWidth = baseWidth + gap
-      const cellHeight = baseHeight + gap * 0.6
-      const startX = 150
-      const startY = 100
-
-      // Calculate columns based on number of nodes (aim for roughly square grid)
-      const totalTodos = nodes.length
-      const cols = Math.max(1, Math.ceil(Math.sqrt(totalTodos * 1.2)))
-
-      // Position nodes in grid
-      nodes.forEach((node, idx) => {
-        const col = idx % cols
-        const row = Math.floor(idx / cols)
-        newPositions[node.id] = {
-          x: startX + col * cellWidth,
-          y: startY + row * cellHeight
-        }
-      })
-
-      this.nodePositions = newPositions
-      this.saveNodePositions()
-    },
-    runTreeLayout() {
-      // Auto-enable orthogonal edges for tree layout
-      this.orthogonalEdges = true
-      this.saveOrthogonalSetting()
-
-      const nodes = this.graphNodes
-      const links = this.graphLinks
-
-      // Build adjacency list
-      const children = {}
-      const hasParent = new Set()
-      links.forEach(link => {
-        if (!children[link.source]) children[link.source] = []
-        children[link.source].push(link.target)
-        hasParent.add(link.target)
-      })
-
-      // Find root nodes (nodes with no incoming links)
-      const roots = nodes.filter(n => !hasParent.has(n.id))
-      if (roots.length === 0 && nodes.length > 0) {
-        roots.push(nodes[0])
-      }
-
-      const newPositions = {}
-      // Spacing based on edge length setting
-      const nodeWidth = 160
-      const nodeHeight = 60
-      const hGap = Math.max(40, this.graphEdgeLength * 0.5)
-      const vGap = Math.max(20, this.graphEdgeLength * 0.3)
-      const levelSpacing = nodeWidth + hGap
-      const nodeSpacing = nodeHeight + vGap
-
-      // Assign levels to all nodes using BFS
-      const nodeLevel = {}
-      const visited = new Set()
-
-      const assignLevels = (rootId) => {
-        const queue = [{ id: rootId, level: 0 }]
-        while (queue.length > 0) {
-          const { id, level } = queue.shift()
-          if (visited.has(id)) continue
-          visited.add(id)
-          nodeLevel[id] = level
-          const nodeChildren = children[id] || []
-          nodeChildren.forEach(childId => {
-            if (!visited.has(childId)) {
-              queue.push({ id: childId, level: level + 1 })
-            }
-          })
-        }
-      }
-
-      roots.forEach(root => assignLevels(root.id))
-      // Assign disconnected nodes
-      nodes.forEach(n => {
-        if (!visited.has(n.id)) {
-          assignLevels(n.id)
-        }
-      })
-
-      // Group nodes by level
-      const levelNodes = {}
-      let maxLevel = 0
-      nodes.forEach(n => {
-        const level = nodeLevel[n.id] || 0
-        if (!levelNodes[level]) levelNodes[level] = []
-        levelNodes[level].push(n)
-        maxLevel = Math.max(maxLevel, level)
-      })
-
-      // Position nodes level by level, left to right
-      const startX = 80
-      const startY = 50
-
-      for (let level = 0; level <= maxLevel; level++) {
-        const nodesAtLevel = levelNodes[level] || []
-        nodesAtLevel.forEach((node, idx) => {
-          newPositions[node.id] = {
-            x: startX + level * levelSpacing,
-            y: startY + idx * nodeSpacing
-          }
-        })
-      }
-
-      // Refine: center parents among their children
-      for (let level = maxLevel - 1; level >= 0; level--) {
-        const nodesAtLevel = levelNodes[level] || []
-        nodesAtLevel.forEach(node => {
-          const nodeChildren = children[node.id] || []
-          if (nodeChildren.length > 0) {
-            const childYs = nodeChildren
-              .filter(cid => newPositions[cid])
-              .map(cid => newPositions[cid].y)
-            if (childYs.length > 0) {
-              const minY = Math.min(...childYs)
-              const maxY = Math.max(...childYs)
-              newPositions[node.id].y = (minY + maxY) / 2
-            }
-          }
-        })
-      }
-
-      // Resolve overlaps within each level
-      for (let level = 0; level <= maxLevel; level++) {
-        const nodesAtLevel = levelNodes[level] || []
-        // Sort by Y position
-        nodesAtLevel.sort((a, b) => (newPositions[a.id]?.y || 0) - (newPositions[b.id]?.y || 0))
-        // Ensure minimum spacing
-        for (let i = 1; i < nodesAtLevel.length; i++) {
-          const prev = newPositions[nodesAtLevel[i - 1].id]
-          const curr = newPositions[nodesAtLevel[i].id]
-          if (curr && prev && curr.y - prev.y < nodeSpacing) {
-            curr.y = prev.y + nodeSpacing
-          }
-        }
-      }
-
-      this.nodePositions = newPositions
-      this.saveNodePositions()
-    },
-    runForceLayout() {
-      if (this.isSimulating) {
-        this.stopForceLayout()
-        return
-      }
-
-      this.isSimulating = true
-      this.initializeNodePositions()
-
-      // Check if all nodes already have positions (re-running on relaxed graph)
-      const allNodesPositioned = this.graphNodes.every(n => this.nodePositions[n.id])
-
-      // Create d3-force simulation with improved parameters
-      const nodes = this.graphNodes.map(n => ({
-        id: n.id,
-        x: this.nodePositions[n.id]?.x || this.graphWidth / 2 + (Math.random() - 0.5) * 400,
-        y: this.nodePositions[n.id]?.y || this.graphHeight / 2 + (Math.random() - 0.5) * 400
-      }))
-
-      const links = this.graphLinks.map(l => ({
-        source: l.source,
-        target: l.target,
-        type: l.type
-      }))
-
-      // Calculate collision radius based on actual node size
-      const getNodeRadius = (nodeId) => {
-        const todo = this.graphNodes.find(n => n.id === nodeId)
-        if (!todo) return 80
-
-        // Estimate node dimensions based on content (matching CSS min/max-width)
-        const titleLength = todo.title?.length || 0
-        const notesLength = todo.notes?.length || 0
-
-        // Width: min 120px, max 280px based on content
-        const baseWidth = 120
-        const maxWidth = 280
-        const estimatedWidth = Math.min(maxWidth, baseWidth + titleLength * 4 + (notesLength > 0 ? 60 : 0))
-
-        // Height: base ~50px for title, plus ~18px per line of notes
-        const baseHeight = 50
-        const notesLines = notesLength > 0 ? Math.ceil(notesLength / 35) : 0
-        const estimatedHeight = baseHeight + notesLines * 18
-
-        // Return radius as half the diagonal (to encompass rectangular node)
-        const diagonal = Math.sqrt(estimatedWidth * estimatedWidth + estimatedHeight * estimatedHeight)
-        return diagonal / 2 + 20 // Add padding
-      }
-
-      this.d3Simulation = d3Force.forceSimulation(nodes)
-        .force('link', d3Force.forceLink(links)
-          .id(d => d.id)
-          .distance(this.graphEdgeLength * 2)
-          .strength(0.5))
-        .force('charge', d3Force.forceManyBody()
-          .strength(this.graphRepulsion)
-          .distanceMin(100)
-          .distanceMax(800))
-        .force('center', d3Force.forceCenter(this.graphWidth / 2, this.graphHeight / 2))
-        .force('collision', d3Force.forceCollide()
-          .radius(d => getNodeRadius(d.id))
-          .strength(0.8))
-        // Keep nodes within bounds
-        .force('x', d3Force.forceX(this.graphWidth / 2).strength(0.02))
-        .force('y', d3Force.forceY(this.graphHeight / 2).strength(0.02))
-        .velocityDecay(0.4)
-        .alphaDecay(0.02)
-        // Start with low alpha if nodes are already positioned (prevents jumping)
-        .alpha(allNodesPositioned ? 0.1 : 1)
-        .on('tick', () => {
-          const newPositions = {}
-          const padding = 150
-          nodes.forEach(node => {
-            // Keep nodes within bounds
-            node.x = Math.max(padding, Math.min(this.graphWidth - padding, node.x))
-            node.y = Math.max(padding, Math.min(this.graphHeight - padding, node.y))
-            newPositions[node.id] = { x: node.x, y: node.y }
-          })
-          this.nodePositions = newPositions
-        })
-        .on('end', () => {
-          this.isSimulating = false
-          this.saveNodePositions()
-        })
-    },
-    stopForceLayout() {
-      this.isSimulating = false
-      if (this.d3Simulation) {
-        this.d3Simulation.stop()
-        this.d3Simulation = null
-      }
-    },
-    getGraphStorageKey() {
-      // Use project-specific key, or 'all' for no project filter
-      const projectId = this.isProjectSelected ? this.currentFilter : 'all'
-      return `graph-${projectId}`
-    },
-    saveNodePositions() {
-      const key = this.getGraphStorageKey()
-      localStorage.setItem(`${key}-positions`, JSON.stringify(this.nodePositions))
-    },
-    loadNodePositions() {
-      try {
-        const key = this.getGraphStorageKey()
-        const saved = localStorage.getItem(`${key}-positions`)
-        if (saved) {
-          this.nodePositions = JSON.parse(saved)
-        } else {
-          this.nodePositions = {}
-        }
-      } catch {
-        this.nodePositions = {}
-      }
-    },
-    saveGraphSettings() {
-      const key = this.getGraphStorageKey()
-      localStorage.setItem(`${key}-settings`, JSON.stringify({
-        layoutType: this.graphLayoutType,
-        edgeLength: this.graphEdgeLength,
-        repulsion: this.graphRepulsion,
-        orthogonal: this.orthogonalEdges
-      }))
-      // Also save as defaults
-      localStorage.setItem('graph-repulsion', this.graphRepulsion)
-      localStorage.setItem('graph-edge-length', this.graphEdgeLength)
-    },
-    loadGraphSettings() {
-      try {
-        const key = this.getGraphStorageKey()
-        const saved = localStorage.getItem(`${key}-settings`)
-        if (saved) {
-          const settings = JSON.parse(saved)
-          this.graphLayoutType = settings.layoutType || 'force'
-          this.graphEdgeLength = settings.edgeLength || 100
-          this.graphRepulsion = settings.repulsion || -300
-          this.orthogonalEdges = settings.orthogonal || false
-        }
-      } catch {
-        // Failed to load graph settings, using defaults
-      }
-    },
-    onGraphSettingChange() {
-      this.saveGraphSettings()
-      // For tree/grid layout, re-run layout immediately
-      if (this.graphLayoutType === 'tree') {
-        this.runTreeLayout()
-        return
-      }
-      if (this.graphLayoutType === 'grid') {
-        this.runGridLayout()
-        return
-      }
-      // For force layout, only update if simulation is already running
-      if (this.d3Simulation) {
-        this.d3Simulation
-          .force('charge', d3Force.forceManyBody().strength(this.graphRepulsion))
-          .force('link', d3Force.forceLink(this.d3Simulation.force('link').links())
-            .id(d => d.id)
-            .distance(this.graphEdgeLength))
-        this.d3Simulation.alpha(0.3).restart()
-      }
-      // Don't auto-start simulation - user must click "Auto Layout"
-    },
-    resetGraphSettings() {
-      this.graphRepulsion = -400
-      this.graphEdgeLength = 100
-      this.onGraphSettingChange()
     },
     // Keyboard shortcuts
     handleKeyUp(e) {
@@ -4017,18 +2318,12 @@ export default {
       await window.api.undo()
       await this.loadTodos()
       await this.loadAllTodos()
-      await this.loadAllLinks()
     },
     async redo() {
       if (!this.historyState.canRedo) return
       await window.api.redo()
       await this.loadTodos()
       await this.loadAllTodos()
-      await this.loadAllLinks()
-    },
-    toggleCategoriesCollapsed() {
-      this.categoriesCollapsed = !this.categoriesCollapsed
-      localStorage.setItem('categories-collapsed', this.categoriesCollapsed)
     },
     toggleStatusesCollapsed() {
       this.statusesCollapsed = !this.statusesCollapsed
@@ -4037,10 +2332,6 @@ export default {
     toggleSettingsCollapsed() {
       this.settingsCollapsed = !this.settingsCollapsed
       localStorage.setItem('settings-collapsed', this.settingsCollapsed)
-    },
-    saveOpenModePreference() {
-      const mode = this.openTodosInWindow ? 'window' : 'sidebar'
-      localStorage.setItem('todo-open-mode', mode)
     },
     async handleExport() {
       try {

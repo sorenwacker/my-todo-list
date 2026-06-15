@@ -32,8 +32,6 @@ const state = reactive({
   editingProjectTags: [],
   newProjectName: '',
   showProjectInput: false,
-  projectPersons: {},
-  showProjectPersonPicker: false,
   _allTodos: []
 })
 
@@ -75,9 +73,7 @@ function cancelAddProject() {
  */
 async function editProject(project) {
   state.editingProject = { ...project }
-  state.showProjectPersonPicker = false
   if (project.id) {
-    await loadProjectPersons(project.id)
     state.editingProjectTags = await window.api.getProjectTags(project.id)
   } else {
     state.editingProjectTags = []
@@ -90,7 +86,6 @@ async function editProject(project) {
 function cancelEditProject() {
   state.editingProject = null
   state.editingProjectTags = []
-  state.showProjectPersonPicker = false
 }
 
 /**
@@ -168,41 +163,6 @@ async function removeProjectTag(tagId) {
 }
 
 /**
- * Load persons associated with a project.
- * @param {number} projectId - Project ID
- */
-async function loadProjectPersons(projectId) {
-  const persons = await window.api.getProjectPersons(projectId)
-  state.projectPersons[projectId] = persons
-}
-
-/**
- * Assign a person to the editing project.
- * @param {Object} person - Person to assign
- */
-async function assignProjectPerson(person) {
-  if (!state.editingProject || !state.editingProject.id) return
-  // Check if already assigned
-  const currentPersons = state.projectPersons[state.editingProject.id] || []
-  if (currentPersons.some(p => p.id === person.id)) return
-
-  await window.api.linkProjectPerson(state.editingProject.id, person.id)
-  await loadProjectPersons(state.editingProject.id)
-  state.showProjectPersonPicker = false
-}
-
-/**
- * Unassign a person from the editing project.
- * @param {Object} person - Person to unassign
- */
-async function unassignProjectPerson(person) {
-  if (!state.editingProject || !state.editingProject.id) return
-
-  await window.api.unlinkProjectPerson(state.editingProject.id, person.id)
-  await loadProjectPersons(state.editingProject.id)
-}
-
-/**
  * Set the all todos array for computed properties.
  * @param {Array} todos - All todos
  */
@@ -251,11 +211,6 @@ export function useProjects() {
     }
   })
 
-  const currentProjectPersons = computed(() => {
-    if (!state.editingProject || !state.editingProject.id) return []
-    return state.projectPersons[state.editingProject.id] || []
-  })
-
   return {
     // Reactive refs
     ...toRefs(state),
@@ -265,7 +220,6 @@ export function useProjects() {
     currentProjectName,
     currentProjectColor,
     isProjectSelected,
-    currentProjectPersons,
 
     // Constants
     projectColors: readonly(PROJECT_COLORS),
@@ -281,9 +235,6 @@ export function useProjects() {
     onProjectDragEnd,
     addProjectTag,
     removeProjectTag,
-    loadProjectPersons,
-    assignProjectPerson,
-    unassignProjectPerson,
     setAllTodos
   }
 }
