@@ -11,7 +11,7 @@
   >
     <!-- Context Menu -->
     <div v-if="contextMenuVisible" class="card-context-menu" :style="contextMenuStyle" @click.stop>
-      <div class="context-menu-item" @click="$emit('archive'); hideContextMenu()">Archive</div>
+      <div class="context-menu-item" @click="archiveFromMenu">Archive</div>
       <div class="context-menu-divider"></div>
       <div class="context-menu-label">Move to:</div>
       <div
@@ -19,7 +19,7 @@
         :key="project.id"
         class="context-menu-item"
         :class="{ active: todo.project_id === project.id }"
-        @click="$emit('move-to-project', project.id); hideContextMenu()"
+        @click="moveToProjectFromMenu(project.id)"
       >
         <span class="project-dot" :style="{ background: project.color }"></span>
         {{ project.name }}
@@ -27,7 +27,7 @@
       <div
         class="context-menu-item"
         :class="{ active: !todo.project_id }"
-        @click="$emit('move-to-project', null); hideContextMenu()"
+        @click="moveToProjectFromMenu(null)"
       >
         Inbox
       </div>
@@ -271,6 +271,14 @@ export default {
     },
     hideContextMenu() {
       this.contextMenuVisible = false
+    },
+    archiveFromMenu() {
+      this.$emit('archive')
+      this.hideContextMenu()
+    },
+    moveToProjectFromMenu(projectId) {
+      this.$emit('move-to-project', projectId)
+      this.hideContextMenu()
     }
   }
 }
