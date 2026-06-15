@@ -1,344 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import BetterSqlite3 from 'better-sqlite3'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { unlinkSync, existsSync } from 'fs'
+import { Database } from '../src/main/database.js'
 
-// Test-only database class (mirrors src/main/database.js without electron dependency)
-class TestDatabase {
-  constructor(dbPath) {
-    this.db = new BetterSqlite3(dbPath)
-    this.init()
-  }
-
-  init() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        color TEXT DEFAULT '#0f4c75',
-        sort_order INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS todos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        notes TEXT DEFAULT '',
-        deadline TEXT,
-        completed INTEGER DEFAULT 0,
-        sort_order INTEGER DEFAULT 0,
-        project_id INTEGER,
-        type TEXT DEFAULT 'todo',
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS todo_links (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        source_id INTEGER NOT NULL,
-        target_id INTEGER NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (source_id) REFERENCES todos(id) ON DELETE CASCADE,
-        FOREIGN KEY (target_id) REFERENCES todos(id) ON DELETE CASCADE,
-        UNIQUE(source_id, target_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS persons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT DEFAULT '',
-        phone TEXT DEFAULT '',
-        company TEXT DEFAULT '',
-        role TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        color TEXT DEFAULT '#0f4c75',
-        sort_order INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-      );
-    `)
-  }
-
-  // Project operations
-  getAllProjects() {
-    return this.db.prepare('SELECT * FROM projects ORDER BY sort_order ASC').all()
-  }
-
-  getProject(id) {
-    return this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id)
-  }
-
-  createProject(name, color = '#0f4c75') {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM projects').get()
-    const sortOrder = (maxOrder.max || 0) + 1
-
-    const result = this.db.prepare(
-      'INSERT INTO projects (name, color, sort_order) VALUES (?, ?, ?)'
-    ).run(name, color, sortOrder)
-
-    return this.getProject(result.lastInsertRowid)
-  }
-
-  updateProject(project) {
-    this.db.prepare(
-      'UPDATE projects SET name = ?, color = ? WHERE id = ?'
-    ).run(project.name, project.color, project.id)
-
-    return this.getProject(project.id)
-  }
-
-  deleteProject(id) {
-    this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
-    return true
-  }
-
-  // Todo operations
-  getAllTodos(projectId = null) {
-    if (projectId === null) {
-      return this.db.prepare(`
-        SELECT t.*, p.name as project_name, p.color as project_color
-        FROM todos t
-        LEFT JOIN projects p ON t.project_id = p.id
-        ORDER BY t.sort_order ASC, t.created_at DESC
-      `).all()
-    } else if (projectId === 'inbox') {
-      return this.db.prepare(`
-        SELECT t.*, NULL as project_name, NULL as project_color
-        FROM todos t
-        WHERE t.project_id IS NULL
-        ORDER BY t.sort_order ASC, t.created_at DESC
-      `).all()
-    } else {
-      return this.db.prepare(`
-        SELECT t.*, p.name as project_name, p.color as project_color
-        FROM todos t
-        LEFT JOIN projects p ON t.project_id = p.id
-        WHERE t.project_id = ?
-        ORDER BY t.sort_order ASC, t.created_at DESC
-      `).all(projectId)
-    }
-  }
-
-  getTodo(id) {
-    return this.db.prepare(`
-      SELECT t.id, t.title, t.notes, t.deadline, t.completed, t.sort_order, t.project_id, t.type, t.created_at, t.updated_at,
-             p.name as project_name, p.color as project_color
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE t.id = ?
-    `).get(id)
-  }
-
-  createTodo(title, projectId = null, type = 'todo') {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM todos').get()
-    const sortOrder = (maxOrder.max || 0) + 1
-
-    const result = this.db.prepare(`
-      INSERT INTO todos (title, sort_order, project_id, type) VALUES (?, ?, ?, ?)
-    `).run(title, sortOrder, projectId, type)
-
-    return this.getTodo(result.lastInsertRowid)
-  }
-
-  updateTodo(todo) {
-    this.db.prepare(`
-      UPDATE todos
-      SET title = ?, notes = ?, deadline = ?, completed = ?, project_id = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(todo.title, todo.notes, todo.deadline, todo.completed ? 1 : 0, todo.project_id, todo.id)
-
-    return this.getTodo(todo.id)
-  }
-
-  deleteTodo(id) {
-    this.db.prepare('DELETE FROM todos WHERE id = ?').run(id)
-    return true
-  }
-
-  reorderTodos(ids) {
-    const stmt = this.db.prepare('UPDATE todos SET sort_order = ? WHERE id = ?')
-    const transaction = this.db.transaction((ids) => {
-      ids.forEach((id, index) => {
-        stmt.run(index, id)
-      })
-    })
-    transaction(ids)
-    return true
-  }
-
-  // Link operations
-  getLinkedTodos(todoId) {
-    return this.db.prepare(`
-      SELECT t.*, p.name as project_name, p.color as project_color
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE t.id IN (
-        SELECT target_id FROM todo_links WHERE source_id = ?
-        UNION
-        SELECT source_id FROM todo_links WHERE target_id = ?
-      )
-    `).all(todoId, todoId)
-  }
-
-  linkTodos(sourceId, targetId) {
-    if (sourceId === targetId) return false
-
-    const [first, second] = sourceId < targetId ? [sourceId, targetId] : [targetId, sourceId]
-
-    try {
-      this.db.prepare(
-        'INSERT OR IGNORE INTO todo_links (source_id, target_id) VALUES (?, ?)'
-      ).run(first, second)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  unlinkTodos(sourceId, targetId) {
-    const [first, second] = sourceId < targetId ? [sourceId, targetId] : [targetId, sourceId]
-    this.db.prepare(
-      'DELETE FROM todo_links WHERE source_id = ? AND target_id = ?'
-    ).run(first, second)
-    return true
-  }
-
-  searchTodos(query, excludeId = null) {
-    if (excludeId) {
-      return this.db.prepare(`
-        SELECT t.*, p.name as project_name, p.color as project_color
-        FROM todos t
-        LEFT JOIN projects p ON t.project_id = p.id
-        WHERE t.title LIKE ? AND t.id != ?
-        LIMIT 10
-      `).all(`%${query}%`, excludeId)
-    }
-    return this.db.prepare(`
-      SELECT t.*, p.name as project_name, p.color as project_color
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE t.title LIKE ?
-      LIMIT 10
-    `).all(`%${query}%`)
-  }
-
-  // Settings operations
-  getSetting(key) {
-    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key)
-    if (!row) return null
-    try {
-      return JSON.parse(row.value)
-    } catch {
-      return row.value
-    }
-  }
-
-  setSetting(key, value) {
-    const stringValue = typeof value === 'string' ? value : JSON.stringify(value)
-    this.db.prepare(`
-      INSERT INTO settings (key, value, updated_at)
-      VALUES (?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP
-    `).run(key, stringValue, stringValue)
-    return this.getSetting(key)
-  }
-
-  getAllSettings() {
-    const rows = this.db.prepare('SELECT key, value FROM settings').all()
-    const settings = {}
-    for (const row of rows) {
-      try {
-        settings[row.key] = JSON.parse(row.value)
-      } catch {
-        settings[row.key] = row.value
-      }
-    }
-    return settings
-  }
-
-  // Person operations
-  createPerson(person) {
-    const maxOrder = this.db.prepare('SELECT MAX(sort_order) as max FROM persons').get()
-    const sortOrder = (maxOrder.max || 0) + 1
-
-    const result = this.db.prepare(`
-      INSERT INTO persons (name, email, phone, company, role, notes, color, sort_order)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      person.name,
-      person.email || '',
-      person.phone || '',
-      person.company || '',
-      person.role || '',
-      person.notes || '',
-      person.color || '#0f4c75',
-      sortOrder
-    )
-
-    return this.db.prepare('SELECT * FROM persons WHERE id = ?').get(result.lastInsertRowid)
-  }
-
-  // Global search across todos, persons, and projects
-  globalSearch(query, limit = 20) {
-    const searchTerm = `%${query}%`
-
-    // Search todos (title + notes)
-    const todos = this.db.prepare(`
-      SELECT t.*, p.name as project_name, p.color as project_color, 'todo' as result_type
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE (t.title LIKE ? OR t.notes LIKE ?)
-      LIMIT ?
-    `).all(searchTerm, searchTerm, limit)
-
-    // Search persons (name + email + company)
-    const persons = this.db.prepare(`
-      SELECT *, 'person' as result_type
-      FROM persons
-      WHERE name LIKE ? OR email LIKE ? OR company LIKE ?
-      LIMIT ?
-    `).all(searchTerm, searchTerm, searchTerm, limit)
-
-    // Search projects
-    const projects = this.db.prepare(`
-      SELECT *, 'project' as result_type
-      FROM projects
-      WHERE name LIKE ?
-      LIMIT ?
-    `).all(searchTerm, limit)
-
-    return { todos, persons, projects }
-  }
-
-  // Get todos by type
-  getTodosByType(type) {
-    return this.db.prepare(`
-      SELECT t.*, p.name as project_name, p.color as project_color
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE t.type = ?
-      ORDER BY t.sort_order ASC
-    `).all(type)
-  }
-
-  close() {
-    this.db.close()
-  }
-}
+// Exercises the real production Database class (src/main/database.js).
+// Passing a db path keeps electron's `app` import out of the code path,
+// so it runs under vitest/node.
 
 describe('Database', () => {
   let db
-  const testDbPath = join(tmpdir(), `test-todos-${Date.now()}.db`)
+  let testDbPath
 
   beforeEach(() => {
-    db = new TestDatabase(testDbPath)
+    testDbPath = join(tmpdir(), `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}.db`)
+    db = new Database(testDbPath)
   })
 
   afterEach(() => {
@@ -357,13 +33,22 @@ describe('Database', () => {
       expect(project.color).toBe('#e74c3c')
     })
 
-    it('should list all projects', () => {
+    it('should use the default color when none is given', () => {
+      const project = db.createProject('Work')
+      expect(project.color).toBe('#0f4c75')
+    })
+
+    it('should list all (non-deleted) projects', () => {
       db.createProject('Work')
       db.createProject('Personal')
 
       const projects = db.getAllProjects()
-
       expect(projects).toHaveLength(2)
+    })
+
+    it('should get a project by id', () => {
+      const project = db.createProject('Work')
+      expect(db.getProject(project.id).name).toBe('Work')
     })
 
     it('should update a project', () => {
@@ -374,16 +59,91 @@ describe('Database', () => {
       expect(updated.color).toBe('#2ecc71')
     })
 
-    it('should delete a project', () => {
+    it('should soft delete a project (row remains, excluded from list)', () => {
       const project = db.createProject('Work')
       db.deleteProject(project.id)
+
+      // Soft delete: getProject still returns the row with deleted_at set,
+      // but getAllProjects excludes it.
+      const row = db.getProject(project.id)
+      expect(row).toBeDefined()
+      expect(row.deleted_at).not.toBeNull()
+      expect(db.getAllProjects()).toHaveLength(0)
+    })
+
+    it('should move a deleted project\'s todos to inbox', () => {
+      const project = db.createProject('Work')
+      const todo = db.createTodo('Task', project.id)
+
+      db.deleteProject(project.id)
+
+      const reloaded = db.getTodo(todo.id)
+      expect(reloaded.project_id).toBeNull()
+      expect(db.getAllTodos('inbox')).toHaveLength(1)
+    })
+
+    it('should list deleted projects', () => {
+      const project = db.createProject('Work')
+      db.deleteProject(project.id)
+
+      const deleted = db.getDeletedProjects()
+      expect(deleted).toHaveLength(1)
+      expect(deleted[0].id).toBe(project.id)
+    })
+
+    it('should restore a soft-deleted project', () => {
+      const project = db.createProject('Work')
+      db.deleteProject(project.id)
+      db.restoreProject(project.id)
+
+      expect(db.getAllProjects()).toHaveLength(1)
+      expect(db.getDeletedProjects()).toHaveLength(0)
+    })
+
+    it('should permanently delete a project', () => {
+      const project = db.createProject('Work')
+      db.permanentlyDeleteProject(project.id)
 
       expect(db.getProject(project.id)).toBeUndefined()
     })
   })
 
+  describe('Statuses', () => {
+    it('should seed default statuses on init', () => {
+      const statuses = db.getAllStatuses()
+      expect(statuses.length).toBeGreaterThanOrEqual(4)
+      expect(statuses.map(s => s.name)).toContain('Todo')
+      expect(statuses.map(s => s.name)).toContain('Done')
+    })
+
+    it('should create a status', () => {
+      const status = db.createStatus('Review', '#abcdef')
+      expect(status.id).toBeDefined()
+      expect(status.name).toBe('Review')
+      expect(status.color).toBe('#abcdef')
+    })
+
+    it('should get a status by id', () => {
+      const status = db.createStatus('Review')
+      expect(db.getStatus(status.id).name).toBe('Review')
+    })
+
+    it('should update a status', () => {
+      const status = db.createStatus('Review')
+      const updated = db.updateStatus({ ...status, name: 'Reviewed', color: '#000000' })
+      expect(updated.name).toBe('Reviewed')
+      expect(updated.color).toBe('#000000')
+    })
+
+    it('should delete a status', () => {
+      const status = db.createStatus('Review')
+      db.deleteStatus(status.id)
+      expect(db.getStatus(status.id)).toBeUndefined()
+    })
+  })
+
   describe('Todos with Projects', () => {
-    it('should create a todo with project', () => {
+    it('should create a todo with a project', () => {
       const project = db.createProject('Work')
       const todo = db.createTodo('Task 1', project.id)
 
@@ -391,28 +151,24 @@ describe('Database', () => {
       expect(todo.project_name).toBe('Work')
     })
 
-    it('should create a todo without project (inbox)', () => {
+    it('should create a todo without a project (inbox)', () => {
       const todo = db.createTodo('Inbox task')
 
       expect(todo.project_id).toBeNull()
       expect(todo.project_name).toBeNull()
     })
 
-    it('should filter todos by project', () => {
+    it('should filter todos by project, inbox and all', () => {
       const project = db.createProject('Work')
       db.createTodo('Work task', project.id)
       db.createTodo('Inbox task')
 
-      const workTodos = db.getAllTodos(project.id)
-      const inboxTodos = db.getAllTodos('inbox')
-      const allTodos = db.getAllTodos(null)
-
-      expect(workTodos).toHaveLength(1)
-      expect(inboxTodos).toHaveLength(1)
-      expect(allTodos).toHaveLength(2)
+      expect(db.getAllTodos(project.id)).toHaveLength(1)
+      expect(db.getAllTodos('inbox')).toHaveLength(1)
+      expect(db.getAllTodos(null)).toHaveLength(2)
     })
 
-    it('should move todo to different project', () => {
+    it('should move a todo to a different project', () => {
       const project1 = db.createProject('Work')
       const project2 = db.createProject('Personal')
       const todo = db.createTodo('Task', project1.id)
@@ -421,6 +177,150 @@ describe('Database', () => {
 
       expect(updated.project_id).toBe(project2.id)
       expect(updated.project_name).toBe('Personal')
+    })
+  })
+
+  describe('Basic Todo Operations', () => {
+    it('should create a todo', () => {
+      const todo = db.createTodo('Test todo')
+
+      expect(todo.id).toBeDefined()
+      expect(todo.title).toBe('Test todo')
+      expect(todo.completed).toBe(0)
+    })
+
+    it('should create a todo with the default type', () => {
+      const todo = db.createTodo('Task')
+      expect(todo.type).toBe('todo')
+    })
+
+    it('should create a todo with an explicit type', () => {
+      const note = db.createTodo('Note title', null, 'note')
+      expect(note.type).toBe('note')
+    })
+
+    it('should update todo notes', () => {
+      const todo = db.createTodo('Test')
+      const updated = db.updateTodo({ ...todo, notes: '# Notes\nSome content' })
+
+      expect(updated.notes).toBe('# Notes\nSome content')
+    })
+
+    it('should update the todo end_date', () => {
+      const todo = db.createTodo('Test')
+      const updated = db.updateTodo({ ...todo, end_date: '2024-12-31' })
+
+      expect(updated.end_date).toBe('2024-12-31')
+    })
+
+    it('should clear end_date when an empty string is given', () => {
+      const todo = db.createTodo('Test')
+      const withDate = db.updateTodo({ ...todo, end_date: '2024-12-31' })
+      const cleared = db.updateTodo({ ...withDate, end_date: '' })
+
+      expect(cleared.end_date).toBeNull()
+    })
+
+    it('should set completed_at when a todo is completed', () => {
+      const todo = db.createTodo('Test')
+      const completed = db.updateTodo({ ...todo, completed: true })
+
+      expect(completed.completed).toBe(1)
+      expect(completed.completed_at).not.toBeNull()
+    })
+
+    it('should clear completed_at when a todo is uncompleted', () => {
+      const todo = db.createTodo('Test')
+      const completed = db.updateTodo({ ...todo, completed: true })
+      const reopened = db.updateTodo({ ...completed, completed: false })
+
+      expect(reopened.completed).toBe(0)
+      expect(reopened.completed_at).toBeNull()
+    })
+
+    it('should soft delete a todo (excluded from list, still gettable)', () => {
+      const todo = db.createTodo('Test')
+      db.deleteTodo(todo.id)
+
+      // getAllTodos excludes the soft-deleted row.
+      expect(db.getAllTodos()).toHaveLength(0)
+
+      // getTodo still returns it with deleted_at set.
+      const row = db.getTodo(todo.id)
+      expect(row).toBeDefined()
+      expect(row.deleted_at).not.toBeNull()
+    })
+
+    it('should restore a soft-deleted todo', () => {
+      const todo = db.createTodo('Test')
+      db.deleteTodo(todo.id)
+      db.restoreTodo(todo.id)
+
+      expect(db.getAllTodos()).toHaveLength(1)
+      expect(db.getTodo(todo.id).deleted_at).toBeNull()
+    })
+
+    it('should reorder todos', () => {
+      const todo1 = db.createTodo('First')
+      const todo2 = db.createTodo('Second')
+      const todo3 = db.createTodo('Third')
+
+      db.reorderTodos([todo3.id, todo1.id, todo2.id])
+
+      const todos = db.getAllTodos()
+      expect(todos.map(t => t.id)).toEqual([todo3.id, todo1.id, todo2.id])
+    })
+  })
+
+  describe('Trash and Archive', () => {
+    it('should report the trash count', () => {
+      const todo = db.createTodo('Test')
+      expect(db.getTrashCount()).toBe(0)
+      db.deleteTodo(todo.id)
+      expect(db.getTrashCount()).toBe(1)
+    })
+
+    it('should permanently delete a todo', () => {
+      const todo = db.createTodo('Test')
+      db.deleteTodo(todo.id)
+      db.permanentlyDeleteTodo(todo.id)
+
+      expect(db.getTodo(todo.id)).toBeUndefined()
+      expect(db.getTrashCount()).toBe(0)
+    })
+
+    it('should empty the trash', () => {
+      const a = db.createTodo('A')
+      const b = db.createTodo('B')
+      db.deleteTodo(a.id)
+      db.deleteTodo(b.id)
+
+      db.emptyTrash()
+
+      expect(db.getTrashCount()).toBe(0)
+      expect(db.getTodo(a.id)).toBeUndefined()
+      expect(db.getTodo(b.id)).toBeUndefined()
+    })
+
+    it('should archive a todo (excluded from list, counted)', () => {
+      const todo = db.createTodo('Test')
+      db.archiveTodo(todo.id)
+
+      expect(db.getAllTodos()).toHaveLength(0)
+      expect(db.getArchiveCount()).toBe(1)
+
+      const archived = db.getArchivedTodos()
+      expect(archived).toHaveLength(1)
+      expect(archived[0].id).toBe(todo.id)
+    })
+
+    it('should unarchive a todo', () => {
+      const todo = db.createTodo('Test')
+      db.archiveTodo(todo.id)
+      db.unarchiveTodo(todo.id)
+
+      expect(db.getAllTodos()).toHaveLength(1)
+      expect(db.getArchiveCount()).toBe(0)
     })
   })
 
@@ -442,11 +342,8 @@ describe('Database', () => {
 
       db.linkTodos(todo1.id, todo2.id)
 
-      const linkedFrom1 = db.getLinkedTodos(todo1.id)
-      const linkedFrom2 = db.getLinkedTodos(todo2.id)
-
-      expect(linkedFrom1).toHaveLength(1)
-      expect(linkedFrom2).toHaveLength(1)
+      expect(db.getLinkedTodos(todo1.id)).toHaveLength(1)
+      expect(db.getLinkedTodos(todo2.id)).toHaveLength(1)
     })
 
     it('should not create duplicate links', () => {
@@ -456,16 +353,13 @@ describe('Database', () => {
       db.linkTodos(todo1.id, todo2.id)
       db.linkTodos(todo2.id, todo1.id)
 
-      const linked = db.getLinkedTodos(todo1.id)
-      expect(linked).toHaveLength(1)
+      expect(db.getLinkedTodos(todo1.id)).toHaveLength(1)
     })
 
     it('should not link a todo to itself', () => {
       const todo = db.createTodo('Task')
 
-      const result = db.linkTodos(todo.id, todo.id)
-
-      expect(result).toBe(false)
+      expect(db.linkTodos(todo.id, todo.id)).toBe(false)
       expect(db.getLinkedTodos(todo.id)).toHaveLength(0)
     })
 
@@ -486,12 +380,10 @@ describe('Database', () => {
       db.createTodo('Buy presents')
       db.createTodo('Clean house')
 
-      const results = db.searchTodos('Buy')
-
-      expect(results).toHaveLength(2)
+      expect(db.searchTodos('Buy')).toHaveLength(2)
     })
 
-    it('should exclude specified todo from search', () => {
+    it('should exclude a specified todo from search', () => {
       const todo1 = db.createTodo('Buy groceries')
       db.createTodo('Buy presents')
 
@@ -500,84 +392,43 @@ describe('Database', () => {
       expect(results).toHaveLength(1)
       expect(results[0].title).toBe('Buy presents')
     })
-  })
 
-  describe('Basic Todo Operations', () => {
-    it('should create a todo', () => {
-      const todo = db.createTodo('Test todo')
+    it('should not return soft-deleted todos from search', () => {
+      const todo1 = db.createTodo('Buy groceries')
+      db.createTodo('Buy presents')
+      db.deleteTodo(todo1.id)
 
-      expect(todo.id).toBeDefined()
-      expect(todo.title).toBe('Test todo')
-      expect(todo.completed).toBe(0)
-    })
-
-    it('should update todo notes', () => {
-      const todo = db.createTodo('Test')
-      const updated = db.updateTodo({ ...todo, notes: '# Notes\nSome content' })
-
-      expect(updated.notes).toBe('# Notes\nSome content')
-    })
-
-    it('should update todo deadline', () => {
-      const todo = db.createTodo('Test')
-      const updated = db.updateTodo({ ...todo, deadline: '2024-12-31' })
-
-      expect(updated.deadline).toBe('2024-12-31')
-    })
-
-    it('should delete a todo', () => {
-      const todo = db.createTodo('Test')
-      db.deleteTodo(todo.id)
-
-      expect(db.getTodo(todo.id)).toBeUndefined()
-    })
-
-    it('should reorder todos', () => {
-      const todo1 = db.createTodo('First')
-      const todo2 = db.createTodo('Second')
-      const todo3 = db.createTodo('Third')
-
-      db.reorderTodos([todo3.id, todo1.id, todo2.id])
-
-      const todos = db.getAllTodos()
-      expect(todos[0].id).toBe(todo3.id)
-      expect(todos[1].id).toBe(todo1.id)
-      expect(todos[2].id).toBe(todo2.id)
+      expect(db.searchTodos('Buy')).toHaveLength(1)
     })
   })
 
   describe('Settings', () => {
-    it('should return null for non-existent setting', () => {
-      const value = db.getSetting('non_existent_key')
-      expect(value).toBeNull()
+    it('should return null for a non-existent setting', () => {
+      expect(db.getSetting('non_existent_key')).toBeNull()
     })
 
     it('should set and retrieve a string setting', () => {
       db.setSetting('theme', 'dark')
-      const value = db.getSetting('theme')
-      expect(value).toBe('dark')
+      expect(db.getSetting('theme')).toBe('dark')
     })
 
     it('should set and retrieve a boolean setting', () => {
       db.setSetting('hide_completed', true)
-      const value = db.getSetting('hide_completed')
-      expect(value).toBe(true)
+      expect(db.getSetting('hide_completed')).toBe(true)
     })
 
     it('should set and retrieve a number setting', () => {
       db.setSetting('card_size', 280)
-      const value = db.getSetting('card_size')
-      expect(value).toBe(280)
+      expect(db.getSetting('card_size')).toBe(280)
     })
 
-    it('should update existing setting', () => {
+    it('should update an existing setting', () => {
       db.setSetting('theme', 'light')
       db.setSetting('theme', 'dark')
-      const value = db.getSetting('theme')
-      expect(value).toBe('dark')
+      expect(db.getSetting('theme')).toBe('dark')
     })
 
-    it('should get all settings as object', () => {
+    it('should get all settings as an object', () => {
       db.setSetting('theme', 'dark')
       db.setSetting('card_size', 300)
       db.setSetting('hide_completed', false)
@@ -590,112 +441,142 @@ describe('Database', () => {
     })
   })
 
-  describe('Todo Types', () => {
-    it('should create todo with default type', () => {
+  describe('Tags', () => {
+    it('should add a tag to a todo and read it back', () => {
       const todo = db.createTodo('Task')
-      expect(todo.type).toBe('todo')
+      db.addTodoTag(todo.id, 'urgent')
+
+      const tags = db.getTodoTags(todo.id)
+      expect(tags).toHaveLength(1)
+      expect(tags[0].name).toBe('urgent')
     })
 
-    it('should create todo with explicit todo type', () => {
-      const todo = db.createTodo('Task', null, 'todo')
-      expect(todo.type).toBe('todo')
+    it('should list all tags', () => {
+      const todo = db.createTodo('Task')
+      db.addTodoTag(todo.id, 'urgent')
+      db.addTodoTag(todo.id, 'home')
+
+      const all = db.getAllTags()
+      expect(all.map(t => t.name).sort()).toEqual(['home', 'urgent'])
     })
 
-    it('should create note type', () => {
-      const note = db.createTodo('Note title', null, 'note')
-      expect(note.type).toBe('note')
+    it('should reuse an existing tag rather than duplicating it', () => {
+      const todo1 = db.createTodo('Task 1')
+      const todo2 = db.createTodo('Task 2')
+      db.addTodoTag(todo1.id, 'shared')
+      db.addTodoTag(todo2.id, 'shared')
+
+      expect(db.getAllTags().filter(t => t.name === 'shared')).toHaveLength(1)
     })
 
-    it('should filter by type', () => {
-      db.createTodo('Task 1', null, 'todo')
-      db.createTodo('Task 2', null, 'todo')
-      db.createTodo('Note 1', null, 'note')
+    it('should remove a tag from a todo and clean up the orphan', () => {
+      const todo = db.createTodo('Task')
+      const tag = db.addTodoTag(todo.id, 'urgent')
 
-      const todos = db.getTodosByType('todo')
-      const notes = db.getTodosByType('note')
+      db.removeTodoTag(todo.id, tag.id)
 
-      expect(todos).toHaveLength(2)
-      expect(notes).toHaveLength(1)
-      expect(todos[0].type).toBe('todo')
-      expect(notes[0].type).toBe('note')
+      expect(db.getTodoTags(todo.id)).toHaveLength(0)
+      // Tag was orphaned, so it is removed entirely.
+      expect(db.getAllTags()).toHaveLength(0)
+    })
+
+    it('should add and remove a project tag', () => {
+      const project = db.createProject('Work')
+      const tag = db.addProjectTag(project.id, 'priority')
+
+      expect(db.getProjectTags(project.id)).toHaveLength(1)
+
+      db.removeProjectTag(project.id, tag.id)
+      expect(db.getProjectTags(project.id)).toHaveLength(0)
+    })
+
+    it('should search by tag returning todos and projects', () => {
+      const project = db.createProject('Work')
+      const todo = db.createTodo('Task')
+      db.addProjectTag(project.id, 'q1')
+      db.addTodoTag(todo.id, 'q1')
+
+      const result = db.searchByTag('q1')
+      expect(result.todos).toHaveLength(1)
+      expect(result.projects).toHaveLength(1)
+    })
+
+    it('should return empty results when searching an unknown tag', () => {
+      const result = db.searchByTag('nope')
+      expect(result.todos).toHaveLength(0)
+      expect(result.projects).toHaveLength(0)
     })
   })
 
   describe('Global Search', () => {
     beforeEach(() => {
-      // Set up test data
       db.createProject('Work Project', '#e74c3c')
       db.createProject('Personal Project', '#3498db')
       db.createTodo('Buy groceries')
       db.createTodo('Review code changes')
       const todoWithNotes = db.createTodo('Meeting prep')
       db.updateTodo({ ...todoWithNotes, notes: 'Discuss quarterly review' })
-      db.createPerson({ name: 'John Doe', email: 'john@example.com', company: 'Acme Corp' })
-      db.createPerson({ name: 'Jane Smith', email: 'jane@work.com', company: 'Tech Inc' })
     })
 
-    it('should search across todos by title', () => {
+    it('should search todos by title', () => {
       const results = db.globalSearch('Buy')
-
       expect(results.todos).toHaveLength(1)
       expect(results.todos[0].title).toBe('Buy groceries')
     })
 
     it('should search todos by notes content', () => {
       const results = db.globalSearch('quarterly')
-
       expect(results.todos).toHaveLength(1)
       expect(results.todos[0].title).toBe('Meeting prep')
     })
 
-    it('should search across persons by name', () => {
-      const results = db.globalSearch('John')
-
-      expect(results.persons).toHaveLength(1)
-      expect(results.persons[0].name).toBe('John Doe')
-    })
-
-    it('should search across persons by company', () => {
-      const results = db.globalSearch('Acme')
-
-      expect(results.persons).toHaveLength(1)
-      expect(results.persons[0].company).toBe('Acme Corp')
-    })
-
-    it('should search across projects by name', () => {
+    it('should search projects by name', () => {
       const results = db.globalSearch('Work')
-
       expect(results.projects).toHaveLength(1)
       expect(results.projects[0].name).toBe('Work Project')
     })
 
-    it('should return grouped results', () => {
+    it('should find tags via global search', () => {
+      const todo = db.createTodo('Tagged task')
+      db.addTodoTag(todo.id, 'globaltag')
+
+      const results = db.globalSearch('globaltag')
+      expect(results.tags.map(t => t.name)).toContain('globaltag')
+      // The tagged todo is also matched via its tag.
+      expect(results.todos.map(t => t.id)).toContain(todo.id)
+    })
+
+    it('should return the { todos, projects, tags } shape', () => {
       const results = db.globalSearch('code')
 
       expect(results).toHaveProperty('todos')
-      expect(results).toHaveProperty('persons')
       expect(results).toHaveProperty('projects')
+      expect(results).toHaveProperty('tags')
       expect(Array.isArray(results.todos)).toBe(true)
-      expect(Array.isArray(results.persons)).toBe(true)
       expect(Array.isArray(results.projects)).toBe(true)
+      expect(Array.isArray(results.tags)).toBe(true)
     })
 
     it('should return empty results for no matches', () => {
       const results = db.globalSearch('xyz123nonexistent')
-
       expect(results.todos).toHaveLength(0)
-      expect(results.persons).toHaveLength(0)
       expect(results.projects).toHaveLength(0)
+      expect(results.tags).toHaveLength(0)
     })
 
-    it('should respect limit parameter', () => {
-      // Create more todos
+    it('should not return soft-deleted todos in global search', () => {
+      const todo = db.createTodo('SearchMeUnique')
+      expect(db.globalSearch('SearchMeUnique').todos).toHaveLength(1)
+      db.deleteTodo(todo.id)
+      expect(db.globalSearch('SearchMeUnique').todos).toHaveLength(0)
+    })
+
+    it('should respect the limit parameter', () => {
       for (let i = 0; i < 25; i++) {
         db.createTodo(`Test item ${i}`)
       }
 
       const results = db.globalSearch('Test', 5)
-
       expect(results.todos.length).toBeLessThanOrEqual(5)
     })
   })
