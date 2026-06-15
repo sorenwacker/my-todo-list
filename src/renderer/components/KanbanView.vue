@@ -467,8 +467,6 @@ export default {
 
       const todoId = event.item?.__draggable_context?.element?.id
 
-      console.log('onKanbanDropProject:', { todoId, targetProjectId, parsedProjectId })
-
       if (todoId && parsedProjectId !== undefined) {
         this.$emit('kanban-project-change', todoId, parsedProjectId)
       }

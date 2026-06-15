@@ -5,7 +5,6 @@ import { UPDATE_CHECK_INITIAL_DELAY, UPDATE_CHECK_INTERVAL } from '../config/con
 
 const log = logger.child({ module: 'updater' })
 
-let updateDownloaded = false
 let mainWindow = null
 
 export function initAutoUpdater(win) {
@@ -58,7 +57,6 @@ export function initAutoUpdater(win) {
 
   autoUpdater.on('update-downloaded', (info) => {
     log.info('Update downloaded', { version: info.version })
-    updateDownloaded = true
     sendStatusToWindow('downloaded', info)
 
     // Show notification to user
@@ -90,18 +88,8 @@ export function checkForUpdates() {
   }
 }
 
-export function quitAndInstall() {
-  if (updateDownloaded) {
-    autoUpdater.quitAndInstall(false, true)
-  }
-}
-
 function sendStatusToWindow(status, data = {}) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-status', { status, ...data })
   }
-}
-
-export function isUpdateDownloaded() {
-  return updateDownloaded
 }

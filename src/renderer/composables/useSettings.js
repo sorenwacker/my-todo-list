@@ -108,20 +108,4 @@ export function useSettings() {
   }
 }
 
-/**
- * Get current markdown mode.
- * @returns {string} 'markdown' or 'plain'
- */
-export function getMarkdownMode() {
-  return state.markdown_mode
-}
-
-/**
- * Check if markdown mode is enabled.
- * @returns {boolean} True if markdown mode is enabled
- */
-export function isMarkdownEnabled() {
-  return state.markdown_mode === 'markdown'
-}
-
 export default useSettings

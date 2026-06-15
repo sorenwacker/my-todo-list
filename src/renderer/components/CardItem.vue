@@ -179,7 +179,6 @@ export default {
       if (this.selectedTodoIds.has(this.todo.id) && this.selectedTodoIds.size > 1) {
         idsToTransfer = [...this.selectedTodoIds]
       }
-      console.log('CardItem dragstart:', idsToTransfer)
       event.dataTransfer.setData('text/plain', JSON.stringify(idsToTransfer))
       event.dataTransfer.effectAllowed = 'move'
       this.$emit('dragstart', event)
