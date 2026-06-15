@@ -96,8 +96,9 @@ contextBridge.exposeInMainWorld('api', {
   // Update operations
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   onUpdateStatus: (callback) => {
-    ipcRenderer.on('update-status', (_, data) => callback(data))
-    return () => ipcRenderer.removeListener('update-status', callback)
+    const handler = (_, data) => callback(data)
+    ipcRenderer.on('update-status', handler)
+    return () => ipcRenderer.removeListener('update-status', handler)
   },
 
   // Undo/Redo operations
@@ -105,7 +106,8 @@ contextBridge.exposeInMainWorld('api', {
   redo: () => ipcRenderer.invoke('redo'),
   getHistoryState: () => ipcRenderer.invoke('get-history-state'),
   onHistoryChanged: (callback) => {
-    ipcRenderer.on('history-changed', (_, state) => callback(state))
-    return () => ipcRenderer.removeListener('history-changed', callback)
+    const handler = (_, state) => callback(state)
+    ipcRenderer.on('history-changed', handler)
+    return () => ipcRenderer.removeListener('history-changed', handler)
   }
 })
