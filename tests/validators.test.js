@@ -13,7 +13,6 @@ import {
   validateBoolean,
   validateTodo,
   validateProject,
-  validatePerson,
   validateSearchQuery,
   validateImportMode,
   validateUrl,
@@ -227,23 +226,6 @@ describe('Validators', () => {
     it('should reject invalid project', () => {
       expect(() => validateProject(null)).toThrow(ValidationError)
       expect(() => validateProject({ id: 1 })).toThrow(ValidationError)
-    })
-  })
-
-  describe('validatePerson', () => {
-    it('should validate person without id (create)', () => {
-      const person = { name: 'John Doe', email: 'john@example.com' }
-      const result = validatePerson(person)
-      expect(result.name).toBe('John Doe')
-      expect(result.email).toBe('john@example.com')
-      expect(result.id).toBeUndefined()
-    })
-
-    it('should validate person with id (update)', () => {
-      const person = { id: 1, name: 'John Doe' }
-      const result = validatePerson(person)
-      expect(result.id).toBe(1)
-      expect(result.name).toBe('John Doe')
     })
   })
 

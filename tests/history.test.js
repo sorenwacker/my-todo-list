@@ -3,71 +3,7 @@ import BetterSqlite3 from 'better-sqlite3'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { unlinkSync, existsSync } from 'fs'
-
-// ActionHistory class (copied from src/main/history.js without logger dependency)
-class ActionHistory {
-  constructor(maxSize = 50) {
-    this.undoStack = []
-    this.redoStack = []
-    this.maxSize = maxSize
-  }
-
-  push(action) {
-    if (!action.undo || !action.redo) {
-      return
-    }
-    this.undoStack.push(action)
-    this.redoStack = []
-    if (this.undoStack.length > this.maxSize) {
-      this.undoStack.shift()
-    }
-  }
-
-  async undo() {
-    if (this.undoStack.length === 0) {
-      return null
-    }
-    const action = this.undoStack.pop()
-    try {
-      await action.undo()
-      this.redoStack.push(action)
-      return action
-    } catch (error) {
-      this.undoStack.push(action)
-      throw error
-    }
-  }
-
-  async redo() {
-    if (this.redoStack.length === 0) {
-      return null
-    }
-    const action = this.redoStack.pop()
-    try {
-      await action.redo()
-      this.undoStack.push(action)
-      return action
-    } catch (error) {
-      this.redoStack.push(action)
-      throw error
-    }
-  }
-
-  canUndo() { return this.undoStack.length > 0 }
-  canRedo() { return this.redoStack.length > 0 }
-  clear() {
-    this.undoStack = []
-    this.redoStack = []
-  }
-  getState() {
-    return {
-      canUndo: this.canUndo(),
-      canRedo: this.canRedo(),
-      undoCount: this.undoStack.length,
-      redoCount: this.redoStack.length
-    }
-  }
-}
+import { ActionHistory } from '../src/main/history.js'
 
 // Test database with soft delete support
 class TestDatabase {
@@ -300,6 +236,8 @@ describe('ActionHistory', () => {
       expect(history.getState()).toEqual({
         canUndo: true,
         canRedo: false,
+        undoDescription: undefined,
+        redoDescription: null,
         undoCount: 3,
         redoCount: 0
       })

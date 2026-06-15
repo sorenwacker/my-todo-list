@@ -118,4 +118,5 @@ class ActionHistory {
 // Singleton instance
 const history = new ActionHistory()
 
+export { ActionHistory }
 export default history
