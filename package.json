@@ -13,6 +13,7 @@
     "rebuild:node": "npm rebuild better-sqlite3",
     "predev": "npm run rebuild:electron",
     "dev": "electron-vite dev",
+    "prebuild": "npm run rebuild:electron",
     "build": "electron-vite build",
     "prepreview": "npm run rebuild:electron",
     "preview": "electron-vite preview",
@@ -66,6 +67,7 @@
   "build": {
     "appId": "com.todo.app",
     "productName": "Todo",
+    "npmRebuild": false,
     "directories": {
       "output": "dist"
     },
