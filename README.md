@@ -47,37 +47,41 @@ cd todo
 # Install dependencies
 npm install
 
-# Rebuild native modules for Electron
-npm run rebuild
+# Rebuild the native better-sqlite3 module for Electron
+npm run rebuild:electron
 ```
 
 ## Development
 
 ```bash
-# Start development server
+# Start development server (rebuilds better-sqlite3 for Electron first)
 npm run dev
 
-# Run tests
+# Run tests (rebuilds better-sqlite3 for Node first)
 npm test
 
 # Run tests in watch mode
 npm run test:watch
 ```
 
+better-sqlite3 is a native module whose binary must match the runtime ABI:
+Electron for the app, Node for the test runner. The `dev`/`preview` and `test`
+scripts rebuild it for the correct target automatically via their `pre*` hooks,
+so switching between running the app and running tests needs no manual step.
+
 ## Building
 
 ```bash
-# Build for production
+# Build the renderer/main bundles
 npm run build
 
-# Build for Windows
-npm run build:win
+# Package a distributable for the current platform
+npm run dist
 
-# Build for macOS
-npm run build:mac
-
-# Build for both platforms
-npm run build:all
+# Package for a specific platform
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
 ```
 
 Built applications will be output to the `dist/` directory.
