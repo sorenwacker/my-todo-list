@@ -197,13 +197,12 @@ export class Database {
       }
     }
 
-    // Migration: fix importance default - update any default 3 values to NULL
-    try {
-      this.db.exec('UPDATE todos SET importance = NULL WHERE importance = 3 AND title NOT LIKE \'%importance%\'')
-    } catch (error) {
-      log.warn('Migration warning', { migration: 'UPDATE importance defaults', error: error.message })
-    }
-
+    // Note: a previous migration nulled importance = 3 on every startup to undo
+    // an old default. importance = 3 is now a valid user value ("Medium"), and
+    // the historical default is no longer distinguishable from a user-set value,
+    // so that migration was removed to stop destroying legitimate data. The
+    // column default is NULL (see ADD COLUMN importance above), so new todos are
+    // unaffected.
 
     // Migration: add notes_sensitive flag for todos
     try {
@@ -467,11 +466,19 @@ export class Database {
       completedAt = null
     }
 
+    // Preserve parent_id / milestone_date when the caller omits them, so a
+    // generic update does not clear a todo's milestone assignment.
+    const parentId = todo.parent_id !== undefined ? todo.parent_id : (existingTodo?.parent_id ?? null)
+    const milestoneDate =
+      todo.milestone_date !== undefined
+        ? (todo.milestone_date && todo.milestone_date.trim() !== '' ? todo.milestone_date : null)
+        : (existingTodo?.milestone_date ?? null)
+
     this.db.prepare(`
       UPDATE todos
-      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, completed_at = ?, project_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, topic_id = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, notes = ?, end_date = ?, start_date = ?, completed = ?, completed_at = ?, project_id = ?, status_id = ?, importance = ?, recurrence_type = ?, recurrence_interval = ?, recurrence_end_date = ?, notes_sensitive = ?, type = ?, topic_id = ?, parent_id = ?, milestone_date = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, completedAt, todo.project_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, topicId, todo.id)
+    `).run(todo.title, todo.notes || '', endDate, startDate, todo.completed ? 1 : 0, completedAt, todo.project_id || null, todo.status_id || null, importance, recurrenceType, recurrenceInterval, recurrenceEndDate, notesSensitive, type, topicId, parentId, milestoneDate, todo.id)
 
     return this.getTodo(todo.id)
   }
@@ -526,8 +533,8 @@ export class Database {
     const sortOrder = (maxOrder.max || 0) + 1
 
     const result = this.db.prepare(`
-      INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, status_id, recurrence_type, recurrence_interval, recurrence_end_date)
-      VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, status_id, recurrence_type, recurrence_interval, recurrence_end_date, type, topic_id, notes_sensitive, parent_id, milestone_date)
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       todo.title,
       todo.notes || '',
@@ -539,7 +546,12 @@ export class Database {
       todo.status_id,
       todo.recurrence_type,
       todo.recurrence_interval,
-      todo.recurrence_end_date
+      todo.recurrence_end_date,
+      todo.type || 'todo',
+      todo.topic_id ?? null,
+      todo.notes_sensitive ? 1 : 0,
+      todo.parent_id ?? null,
+      todo.milestone_date ?? null
     )
 
     return this.getTodo(result.lastInsertRowid)
