@@ -9,46 +9,56 @@
     @dragstart="onDragStart"
     @contextmenu.prevent="showContextMenu($event)"
   >
-    <!-- Context Menu -->
-    <div v-if="contextMenuVisible" class="card-context-menu" :style="contextMenuStyle" @click.stop>
-      <div class="context-menu-item" @click="archiveFromMenu">Archive</div>
-      <div class="context-menu-divider"></div>
-      <div class="context-menu-label">Due date:</div>
-      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(0))">Today</div>
-      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(1))">Tomorrow</div>
-      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(7))">Next week</div>
-      <label class="context-menu-item context-menu-date">
-        <span>Pick date</span>
-        <input
-          type="date"
-          :value="dueDateValue"
-          @click.stop
-          @change="setDueDateFromMenu($event.target.value)"
-        />
-      </label>
-      <div v-if="todo.end_date" class="context-menu-item" @click="setDueDateFromMenu(null)">
-        Clear due date
-      </div>
-      <div class="context-menu-divider"></div>
-      <div class="context-menu-label">Move to:</div>
+    <!-- Context Menu (teleported to .app so list/grid overflow cannot clip it
+         while still inheriting the app's theme variables) -->
+    <Teleport to=".app">
       <div
-        v-for="project in projects"
-        :key="project.id"
-        class="context-menu-item"
-        :class="{ active: todo.project_id === project.id }"
-        @click="moveToProjectFromMenu(project.id)"
+        v-if="contextMenuVisible"
+        ref="contextMenu"
+        class="card-context-menu"
+        :style="contextMenuStyle"
+        @click.stop
       >
-        <span class="project-dot" :style="{ background: project.color }"></span>
-        {{ project.name }}
+        <div class="context-menu-item" @click="archiveFromMenu">Archive</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-label">Due date:</div>
+        <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(0))">Today</div>
+        <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(1))">Tomorrow</div>
+        <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(7))">Next week</div>
+        <div class="context-menu-item context-menu-date" @click.stop="openDatePicker">
+          <span>Pick a date…</span>
+          <input
+            ref="dateInput"
+            type="date"
+            :value="dueDateValue"
+            @click.stop
+            @change="setDueDateFromMenu($event.target.value)"
+          />
+        </div>
+        <div v-if="todo.end_date" class="context-menu-item" @click="setDueDateFromMenu(null)">
+          Clear due date
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-label">Move to:</div>
+        <div
+          v-for="project in projects"
+          :key="project.id"
+          class="context-menu-item"
+          :class="{ active: todo.project_id === project.id }"
+          @click="moveToProjectFromMenu(project.id)"
+        >
+          <span class="project-dot" :style="{ background: project.color }"></span>
+          {{ project.name }}
+        </div>
+        <div
+          class="context-menu-item"
+          :class="{ active: !todo.project_id }"
+          @click="moveToProjectFromMenu(null)"
+        >
+          Inbox
+        </div>
       </div>
-      <div
-        class="context-menu-item"
-        :class="{ active: !todo.project_id }"
-        @click="moveToProjectFromMenu(null)"
-      >
-        Inbox
-      </div>
-    </div>
+    </Teleport>
     <div class="card-header">
       <input
         v-if="!isTrashView"
@@ -116,16 +126,19 @@
         </button>
       </template>
     </div>
-    <div v-if="todo.project_name && showProject" class="card-meta">
+    <div v-if="(todo.project_name && showProject) || todo.end_date" class="card-meta">
       <span
+        v-if="todo.project_name && showProject"
         class="card-project"
         :style="{ background: todo.project_color + '33', color: todo.project_color }"
       >
         {{ todo.project_name }}
       </span>
-    </div>
-    <div v-if="todo.end_date" class="card-footer">
-      <span class="card-deadline" :class="{ overdue: isOverdue(todo.end_date) }">
+      <span
+        v-if="todo.end_date"
+        class="card-deadline"
+        :class="{ overdue: isOverdue(todo.end_date) }"
+      >
         Due: {{ formatDeadline(todo.end_date) }}
       </span>
     </div>
@@ -246,6 +259,13 @@
         return this.todo.end_date ? this.todo.end_date.split('T')[0] : ''
       }
     },
+    mounted() {
+      // Close this card's menu when any other card opens its own menu.
+      document.addEventListener('close-card-menus', this.hideContextMenu)
+    },
+    beforeUnmount() {
+      document.removeEventListener('close-card-menus', this.hideContextMenu)
+    },
     methods: {
       onDragStart(event) {
         // If this card is part of multi-selection, drag all selected items
@@ -332,16 +352,37 @@
         this.$emit('click', event)
       },
       showContextMenu(event) {
-        const rect = event.currentTarget.getBoundingClientRect()
+        // Close any other open card menu so only one is visible at a time.
+        document.dispatchEvent(new CustomEvent('close-card-menus'))
+        // Fixed (viewport) coordinates: the menu is teleported to <body>.
         this.contextMenuStyle = {
-          top: event.clientY - rect.top + 'px',
-          left: event.clientX - rect.left + 'px'
+          position: 'fixed',
+          top: event.clientY + 'px',
+          left: event.clientX + 'px'
         }
         this.contextMenuVisible = true
-        // Close on click outside
+        this.$nextTick(() => this.clampContextMenu(event.clientX, event.clientY))
+        // Close on click outside or on scroll.
         setTimeout(() => {
           document.addEventListener('click', this.hideContextMenu, { once: true })
+          window.addEventListener('scroll', this.hideContextMenu, { once: true, capture: true })
         }, 0)
+      },
+      clampContextMenu(x, y) {
+        const menu = this.$refs.contextMenu
+        if (!menu) return
+        const rect = menu.getBoundingClientRect()
+        const pad = 8
+        let left = x
+        let top = y
+        if (left + rect.width + pad > window.innerWidth) left = window.innerWidth - rect.width - pad
+        if (top + rect.height + pad > window.innerHeight)
+          top = window.innerHeight - rect.height - pad
+        this.contextMenuStyle = {
+          position: 'fixed',
+          top: Math.max(pad, top) + 'px',
+          left: Math.max(pad, left) + 'px'
+        }
       },
       hideContextMenu() {
         this.contextMenuVisible = false
@@ -356,6 +397,16 @@
       },
       dueDatePreset(offsetDays) {
         return presetDueDate(offsetDays)
+      },
+      openDatePicker() {
+        const input = this.$refs.dateInput
+        if (!input) return
+        // showPicker() opens the native calendar directly; fall back to focusing.
+        if (typeof input.showPicker === 'function') {
+          input.showPicker()
+        } else {
+          input.focus()
+        }
       },
       setDueDateFromMenu(date) {
         this.$emit('set-due-date', date || null)

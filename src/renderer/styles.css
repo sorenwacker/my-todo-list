@@ -2711,15 +2711,6 @@ body {
   gap: 4px;
 }
 
-.todo-card .card-footer {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  line-height: 1;
-}
-
 .todo-card .card-tags {
   display: flex;
   flex-wrap: wrap;
@@ -3265,14 +3256,6 @@ body {
   color: #ffc107;
 }
 
-.card-dates {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
 .card-start {
   font-size: 11px;
   color: #ccc;
@@ -3693,6 +3676,16 @@ body {
   min-width: 150px;
   z-index: 1000;
   padding: 4px 0;
+  /* Render native controls (date input icon, calendar popup) to match the menu. */
+  color-scheme: dark;
+}
+
+.light-theme .card-context-menu {
+  color-scheme: light;
+}
+
+.light-theme .card-context-menu .context-menu-item:hover {
+  background: var(--hover-bg, #eef2f7);
 }
 
 .card-context-menu .context-menu-item {
@@ -4082,6 +4075,7 @@ body {
   gap: 8px;
   margin-top: 6px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .card-importance {
