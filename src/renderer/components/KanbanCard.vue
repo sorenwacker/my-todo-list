@@ -5,7 +5,27 @@
     :style="{ borderLeftColor: borderColor }"
     :data-todo-id="todo.id"
     @click="handleClick"
+    @contextmenu.prevent="showContextMenu($event)"
   >
+    <!-- Context Menu -->
+    <div v-if="contextMenuVisible" class="card-context-menu" :style="contextMenuStyle" @click.stop>
+      <div class="context-menu-label">Due date:</div>
+      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(0))">Today</div>
+      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(1))">Tomorrow</div>
+      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(7))">Next week</div>
+      <label class="context-menu-item context-menu-date">
+        <span>Pick date</span>
+        <input
+          type="date"
+          :value="dueDateValue"
+          @click.stop
+          @change="setDueDateFromMenu($event.target.value)"
+        />
+      </label>
+      <div v-if="todo.end_date" class="context-menu-item" @click="setDueDateFromMenu(null)">
+        Clear due date
+      </div>
+    </div>
     <div class="card-header">
       <input type="checkbox" :checked="todo.completed" @click.stop="$emit('toggle-complete')" />
       <input
@@ -71,6 +91,7 @@
 
 <script>
   import { renderCardMarkdown } from '../utils/markdown.js'
+  import { presetDueDate } from '../utils/dueDates.js'
   import NotesEditor from './NotesEditor.vue'
   import { Archive, Trash2 } from 'lucide-vue-next'
 
@@ -99,20 +120,33 @@
         default: false
       }
     },
-    emits: ['select', 'toggle-complete', 'delete', 'update-title', 'update-notes', 'archive'],
+    emits: [
+      'select',
+      'toggle-complete',
+      'delete',
+      'update-title',
+      'update-notes',
+      'archive',
+      'set-due-date'
+    ],
     data() {
       return {
         isEditing: false,
         editingTitle: '',
         isCollapsed: true,
         isEditingNotes: false,
-        editingNotes: ''
+        editingNotes: '',
+        contextMenuVisible: false,
+        contextMenuStyle: { top: '0px', left: '0px' }
       }
     },
     computed: {
       subtaskProgress() {
         if (!this.todo.subtask_count) return 0
         return Math.round((this.todo.subtask_completed / this.todo.subtask_count) * 100)
+      },
+      dueDateValue() {
+        return this.todo.end_date ? this.todo.end_date.split('T')[0] : ''
       }
     },
     methods: {
@@ -183,6 +217,27 @@
           }
           this.isEditingNotes = false
         }
+      },
+      showContextMenu(event) {
+        const rect = event.currentTarget.getBoundingClientRect()
+        this.contextMenuStyle = {
+          top: event.clientY - rect.top + 'px',
+          left: event.clientX - rect.left + 'px'
+        }
+        this.contextMenuVisible = true
+        setTimeout(() => {
+          document.addEventListener('click', this.hideContextMenu, { once: true })
+        }, 0)
+      },
+      hideContextMenu() {
+        this.contextMenuVisible = false
+      },
+      dueDatePreset(offsetDays) {
+        return presetDueDate(offsetDays)
+      },
+      setDueDateFromMenu(date) {
+        this.$emit('set-due-date', date || null)
+        this.hideContextMenu()
       }
     }
   }

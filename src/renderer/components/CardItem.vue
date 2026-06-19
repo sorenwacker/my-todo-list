@@ -13,6 +13,23 @@
     <div v-if="contextMenuVisible" class="card-context-menu" :style="contextMenuStyle" @click.stop>
       <div class="context-menu-item" @click="archiveFromMenu">Archive</div>
       <div class="context-menu-divider"></div>
+      <div class="context-menu-label">Due date:</div>
+      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(0))">Today</div>
+      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(1))">Tomorrow</div>
+      <div class="context-menu-item" @click="setDueDateFromMenu(dueDatePreset(7))">Next week</div>
+      <label class="context-menu-item context-menu-date">
+        <span>Pick date</span>
+        <input
+          type="date"
+          :value="dueDateValue"
+          @click.stop
+          @change="setDueDateFromMenu($event.target.value)"
+        />
+      </label>
+      <div v-if="todo.end_date" class="context-menu-item" @click="setDueDateFromMenu(null)">
+        Clear due date
+      </div>
+      <div class="context-menu-divider"></div>
       <div class="context-menu-label">Move to:</div>
       <div
         v-for="project in projects"
@@ -145,6 +162,7 @@
 
 <script>
   import { renderCardMarkdown } from '../utils/markdown.js'
+  import { presetDueDate } from '../utils/dueDates.js'
   import NotesEditor from './NotesEditor.vue'
   import { Archive, Trash2, RotateCcw } from 'lucide-vue-next'
 
@@ -209,7 +227,8 @@
       'update-title',
       'update-notes',
       'archive',
-      'move-to-project'
+      'move-to-project',
+      'set-due-date'
     ],
     data() {
       return {
@@ -222,7 +241,11 @@
         contextMenuStyle: { top: '0px', left: '0px' }
       }
     },
-    computed: {},
+    computed: {
+      dueDateValue() {
+        return this.todo.end_date ? this.todo.end_date.split('T')[0] : ''
+      }
+    },
     methods: {
       onDragStart(event) {
         // If this card is part of multi-selection, drag all selected items
@@ -329,6 +352,13 @@
       },
       moveToProjectFromMenu(projectId) {
         this.$emit('move-to-project', projectId)
+        this.hideContextMenu()
+      },
+      dueDatePreset(offsetDays) {
+        return presetDueDate(offsetDays)
+      },
+      setDueDateFromMenu(date) {
+        this.$emit('set-due-date', date || null)
         this.hideContextMenu()
       }
     }

@@ -48,6 +48,7 @@
                     @update-title="$emit('update-title', element, $event)"
                     @update-notes="$emit('update-notes', element, $event)"
                     @archive="$emit('archive-todo', element.id)"
+                    @set-due-date="$emit('set-due-date', element, $event)"
                   />
                 </template>
               </draggable>
@@ -77,6 +78,7 @@
                     @update-title="$emit('update-title', element, $event)"
                     @update-notes="$emit('update-notes', element, $event)"
                     @archive="$emit('archive-todo', element.id)"
+                    @set-due-date="$emit('set-due-date', element, $event)"
                   />
                 </template>
               </draggable>
@@ -117,6 +119,7 @@
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -158,6 +161,7 @@
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -197,6 +201,7 @@
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -238,6 +243,7 @@
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -277,6 +283,7 @@
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -316,6 +323,7 @@
                 @update-title="$emit('update-title', element, $event)"
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -491,7 +499,8 @@
       'stacked-kanban-drop',
       'update-title',
       'update-notes',
-      'archive-todo'
+      'archive-todo',
+      'set-due-date'
     ],
     data() {
       return {

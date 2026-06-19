@@ -305,6 +305,13 @@
                 <input v-model="showCompleted" type="checkbox" />
                 <span>Show done</span>
               </label>
+              <label
+                v-if="currentView === 'kanban' && currentFilter === null"
+                class="show-completed-toggle"
+              >
+                <input v-model="groupByProject" type="checkbox" />
+                <span>Group by project</span>
+              </label>
             </div>
             <div class="view-switcher">
               <button
@@ -375,6 +382,7 @@
                 @update-notes="handleUpdateNotes(todo, $event)"
                 @archive="archiveTodo(todo.id)"
                 @move-to-project="moveToProject(todo, $event)"
+                @set-due-date="setDueDate(todo, $event)"
                 @dragstart="onInboxDragStart($event, todo)"
               />
             </div>
@@ -422,6 +430,7 @@
                 @update-notes="handleUpdateNotes"
                 @archive-todo="archiveTodo"
                 @move-to-project="moveToProject"
+                @set-due-date="setDueDate"
               />
 
               <!-- Kanban View -->
@@ -430,6 +439,10 @@
                 key="kanban"
                 kanban-group-by="status"
                 effective-kanban-group-by="status"
+                :group-by-project="groupByProject && currentFilter === null"
+                :is-project-selected="isProjectSelected"
+                :grouped-todos="groupedTodos"
+                :projects="projects"
                 :statuses="statuses"
                 :no-status-todos="noStatusTodos"
                 :selected-todo-id="null"
@@ -441,9 +454,11 @@
                 @add-todo-to-status="addTodoToStatus"
                 @update-status-todos="updateStatusTodos"
                 @kanban-drop-status="onKanbanDropStatus"
+                @stacked-kanban-drop="onStackedKanbanDrop"
                 @update-title="handleUpdateTitle"
                 @update-notes="handleUpdateNotes"
                 @archive-todo="archiveTodo"
+                @set-due-date="setDueDate"
               />
 
               <div
@@ -1529,7 +1544,8 @@
         const todo = this.allTodos.find((t) => t.id === todoId)
         if (todo) {
           const todoData = this.toPlainTodo(todo)
-          // Update status based on where it was dropped
+          // Update project and status based on the section/column it was dropped into.
+          todoData.project_id = projectId === 'inbox' ? null : projectId
           todoData.status_id = statusId
           await window.api.updateTodo(todoData)
           await this.loadAllTodos()
@@ -1711,6 +1727,10 @@
       },
       async moveToProject(todo, projectId) {
         await this.todosComposable.moveToProject(todo, projectId)
+        this.projectsComposable.setAllTodos(this.allTodos)
+      },
+      async setDueDate(todo, date) {
+        await this.todosComposable.setDueDate(todo, date)
         this.projectsComposable.setAllTodos(this.allTodos)
       },
       async restoreTodo(id) {

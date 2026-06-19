@@ -318,21 +318,6 @@ export class Database {
       }
     }
 
-    // Migration: add due_date column to todos
-    try {
-      this.db.exec('ALTER TABLE todos ADD COLUMN due_date TEXT')
-    } catch (error) {
-      if (
-        !error.message.includes('duplicate column') &&
-        !error.message.includes('already exists')
-      ) {
-        log.warn('Migration warning', {
-          migration: 'ADD COLUMN due_date to todos',
-          error: error.message
-        })
-      }
-    }
-
     // Migration: add completed_at column to todos
     try {
       this.db.exec('ALTER TABLE todos ADD COLUMN completed_at TEXT')

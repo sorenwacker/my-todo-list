@@ -206,6 +206,20 @@ async function moveToProject(todo, projectId) {
 }
 
 /**
+ * Set a todo's due date.
+ * The due date is stored in the `end_date` field; pass null to clear it.
+ * @param {Object} todo - The todo to update
+ * @param {string|null} date - Due date as `YYYY-MM-DD`, or null to clear
+ */
+async function setDueDate(todo, date) {
+  const todoData = toPlainTodo(todo)
+  todoData.end_date = date || null
+  await window.api.updateTodo(todoData)
+  await loadAllTodos()
+  await loadTodos(state._currentFilter)
+}
+
+/**
  * Set internal filter state for computed properties.
  * @param {number|string|null} filter - Filter value
  */
@@ -315,6 +329,7 @@ export function useTodos() {
     handleUpdateTitle,
     handleUpdateNotes,
     moveToProject,
+    setDueDate,
     setCurrentFilter,
     setSearchQuery,
     setShowCompleted,

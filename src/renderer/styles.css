@@ -3181,6 +3181,7 @@ body {
 }
 
 .kanban-card {
+  position: relative;
   background: #0d0d0d;
   border-radius: 8px;
   padding: 12px;
@@ -3722,6 +3723,19 @@ body {
   font-size: 11px;
   color: var(--text-secondary, #888);
   text-transform: uppercase;
+}
+
+.card-context-menu .context-menu-date {
+  justify-content: space-between;
+}
+
+.card-context-menu .context-menu-date input[type='date'] {
+  background: var(--bg-primary, #11151f);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 4px;
+  color: var(--text-primary, #ccc);
+  font-size: 12px;
+  padding: 2px 4px;
 }
 
 .card-context-menu .project-dot {

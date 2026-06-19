@@ -291,9 +291,7 @@
       },
       getTodosForDate(dateKey) {
         return this.todos.filter((t) => {
-          // Check due_date first
-          if (t.due_date && t.due_date === dateKey) return true
-          // Check start_date/end_date range
+          // Place items on their start_date/end_date range; end_date is the due date.
           if (!t.start_date && !t.end_date) return false
           const start = t.start_date || t.end_date
           const end = t.end_date || t.start_date

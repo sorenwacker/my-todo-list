@@ -53,6 +53,7 @@
                 @update-notes="$emit('update-notes', element, $event)"
                 @archive="$emit('archive-todo', element.id)"
                 @move-to-project="$emit('move-to-project', element, $event)"
+                @set-due-date="$emit('set-due-date', element, $event)"
               />
             </template>
           </draggable>
@@ -92,6 +93,7 @@
             @update-notes="$emit('update-notes', element, $event)"
             @archive="$emit('archive-todo', element.id)"
             @move-to-project="$emit('move-to-project', element, $event)"
+            @set-due-date="$emit('set-due-date', element, $event)"
           />
         </template>
       </draggable>
@@ -183,7 +185,8 @@
       'update-title',
       'update-notes',
       'archive-todo',
-      'move-to-project'
+      'move-to-project',
+      'set-due-date'
     ],
     data() {
       return {
