@@ -159,10 +159,20 @@ export function renderMarkdown(markdown) {
 }
 
 /**
- * Render markdown for card previews. Currently identical to renderMarkdown;
- * card-specific clamping is handled in CSS, not here.
+ * Render markdown for card previews.
+ *
+ * Card previews show only the first paragraph (the text block up to the first
+ * blank line) so long notes do not expand the card. The full note is shown in
+ * the detail panel, which uses {@link renderMarkdown} directly.
+ *
+ * @param {string} markdown - The markdown string to render.
+ * @returns {string} Sanitized HTML for the first paragraph.
  */
-export const renderCardMarkdown = renderMarkdown
+export function renderCardMarkdown(markdown) {
+  if (!markdown) return ''
+  const firstParagraph = markdown.split(/\n\s*\n/)[0]
+  return renderMarkdown(firstParagraph)
+}
 
 /**
  * Render inline markdown (no paragraph wrapper) for titles
