@@ -438,17 +438,14 @@
               <KanbanView
                 v-else-if="currentView === 'kanban'"
                 key="kanban"
-                kanban-group-by="status"
-                effective-kanban-group-by="status"
                 :group-by-project="groupByProject && currentFilter === null"
                 :is-project-selected="isProjectSelected"
                 :grouped-todos="groupedTodos"
-                :projects="projects"
                 :statuses="statuses"
                 :no-status-todos="noStatusTodos"
                 :selected-todo-id="null"
                 :selected-todo-ids="selectedTodoIds"
-                :all-todos="filteredTodos"
+                :all-todos="sortedKanbanTodos"
                 @card-click="handleCardClick"
                 @toggle-complete="toggleComplete"
                 @delete-todo="deleteTodo"
@@ -676,7 +673,6 @@
           return saved || 'items'
         })(),
         showCompleted: localStorage.getItem('show-completed') === 'true',
-        kanbanGroupBy: 'status',
         newTodoTitle: '',
         // newProjectName: '', // now in projectsComposable
         // newStatusName: '', // now in statusesComposable
@@ -843,13 +839,6 @@
       },
       isProjectSelected() {
         return typeof this.currentFilter === 'number'
-      },
-      effectiveKanbanGroupBy() {
-        // When project is selected, allow category or status (not project)
-        if (this.isProjectSelected && this.kanbanGroupBy === 'project') {
-          return 'category'
-        }
-        return this.kanbanGroupBy
       },
       currentTitle() {
         if (this.currentFilter === null) return 'Items'
@@ -1512,12 +1501,6 @@
       getProjectCount(projectId) {
         return this.allTodos.filter((t) => t.project_id === projectId).length
       },
-      getProjectTodos(projectId) {
-        return this.filteredTodos.filter((t) => t.project_id === projectId)
-      },
-      updateProjectTodos(_projectId, _todos) {
-        // Used by draggable for reactive updates
-      },
       updateStatusTodos(_statusId, _todos) {
         // Used by draggable for reactive updates
       },
@@ -1779,24 +1762,6 @@
       },
       async onStatusDragEnd() {
         await this.statusesComposable.onStatusDragEnd()
-      },
-      async onKanbanProjectChange(todoId, targetProjectId) {
-        if (!todoId) return
-
-        const todo = this.allTodos.find((t) => t.id === todoId)
-        if (todo && todo.project_id !== targetProjectId) {
-          const todoData = this.toPlainTodo(todo)
-          todoData.project_id = targetProjectId
-          await window.api.updateTodo(todoData)
-          await this.loadAllTodos()
-          await this.loadTodos()
-        }
-      },
-      async onKanbanDrop(event) {
-        // Legacy handler - kept for compatibility but project moves now use onKanbanProjectChange
-        const todoId =
-          event.item?.__draggable_context?.element?.id || parseInt(event.item?.dataset?.todoId)
-        if (!todoId) return
       },
       handleCardClick(event, id) {
         // Check if the click was on a link
