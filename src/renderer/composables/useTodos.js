@@ -50,6 +50,34 @@ function toPlainTodo(todo) {
 }
 
 /**
+ * Sort a list of todos by the given criteria.
+ *
+ * 'manual' preserves the existing order (drag/sort_order). 'created' is newest
+ * first, 'alpha' is by title, 'due' is by due date (end_date) ascending with
+ * undated items last.
+ *
+ * @param {Array<Object>} list - The todos to sort (not mutated).
+ * @param {string} sortBy - One of 'manual', 'created', 'alpha', 'due'.
+ * @returns {Array<Object>} A new sorted array.
+ */
+export function sortTodos(list, sortBy) {
+  const sorted = [...list]
+  if (sortBy === 'created') {
+    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  } else if (sortBy === 'alpha') {
+    sorted.sort((a, b) => a.title.localeCompare(b.title))
+  } else if (sortBy === 'due') {
+    sorted.sort((a, b) => {
+      if (!a.end_date && !b.end_date) return 0
+      if (!a.end_date) return 1
+      if (!b.end_date) return -1
+      return a.end_date.localeCompare(b.end_date)
+    })
+  }
+  return sorted
+}
+
+/**
  * Load all todos from database.
  * Used for global operations and counts.
  */
@@ -282,17 +310,7 @@ export function useTodos() {
     return todos
   })
 
-  const sortedTodos = computed(() => {
-    let sorted = [...filteredTodos.value]
-    if (state._sortBy === 'created') {
-      sorted.sort((a, b) => {
-        return new Date(b.created_at) - new Date(a.created_at)
-      })
-    } else if (state._sortBy === 'alpha') {
-      sorted.sort((a, b) => a.title.localeCompare(b.title))
-    }
-    return sorted
-  })
+  const sortedTodos = computed(() => sortTodos(filteredTodos.value, state._sortBy))
 
   const completedCount = computed(() => {
     const todos = state._currentFilter === null ? state.allTodos : state.todos
@@ -336,7 +354,8 @@ export function useTodos() {
     setSortBy,
 
     // Utilities
-    toPlainTodo
+    toPlainTodo,
+    sortTodos
   }
 }
 

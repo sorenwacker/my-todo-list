@@ -299,6 +299,7 @@
               <select v-model="sortBy" class="sort-select">
                 <option value="manual">Manual Order</option>
                 <option value="created">By Created</option>
+                <option value="due">By Due Date</option>
                 <option value="alpha">Alphabetical</option>
               </select>
               <label class="show-completed-toggle">
@@ -971,6 +972,10 @@
           todos = todos.filter((t) => t.project_id === this.filterProjectId)
         }
         return todos
+      },
+      sortedKanbanTodos() {
+        // Kanban columns must honour the sort dropdown just like the cards view.
+        return this.todosComposable.sortTodos(this.filteredTodos, this.sortBy)
       },
       completedCount() {
         return this.todosComposable.completedCount.value
