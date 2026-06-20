@@ -196,7 +196,7 @@
               </button>
               <button
                 class="header-btn search-btn"
-                title="Search (press /)"
+                :title="showGlobalSearch ? '' : 'Search (press /)'"
                 @click="showGlobalSearch = true"
               >
                 <svg
@@ -261,7 +261,7 @@
               </button>
               <button
                 class="header-btn"
-                title="Keyboard shortcuts (?)"
+                :title="showHelpModal ? '' : 'Keyboard shortcuts (?)'"
                 @click="showHelpModal = true"
               >
                 <svg

@@ -99,7 +99,13 @@
             <span class="project-dot" :style="{ background: project.color }"></span>
             <span class="project-name">{{ project.name }}</span>
             <span class="count">{{ formatProgress(getProjectCount(project.id)) }}</span>
-            <button class="edit-btn" @click.stop="$emit('edit-project', project)">...</button>
+            <button
+              class="edit-btn"
+              title="Edit project"
+              @click.stop="$emit('edit-project', project)"
+            >
+              ...
+            </button>
           </div>
         </template>
       </draggable>
