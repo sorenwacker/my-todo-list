@@ -24,6 +24,7 @@ export class Database {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         color TEXT DEFAULT '#0f4c75',
+        notes TEXT DEFAULT '',
         sort_order INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
@@ -345,6 +346,21 @@ export class Database {
       }
     }
 
+    // Migration: add notes column to projects (persistent per-project notes)
+    try {
+      this.db.exec("ALTER TABLE projects ADD COLUMN notes TEXT DEFAULT ''")
+    } catch (error) {
+      if (
+        !error.message.includes('duplicate column') &&
+        !error.message.includes('already exists')
+      ) {
+        log.warn('Migration warning', {
+          migration: 'ADD COLUMN notes to projects',
+          error: error.message
+        })
+      }
+    }
+
     // Seed default statuses if none exist
     const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
     if (statusCount === 0) {
@@ -395,6 +411,11 @@ export class Database {
       .run(project.name, project.color, project.id)
 
     return this.getProject(project.id)
+  }
+
+  updateProjectNotes(id, notes) {
+    this.db.prepare('UPDATE projects SET notes = ? WHERE id = ?').run(notes, id)
+    return this.getProject(id)
   }
 
   deleteProject(id) {

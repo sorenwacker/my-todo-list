@@ -20,6 +20,7 @@ import {
   validateId,
   validateOptionalId,
   validateString,
+  validateOptionalString,
   validateOptionalColor,
   validateIdArray,
   validateTodo,
@@ -159,6 +160,15 @@ app.whenReady().then(() => {
     'update-project',
     handleWithValidation((_, project) => {
       return database.updateProject(validateProject(project))
+    })
+  )
+  ipcMain.handle(
+    'update-project-notes',
+    handleWithValidation((_, id, notes) => {
+      return database.updateProjectNotes(
+        validateId(id),
+        validateOptionalString(notes, 'notes', MAX_LENGTH.TODO_NOTES)
+      )
     })
   )
   ipcMain.handle(

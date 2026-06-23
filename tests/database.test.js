@@ -59,6 +59,27 @@ describe('Database', () => {
       expect(updated.color).toBe('#2ecc71')
     })
 
+    it('should default new projects to empty notes', () => {
+      const project = db.createProject('Work')
+      expect(project.notes).toBe('')
+    })
+
+    it('should persist project notes', () => {
+      const project = db.createProject('Work')
+      const updated = db.updateProjectNotes(project.id, '# Plan\n- ship it')
+
+      expect(updated.notes).toBe('# Plan\n- ship it')
+      expect(db.getProject(project.id).notes).toBe('# Plan\n- ship it')
+    })
+
+    it('should not change name or color when updating notes', () => {
+      const project = db.createProject('Work', '#e74c3c')
+      const updated = db.updateProjectNotes(project.id, 'note')
+
+      expect(updated.name).toBe('Work')
+      expect(updated.color).toBe('#e74c3c')
+    })
+
     it('should soft delete a project (row remains, excluded from list)', () => {
       const project = db.createProject('Work')
       db.deleteProject(project.id)

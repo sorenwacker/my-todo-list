@@ -137,6 +137,23 @@ async function saveProject(loadAllTodos, loadTodos) {
 }
 
 /**
+ * Persist a project's notes and update local state.
+ *
+ * Notes are saved independently of name/color so the project notes pane does
+ * not interfere with the edit-project modal.
+ *
+ * @param {number} id - Project ID
+ * @param {string} notes - Markdown notes content
+ */
+async function updateProjectNotes(id, notes) {
+  await window.api.updateProjectNotes(id, notes)
+  const project = state.projects.find((p) => p.id === id)
+  if (project) {
+    project.notes = notes
+  }
+}
+
+/**
  * Delete a project with confirmation.
  * @param {string|number|null} currentFilter - Current filter value
  * @param {Function} setFilter - Function to set the filter
@@ -255,6 +272,7 @@ export function useProjects() {
     editProject,
     cancelEditProject,
     saveProject,
+    updateProjectNotes,
     deleteProjectConfirm,
     onProjectDragEnd,
     addProjectTag,

@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   getProject: (id) => ipcRenderer.invoke('get-project', id),
   createProject: (name, color) => ipcRenderer.invoke('create-project', name, color),
   updateProject: (project) => ipcRenderer.invoke('update-project', project),
+  updateProjectNotes: (id, notes) => ipcRenderer.invoke('update-project-notes', id, notes),
   deleteProject: (id) => ipcRenderer.invoke('delete-project', id),
   restoreProject: (id) => ipcRenderer.invoke('restore-project', id),
   permanentlyDeleteProject: (id) => ipcRenderer.invoke('permanently-delete-project', id),

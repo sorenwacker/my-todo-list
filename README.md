@@ -12,6 +12,7 @@ A feature-rich desktop todo application built with Electron and Vue 3. Designed 
 
 ### Advanced Features
 - **Markdown Notes**: Full markdown support with syntax highlighting
+- **Project Notes**: Persistent per-project markdown notes, editable in a toggleable pane
 - **Mermaid Diagrams**: Embed flowcharts, sequence diagrams, and other visualizations
 - **Todo Linking**: Create dependencies and relationships between tasks
 - **Subtasks**: Break down complex tasks into manageable subtasks
@@ -138,6 +139,8 @@ The application uses SQLite with the following main tables:
 - Use the color picker to assign visual identification
 - Access project settings through the gear icon
 - View project stakeholders in the dedicated register
+- Toggle the Notes pane to keep persistent per-project notes; they are stored
+  with the project and reload when the project is reopened
 
 ### Working with Notes
 - Click a todo to open the detail panel

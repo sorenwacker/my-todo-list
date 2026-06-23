@@ -326,6 +326,15 @@
               </button>
             </div>
             <button
+              v-if="isProjectSelected"
+              class="notes-toggle-btn"
+              :class="{ active: showProjectNotes }"
+              title="Toggle project notes"
+              @click="toggleProjectNotes"
+            >
+              Notes
+            </button>
+            <button
               v-if="isTrashView && trashCount > 0"
               class="empty-trash-btn"
               title="Permanently delete all items in trash (cannot be undone)"
@@ -396,6 +405,22 @@
         <!-- Project fade transition -->
         <Transition v-else-if="currentFilter !== 'inbox'" name="fade" mode="out-in">
           <div :key="currentFilter" class="project-content">
+            <!-- Project Notes -->
+            <div v-if="isProjectSelected && showProjectNotes" class="project-notes-pane">
+              <div class="project-notes-header">
+                <span class="project-notes-title">Project Notes</span>
+                <button class="project-notes-close" title="Close notes" @click="toggleProjectNotes">
+                  ×
+                </button>
+              </div>
+              <div class="project-notes-body">
+                <NotesEditor
+                  :model-value="projectNotesDraft"
+                  @update:model-value="onProjectNotesInput"
+                  @blur="flushProjectNotes"
+                />
+              </div>
+            </div>
             <!-- Views Container -->
             <div class="views-container">
               <!-- Cards View -->
@@ -501,6 +526,7 @@
   import { renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
   import mermaid from 'mermaid'
   import GlobalSearch from './components/GlobalSearch.vue'
+  import NotesEditor from './components/NotesEditor.vue'
   import {
     AppSidebar,
     CardsView,
@@ -644,6 +670,7 @@
       CardItem,
       GlobalSearch,
       KanbanView,
+      NotesEditor,
       StatusModal,
       ProjectModal
     },
@@ -687,6 +714,10 @@
         sortBy: localStorage.getItem('sort-by') || 'manual',
         searchQuery: '',
         groupByProject: localStorage.getItem('group-by-project') === 'true',
+        showProjectNotes: localStorage.getItem('show-project-notes') === 'true',
+        projectNotesDraft: '',
+        projectNotesDraftId: null,
+        projectNotesSaveTimer: null,
         cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
         cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
         timezone: localStorage.getItem('timezone') || 'auto',
@@ -849,6 +880,10 @@
         if (!this.isProjectSelected) return ''
         const project = this.projects.find((p) => p.id === this.currentFilter)
         return project ? project.name : ''
+      },
+      selectedProject() {
+        if (!this.isProjectSelected) return null
+        return this.projects.find((p) => p.id === this.currentFilter) || null
       },
       isTrashView() {
         return this.currentFilter === 'trash'
@@ -1295,6 +1330,14 @@
         const newIndex = getFilterIndex(val)
         this.projectTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
         this.previousProjectFilter = oldVal
+
+        // Flush any pending notes save for the project we are leaving, then load
+        // the newly selected project's notes into the editor draft.
+        this.flushProjectNotes()
+        this.loadProjectNotesDraft()
+      },
+      showProjectNotes(val) {
+        localStorage.setItem('show-project-notes', val)
       },
       ganttGroupBy(val) {
         // Load milestone relations when grouping by milestone
@@ -1512,6 +1555,46 @@
       },
       updateSortedTodos(todos) {
         this.persistManualOrder(todos)
+      },
+      loadProjectNotesDraft() {
+        this.projectNotesDraft = this.selectedProject ? this.selectedProject.notes || '' : ''
+        this.projectNotesDraftId = this.isProjectSelected ? this.currentFilter : null
+      },
+      toggleProjectNotes() {
+        if (this.showProjectNotes) {
+          // Closing: persist any pending edit before the editor unmounts.
+          this.flushProjectNotes()
+        }
+        this.showProjectNotes = !this.showProjectNotes
+        if (this.showProjectNotes) {
+          this.loadProjectNotesDraft()
+        }
+      },
+      onProjectNotesInput(value) {
+        // Debounce persistence so we are not writing on every keystroke.
+        this.projectNotesDraft = value
+        if (this.projectNotesSaveTimer) clearTimeout(this.projectNotesSaveTimer)
+        this.projectNotesSaveTimer = setTimeout(() => this.saveProjectNotes(), 500)
+      },
+      async saveProjectNotes() {
+        if (this.projectNotesSaveTimer) {
+          clearTimeout(this.projectNotesSaveTimer)
+          this.projectNotesSaveTimer = null
+        }
+        // Save against the project the draft belongs to, not the current filter,
+        // so a project switch mid-edit cannot write the draft to the wrong project.
+        if (this.projectNotesDraftId === null) return
+        await this.projectsComposable.updateProjectNotes(
+          this.projectNotesDraftId,
+          this.projectNotesDraft
+        )
+      },
+      flushProjectNotes() {
+        // Persist immediately without waiting for the debounce (e.g. on blur or
+        // when switching away from the project).
+        if (this.projectNotesSaveTimer) {
+          this.saveProjectNotes()
+        }
       },
       async onKanbanDropStatus(event) {
         const todoId = event.item?.__draggable_context?.element?.id
