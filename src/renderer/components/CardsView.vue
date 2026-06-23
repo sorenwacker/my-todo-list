@@ -29,7 +29,6 @@
             ghost-class="ghost"
             :disabled="sortBy !== 'manual'"
             @update:model-value="$emit('update-group-todos', group.id, $event)"
-            @end="$emit('group-drag-end', group.id, $event)"
           >
             <template #item="{ element }">
               <CardItem
@@ -69,7 +68,6 @@
         ghost-class="ghost"
         :disabled="sortBy !== 'manual'"
         @update:model-value="$emit('update-sorted-todos', $event)"
-        @end="$emit('drag-end', $event)"
       >
         <template #item="{ element }">
           <CardItem
@@ -177,9 +175,7 @@
       'permanent-delete-todo',
       'unarchive-todo',
       'update-sorted-todos',
-      'drag-end',
       'update-group-todos',
-      'group-drag-end',
       'add-todo-to-project',
       'marquee-select',
       'update-title',

@@ -422,9 +422,7 @@
                 @permanent-delete-todo="permanentlyDeleteTodo"
                 @unarchive-todo="unarchiveTodo"
                 @update-sorted-todos="updateSortedTodos"
-                @drag-end="onDragEnd"
                 @update-group-todos="updateGroupTodos"
-                @group-drag-end="onGroupDragEnd"
                 @add-todo-to-project="addTodoToProject"
                 @marquee-select="handleMarqueeSelect"
                 @update-title="handleUpdateTitle"
@@ -1504,9 +1502,16 @@
       updateStatusTodos(_statusId, _todos) {
         // Used by draggable for reactive updates
       },
+      async persistManualOrder(orderedTodos) {
+        // vuedraggable delivers the new visual order via update:model-value.
+        // Persist it as sort_order, then reload so the derived (computed) lists
+        // re-derive in the new order.
+        await window.api.reorderTodos(orderedTodos.map((t) => t.id))
+        await this.loadAllTodos()
+        await this.loadTodos()
+      },
       updateSortedTodos(todos) {
-        // Update the internal todos array for drag-and-drop
-        this.todos = todos
+        this.persistManualOrder(todos)
       },
       async onKanbanDropStatus(event) {
         const todoId = event.item?.__draggable_context?.element?.id
@@ -1738,24 +1743,8 @@
           this.trashCount = 0
         }
       },
-      async onDragEnd() {
-        const ids = this.todos.map((t) => t.id)
-        await window.api.reorderTodos(ids)
-      },
-      updateGroupTodos(groupId, todos) {
-        // Update todos for a specific group
-        const group = this.groupedTodos.find((g) => g.id === groupId)
-        if (group) {
-          group.todos = todos
-        }
-      },
-      async onGroupDragEnd(groupId, _event) {
-        // Get the todos from this specific group and reorder them
-        const group = this.groupedTodos.find((g) => g.id === groupId)
-        if (group && group.todos) {
-          const ids = group.todos.map((t) => t.id)
-          await window.api.reorderTodos(ids)
-        }
+      updateGroupTodos(_groupId, todos) {
+        this.persistManualOrder(todos)
       },
       async onProjectDragEnd() {
         await this.projectsComposable.onProjectDragEnd()
