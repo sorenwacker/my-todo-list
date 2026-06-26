@@ -5,7 +5,6 @@ import {
   screen,
   dialog,
   shell,
-  globalShortcut,
   session
 } from 'electron'
 import { join } from 'path'
@@ -792,30 +791,9 @@ app.whenReady().then(() => {
     return history.getState()
   })
 
-  // Register global keyboard shortcuts
-  app.whenReady().then(() => {
-    // Cmd/Ctrl+Z for undo
-    globalShortcut.register('CommandOrControl+Z', async () => {
-      if (mainWindow && mainWindow.isFocused()) {
-        const action = await history.undo()
-        if (action) {
-          mainWindow.webContents.send('refresh-todos')
-          mainWindow.webContents.send('history-changed', history.getState())
-        }
-      }
-    })
-
-    // Cmd/Ctrl+Shift+Z for redo
-    globalShortcut.register('CommandOrControl+Shift+Z', async () => {
-      if (mainWindow && mainWindow.isFocused()) {
-        const action = await history.redo()
-        if (action) {
-          mainWindow.webContents.send('refresh-todos')
-          mainWindow.webContents.send('history-changed', history.getState())
-        }
-      }
-    })
-  })
+  // Undo/redo are bound in the renderer (window-scoped keydown) so they only
+  // fire while this window is focused. A global shortcut would capture Cmd/Ctrl+Z
+  // system-wide and break undo in every other application.
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -2368,6 +2368,18 @@
           return
         }
 
+        // Undo/Redo: Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z.
+        // Skip when typing in a field so native text undo still works.
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !isInputField) {
+          e.preventDefault()
+          if (e.shiftKey) {
+            this.redo()
+          } else {
+            this.undo()
+          }
+          return
+        }
+
         // Cmd+Arrow navigation
         if (e.metaKey || e.ctrlKey) {
           if (e.key === 'ArrowUp') {
