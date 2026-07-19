@@ -40,59 +40,13 @@
       @show-import="showImportDialog = true"
     />
 
-    <!-- Import Dialog -->
-    <div v-if="showImportDialog" class="project-modal" @click.self="showImportDialog = false">
-      <div class="modal-content" @click.stop>
-        <h3>Import Backup</h3>
-        <p>Choose how to import the backup:</p>
-        <div class="modal-actions">
-          <button class="primary" @click.stop="handleImport('merge')">Merge with Existing</button>
-          <button class="delete-btn" @click.stop="handleImport('replace')">Replace All Data</button>
-          <button @click.stop="showImportDialog = false">Cancel</button>
-        </div>
-      </div>
-    </div>
+    <ImportDialog
+      v-if="showImportDialog"
+      @close="showImportDialog = false"
+      @import="handleImport"
+    />
 
-    <!-- Help Modal -->
-    <div v-if="showHelpModal" class="project-modal" @click.self="showHelpModal = false">
-      <div class="modal-content help-modal" @click.stop>
-        <h3>Keyboard Shortcuts</h3>
-        <div class="shortcuts-grid">
-          <div class="shortcut-section">
-            <h4>Navigation</h4>
-            <div class="shortcut-item"><kbd>j</kbd> / <kbd>↓</kbd><span>Move down</span></div>
-            <div class="shortcut-item"><kbd>k</kbd> / <kbd>↑</kbd><span>Move up</span></div>
-            <div class="shortcut-item">
-              <kbd>Enter</kbd> / <kbd>e</kbd><span>Highlight todo</span>
-            </div>
-            <div class="shortcut-item">
-              <kbd>Esc</kbd><span>Close detail / Clear selection</span>
-            </div>
-          </div>
-          <div class="shortcut-section">
-            <h4>Actions</h4>
-            <div class="shortcut-item"><kbd>n</kbd><span>New todo</span></div>
-            <div class="shortcut-item">
-              <kbd>x</kbd> / <kbd>Space</kbd><span>Toggle complete</span>
-            </div>
-            <div class="shortcut-item"><kbd>Delete</kbd><span>Delete todo</span></div>
-            <div class="shortcut-item"><kbd>/</kbd><span>Open search</span></div>
-          </div>
-          <div class="shortcut-section">
-            <h4>Global</h4>
-            <div class="shortcut-item"><kbd>Cmd</kbd>+<kbd>K</kbd><span>Command palette</span></div>
-            <div class="shortcut-item"><kbd>Cmd</kbd>+<kbd>Z</kbd><span>Undo</span></div>
-            <div class="shortcut-item">
-              <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd><span>Redo</span>
-            </div>
-            <div class="shortcut-item"><kbd>?</kbd><span>Show this help</span></div>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="primary" @click="showHelpModal = false">Close</button>
-        </div>
-      </div>
-    </div>
+    <HelpModal v-if="showHelpModal" @close="showHelpModal = false" />
 
     <!-- Modals -->
     <StatusModal
@@ -117,287 +71,56 @@
 
     <div class="main-wrapper">
       <main class="main-content">
-        <header class="main-header">
-          <div class="header-title-row">
-            <h1 class="header-title">
-              <span
-                class="breadcrumb-link breadcrumb-home"
-                title="Home"
-                @click="setFilter('inbox')"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </span>
-              <template v-if="isProjectSelected">
-                <span class="breadcrumb-sep"> / </span>
-                <span>{{ currentProjectName }}</span>
-              </template>
-              <template v-else-if="currentFilter === 'inbox'">
-                <span class="breadcrumb-sep"> / </span>
-                <span>Inbox</span>
-              </template>
-              <template v-else-if="currentFilter === 'archive'">
-                <span class="breadcrumb-sep"> / </span>
-                <span>Archive</span>
-              </template>
-              <template v-else-if="currentFilter === 'trash'">
-                <span class="breadcrumb-sep"> / </span>
-                <span>Trash</span>
-              </template>
-              <template v-else-if="currentFilter === null && !showProjectsOverview">
-                <span class="breadcrumb-sep"> / </span>
-                <span>All</span>
-              </template>
-            </h1>
-            <div class="header-actions">
-              <button
-                v-if="
-                  completedCount > 0 && currentFilter !== 'archive' && currentFilter !== 'trash'
-                "
-                class="header-btn archive-done-btn"
-                :title="`Archive ${completedCount} done item${completedCount > 1 ? 's' : ''} (Ctrl+Z to undo)`"
-                @click="archiveCompletedTodos"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  style="margin-left: -2px"
-                >
-                  <path d="M21 8v13H3V8" />
-                  <path d="M1 3h22v5H1z" />
-                  <path d="M10 12h4" />
-                </svg>
-              </button>
-              <button
-                class="header-btn search-btn"
-                :title="showGlobalSearch ? '' : 'Search (press /)'"
-                @click="showGlobalSearch = true"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </button>
-              <button
-                class="header-btn"
-                :class="{ disabled: !historyState.canUndo }"
-                :disabled="!historyState.canUndo"
-                :title="
-                  historyState.undoDescription
-                    ? `Undo: ${historyState.undoDescription}`
-                    : 'Nothing to undo'
-                "
-                @click="undo"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M3 10h10a5 5 0 0 1 5 5v2" />
-                  <polyline points="3,10 7,6" />
-                  <polyline points="3,10 7,14" />
-                </svg>
-              </button>
-              <button
-                class="header-btn"
-                :class="{ disabled: !historyState.canRedo }"
-                :disabled="!historyState.canRedo"
-                :title="
-                  historyState.redoDescription
-                    ? `Redo: ${historyState.redoDescription}`
-                    : 'Nothing to redo'
-                "
-                @click="redo"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M21 10H11a5 5 0 0 0-5 5v2" />
-                  <polyline points="21,10 17,6" />
-                  <polyline points="21,10 17,14" />
-                </svg>
-              </button>
-              <button
-                class="header-btn"
-                :title="showHelpModal ? '' : 'Keyboard shortcuts (?)'"
-                @click="showHelpModal = true"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </button>
-              <button
-                class="theme-toggle"
-                :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-                @click="toggleTheme"
-              >
-                <span v-if="theme === 'dark'">☀️</span>
-                <span v-else>🌙</span>
-              </button>
-            </div>
-          </div>
-          <div class="header-controls">
-            <div class="sort-controls">
-              <input
-                v-model="searchQuery"
-                type="text"
-                class="search-input"
-                placeholder="Filter..."
-                @keyup.escape="searchQuery = ''"
-              />
-              <select v-model="sortBy" class="sort-select">
-                <option value="manual">Manual Order</option>
-                <option value="created">By Created</option>
-                <option value="due">By Due Date</option>
-                <option value="alpha">Alphabetical</option>
-              </select>
-              <label class="show-completed-toggle">
-                <input v-model="showCompleted" type="checkbox" />
-                <span>Show done</span>
-              </label>
-              <label
-                v-if="currentView === 'kanban' && currentFilter === null"
-                class="show-completed-toggle"
-              >
-                <input v-model="groupByProject" type="checkbox" />
-                <span>Group by project</span>
-              </label>
-            </div>
-            <div class="view-switcher">
-              <button
-                v-for="view in availableViews"
-                :key="view"
-                :class="{ active: currentView === view }"
-                :disabled="isTrashView && view === 'kanban'"
-                @click="setView(view)"
-              >
-                {{ view.charAt(0).toUpperCase() + view.slice(1) }}
-              </button>
-            </div>
-            <button
-              v-if="isProjectSelected"
-              class="notes-toggle-btn"
-              :class="{ active: showProjectNotes }"
-              title="Toggle project notes"
-              @click="toggleProjectNotes"
-            >
-              Notes
-            </button>
-            <button
-              v-if="isTrashView && trashCount > 0"
-              class="empty-trash-btn"
-              title="Permanently delete all items in trash (cannot be undone)"
-              @click="emptyTrash"
-            >
-              Empty Trash
-            </button>
-          </div>
-          <div v-if="!isTrashView" class="add-todo">
-            <input
-              ref="newTodoInput"
-              v-model="newTodoTitle"
-              placeholder="Add a new item... (press n)"
-              type="text"
-              @keyup.enter="addTodo"
-            />
-            <button @click="addTodo">Add</button>
-          </div>
-        </header>
+        <AppHeader
+          ref="appHeader"
+          v-model:search-query="searchQuery"
+          v-model:sort-by="sortBy"
+          v-model:show-completed="showCompleted"
+          v-model:group-by-project="groupByProject"
+          v-model:new-todo-title="newTodoTitle"
+          :current-filter="currentFilter"
+          :is-project-selected="isProjectSelected"
+          :current-project-name="currentProjectName"
+          :show-projects-overview="showProjectsOverview"
+          :completed-count="completedCount"
+          :show-global-search="showGlobalSearch"
+          :show-help-modal="showHelpModal"
+          :history-state="historyState"
+          :theme="theme"
+          :current-view="currentView"
+          :available-views="availableViews"
+          :is-trash-view="isTrashView"
+          :trash-count="trashCount"
+          :show-project-notes="showProjectNotes"
+          @go-home="setFilter('inbox')"
+          @archive-completed="archiveCompletedTodos"
+          @open-search="showGlobalSearch = true"
+          @undo="undo"
+          @redo="redo"
+          @open-help="showHelpModal = true"
+          @toggle-theme="toggleTheme"
+          @set-view="setView"
+          @toggle-project-notes="toggleProjectNotes"
+          @empty-trash="emptyTrash"
+          @add-todo="addTodo"
+        />
 
         <!-- Home Landing Page / Inbox View -->
-        <div v-if="showProjectsOverview || currentFilter === 'inbox'" class="home-landing">
-          <!-- Project Drop Targets -->
-          <div class="project-drop-targets">
-            <div
-              v-for="project in projects"
-              :key="project.id"
-              class="project-drop-target"
-              :class="{ 'drag-over': dragOverProjectId === project.id }"
-              :style="{ borderColor: project.color, '--project-color': project.color }"
-              @click="selectProjectFromOverview(project.id)"
-              @dragover.prevent="dragOverProjectId = project.id"
-              @dragleave="dragOverProjectId = null"
-              @drop.prevent="dropOnProject($event, project.id)"
-            >
-              <span class="project-name">{{ project.name }}</span>
-              <span class="project-count">{{ formatProgress(projectCounts[project.id]) }}</span>
-            </div>
-          </div>
-
-          <!-- Inbox Items (draggable) -->
-          <div class="inbox-landing">
-            <h2 v-if="inboxTodos.length > 0">Inbox</h2>
-            <div class="inbox-items cards-grid">
-              <CardItem
-                v-for="todo in inboxTodos"
-                :key="todo.id"
-                :todo="todo"
-                :is-draggable="true"
-                :projects="projects"
-                :show-project="false"
-                @toggle-complete="toggleComplete(todo)"
-                @delete="deleteTodo(todo.id)"
-                @update-title="handleUpdateTitle(todo, $event)"
-                @update-notes="handleUpdateNotes(todo, $event)"
-                @archive="archiveTodo(todo.id)"
-                @move-to-project="moveToProject(todo, $event)"
-                @set-due-date="setDueDate(todo, $event)"
-                @dragstart="onInboxDragStart($event, todo)"
-              />
-            </div>
-            <p v-if="inboxTodos.length === 0" class="empty-inbox">
-              No items in inbox. Add one above or drag items here.
-            </p>
-          </div>
-        </div>
+        <HomeLanding
+          v-if="showProjectsOverview || currentFilter === 'inbox'"
+          :projects="projects"
+          :project-counts="projectCounts"
+          :inbox-todos="inboxTodos"
+          @select-project="selectProjectFromOverview"
+          @drop-todo-on-project="moveInboxTodoToProject"
+          @toggle-complete="toggleComplete"
+          @delete-todo="deleteTodo"
+          @update-title="handleUpdateTitle"
+          @update-notes="handleUpdateNotes"
+          @archive-todo="archiveTodo"
+          @move-to-project="moveToProject"
+          @set-due-date="setDueDate"
+        />
 
         <!-- Project fade transition -->
         <Transition v-else-if="currentFilter !== 'inbox'" name="fade" mode="out-in">
@@ -519,14 +242,15 @@
 </template>
 
 <script>
-  import { marked } from './utils/markdown.js'
-  import mermaid from 'mermaid'
   import GlobalSearch from './components/GlobalSearch.vue'
   import NotesEditor from './components/NotesEditor.vue'
   import {
+    AppHeader,
     AppSidebar,
     CardsView,
-    CardItem,
+    HelpModal,
+    HomeLanding,
+    ImportDialog,
     KanbanView,
     StatusModal,
     ProjectModal
@@ -535,161 +259,50 @@
   import { useTodos } from './composables/useTodos.js'
   import { useProjects } from './composables/useProjects.js'
   import { useStatuses } from './composables/useStatuses.js'
+  import { useMasonry } from './composables/useMasonry.js'
+  import keyboardShortcutsMixin from './mixins/keyboardShortcutsMixin.js'
+  import todoActionsMixin from './mixins/todoActionsMixin.js'
+  import { validateLocalStorage } from './utils/localStorageValidation.js'
+  import {
+    initializeMermaid,
+    reinitializeMermaid,
+    renderPendingMermaidDiagrams,
+    resetProcessedMermaidDiagrams
+  } from './utils/mermaid.js'
 
-  // Validate and repair localStorage on startup
-  const SETTINGS_VERSION = 1
-  function validateLocalStorage() {
-    try {
-      const _storedVersion = parseInt(localStorage.getItem('settings-version') || '0')
-
-      // Define valid values for enum-like settings
-      const validViews = ['cards', 'kanban', 'calendar']
-      // Keep in sync with the sort modes supported by sortTodos in useTodos.js
-      const validSorts = ['manual', 'created', 'alpha', 'due']
-      const validThemes = ['dark', 'light']
-
-      // Validate current-view
-      const currentView = localStorage.getItem('current-view')
-      if (currentView && !validViews.includes(currentView)) {
-        localStorage.setItem('current-view', 'cards')
-      }
-
-      // Validate sort-by
-      const sortBy = localStorage.getItem('sort-by')
-      if (sortBy && !validSorts.includes(sortBy)) {
-        localStorage.setItem('sort-by', 'manual')
-      }
-
-      // Validate theme
-      const theme = localStorage.getItem('todo-theme')
-      if (theme && !validThemes.includes(theme)) {
-        localStorage.setItem('todo-theme', 'dark')
-      }
-
-      // Validate JSON settings
-      const jsonSettings = ['card-widths']
-      for (const key of jsonSettings) {
-        const value = localStorage.getItem(key)
-        if (value) {
-          try {
-            JSON.parse(value)
-          } catch {
-            localStorage.removeItem(key)
-          }
-        }
-      }
-
-      // Validate numeric settings
-      const cardColumns = localStorage.getItem('card-columns')
-      if (
-        cardColumns &&
-        (isNaN(parseInt(cardColumns)) || parseInt(cardColumns) < 1 || parseInt(cardColumns) > 10)
-      ) {
-        localStorage.removeItem('card-columns')
-      }
-
-      // Update version
-      localStorage.setItem('settings-version', String(SETTINGS_VERSION))
-    } catch {
-      // If validation fails, clear problematic keys
-      const keysToPreserve = [] // Could preserve some keys if needed
-      const allKeys = Object.keys(localStorage)
-      for (const key of allKeys) {
-        if (!keysToPreserve.includes(key)) {
-          localStorage.removeItem(key)
-        }
-      }
-    }
-  }
-
-  // Run validation before anything else
+  // Run localStorage validation before anything else reads settings
   validateLocalStorage()
-
-  const savedTheme = localStorage.getItem('todo-theme') || 'dark'
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: savedTheme === 'light' ? 'default' : 'dark',
-    securityLevel: 'strict'
-  })
-
-  function reinitializeMermaid(theme) {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: theme === 'light' ? 'default' : 'dark',
-      securityLevel: 'strict',
-      flowchart: {
-        htmlLabels: true,
-        curve: 'basis',
-        nodeSpacing: 50,
-        rankSpacing: 50,
-        padding: 15,
-        useMaxWidth: true
-      },
-      themeVariables:
-        theme === 'dark'
-          ? {
-              primaryColor: '#0f4c75',
-              primaryTextColor: '#e0e0e0',
-              primaryBorderColor: '#4fc3f7',
-              lineColor: '#4fc3f7',
-              secondaryColor: '#0d0d0d',
-              tertiaryColor: '#1a1f2e',
-              background: '#1a1a1a',
-              mainBkg: '#0d0d0d',
-              secondBkg: '#1a1f2e',
-              mainContrastColor: '#e0e0e0',
-              darkMode: true,
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              fontSize: '14px'
-            }
-          : {}
-    })
-  }
-
-  function escapeHtml(text) {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-  }
-
-  const mermaidExtension = {
-    name: 'mermaid',
-    renderer: {
-      code(token) {
-        // Mermaid decodes HTML entities before parsing, so escaping is safe here too
-        if (token.lang === 'mermaid') {
-          return `<pre class="mermaid">${escapeHtml(token.text)}</pre>`
-        }
-        return `<pre><code class="language-${escapeHtml(token.lang || '')}">${escapeHtml(token.text)}</code></pre>`
-      }
-    }
-  }
-  marked.use(mermaidExtension)
+  initializeMermaid(localStorage.getItem('todo-theme') || 'dark')
 
   export default {
     name: 'App',
     components: {
+      AppHeader,
       AppSidebar,
       CardsView,
-      CardItem,
       GlobalSearch,
+      HelpModal,
+      HomeLanding,
+      ImportDialog,
       KanbanView,
       NotesEditor,
       StatusModal,
       ProjectModal
     },
+    mixins: [keyboardShortcutsMixin, todoActionsMixin],
     setup() {
       const todosComposable = useTodos()
       const projectsComposable = useProjects()
       const statusesComposable = useStatuses()
+      const { applyMasonryLayout, startCardResizeObserver, stopCardResizeObserver } = useMasonry()
 
       return {
         todosComposable,
         projectsComposable,
-        statusesComposable
+        statusesComposable,
+        applyMasonryLayout,
+        startCardResizeObserver,
+        stopCardResizeObserver
       }
     },
     data() {
@@ -706,10 +319,6 @@
         })(),
         showCompleted: localStorage.getItem('show-completed') === 'true',
         newTodoTitle: '',
-        // editingProject: null, // now in projectsComposable
-        // editingProjectTags: [], // now in projectsComposable
-        // editingStatus: null, // now in statusesComposable
-        // selectedTodoIds: new Set(), // now in todosComposable
         allTags: [],
         // sortBy and searchQuery are still here because they're used by the component's UI state
         sortBy: localStorage.getItem('sort-by') || 'manual',
@@ -721,8 +330,6 @@
         projectNotesSaveTimer: null,
         cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
         timezone: localStorage.getItem('timezone') || 'auto',
-        dragOverProjectId: null,
-        draggingInboxTodo: null,
         // projectColors now from projectsComposable
         // statusColors now from statusesComposable
         // Theme
@@ -733,8 +340,6 @@
         // Trash & Archive
         trashCount: 0,
         archiveCount: 0,
-        // Keyboard navigation
-        // focusedTodoIndex: -1, // now in todosComposable
         // Global search
         showGlobalSearch: false,
         showProjectsOverview: false,
@@ -751,10 +356,7 @@
           redoDescription: null
         },
         // Help modal
-        showHelpModal: false,
-        // ResizeObserver
-        cardResizeObserver: null,
-        resizeObserverTimeout: null
+        showHelpModal: false
       }
     },
     computed: {
@@ -1028,40 +630,18 @@
         }
       })
 
-      // Set up ResizeObserver to watch for card size changes
-      this.cardResizeObserver = new ResizeObserver((_entries) => {
-        // Debounce the layout update
-        if (this.resizeObserverTimeout) {
-          clearTimeout(this.resizeObserverTimeout)
+      // Reapply the masonry layout when card sizes change
+      this.startCardResizeObserver(() => {
+        if (this.currentView === 'cards') {
+          this.applyMasonryLayout()
         }
-        this.resizeObserverTimeout = setTimeout(() => {
-          if (this.currentView === 'cards') {
-            this.applyMasonryLayout()
-          }
-        }, 100)
-      })
-
-      // Start observing cards after initial render
-      this.$nextTick(() => {
-        this.observeCards()
       })
     },
     beforeUnmount() {
       window.removeEventListener('keydown', this.handleKeyDown)
-      if (this.cardResizeObserver) {
-        this.cardResizeObserver.disconnect()
-      }
+      this.stopCardResizeObserver()
     },
     methods: {
-      formatProgress(count) {
-        if (!count || typeof count !== 'object') return count || 0
-        if (count.total === 0) return ''
-        if (count.done === 0) return count.total
-        return `${count.done}/${count.total}`
-      },
-      toggleShowCompleted() {
-        localStorage.setItem('show-completed', this.showCompleted.toString())
-      },
       onTimezoneChange(value) {
         this.timezone = value
         localStorage.setItem('timezone', value)
@@ -1092,20 +672,6 @@
       },
       async loadTodos() {
         await this.todosComposable.loadTodos(this.currentFilter)
-      },
-      updateStatusTodos(_statusId, _todos) {
-        // Used by draggable for reactive updates
-      },
-      async persistManualOrder(orderedTodos) {
-        // vuedraggable delivers the new visual order via update:model-value.
-        // Persist it as sort_order, then reload so the derived (computed) lists
-        // re-derive in the new order.
-        await window.api.reorderTodos(orderedTodos.map((t) => t.id))
-        await this.loadAllTodos()
-        await this.loadTodos()
-      },
-      updateSortedTodos(todos) {
-        this.persistManualOrder(todos)
       },
       loadProjectNotesDraft() {
         this.projectNotesDraft = this.selectedProject ? this.selectedProject.notes || '' : ''
@@ -1147,38 +713,6 @@
           this.saveProjectNotes()
         }
       },
-      async onKanbanDropStatus(event) {
-        const todoId = event.item?.__draggable_context?.element?.id
-        if (!todoId) return
-
-        // Get target status from the drop target element
-        const targetStatusId = event.to?.dataset?.statusId
-        const parsedStatusId = targetStatusId === '' ? null : parseInt(targetStatusId)
-
-        const todo = this.allTodos.find((t) => t.id === todoId)
-        if (todo && todo.status_id !== parsedStatusId) {
-          const todoData = this.toPlainTodo(todo)
-          todoData.status_id = parsedStatusId
-          await window.api.updateTodo(todoData)
-          await this.loadAllTodos()
-          await this.loadTodos()
-        }
-      },
-      async onStackedKanbanDrop(event, projectId, statusId) {
-        const todoId = event.item?.__draggable_context?.element?.id
-        if (!todoId) return
-
-        const todo = this.allTodos.find((t) => t.id === todoId)
-        if (todo) {
-          const todoData = this.toPlainTodo(todo)
-          // Update project and status based on the section/column it was dropped into.
-          todoData.project_id = projectId === 'inbox' ? null : projectId
-          todoData.status_id = statusId
-          await window.api.updateTodo(todoData)
-          await this.loadAllTodos()
-          await this.loadTodos()
-        }
-      },
       async setFilter(filter) {
         this.currentFilter = filter
         this.showProjectsOverview = false
@@ -1192,126 +726,6 @@
         // Refresh archive/trash counts (always global)
         this.trashCount = await window.api.getTrashCount()
         this.archiveCount = await window.api.getArchiveCount()
-      },
-      async addTodo() {
-        if (!this.newTodoTitle.trim()) return
-        const projectId =
-          this.currentFilter !== null && this.currentFilter !== 'inbox' ? this.currentFilter : null
-        const type = 'todo'
-        const updates = { start_date: new Date().toISOString().split('T')[0] }
-        await this.todosComposable.addTodo(this.newTodoTitle.trim(), projectId, type, updates)
-        this.newTodoTitle = ''
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async addTodoToProject(projectId) {
-        try {
-          const type = 'todo'
-          const todo = await window.api.createTodo('Untitled', projectId, type)
-          await this.loadAllTodos()
-          await this.loadTodos()
-          if (todo) this.selectTodo(todo.id)
-        } catch {
-          // Todo creation failed
-        }
-      },
-      onInboxDragStart(event, todo) {
-        this.draggingInboxTodo = todo
-        event.dataTransfer.effectAllowed = 'move'
-        event.dataTransfer.setData('text/plain', todo.id)
-      },
-      async dropOnProject(event, projectId) {
-        this.dragOverProjectId = null
-        if (!this.draggingInboxTodo) return
-
-        const todo = this.draggingInboxTodo
-        todo.project_id = projectId
-        const todoData = this.toPlainTodo(todo)
-        await window.api.updateTodo(todoData)
-        await this.loadAllTodos()
-        await this.loadTodos()
-        this.draggingInboxTodo = null
-      },
-      async addTodoToStatus(statusId) {
-        try {
-          const projectId = this.isProjectSelected ? this.currentFilter : null
-          const type = 'todo'
-          const todo = await window.api.createTodo('Untitled', projectId, type)
-          if (statusId !== null) {
-            const todoData = this.toPlainTodo(todo)
-            todoData.status_id = statusId
-            await window.api.updateTodo(todoData)
-          }
-          await this.loadAllTodos()
-          await this.loadTodos()
-          if (todo) this.selectTodo(todo.id)
-        } catch {
-          // Todo creation failed
-        }
-      },
-      async toggleComplete(todo) {
-        await this.todosComposable.toggleComplete(todo)
-        // Sync to project composable for counts
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async handleUpdateTitle(todo, newTitle) {
-        await this.todosComposable.handleUpdateTitle(todo, newTitle)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async handleUpdateNotes(todo, newNotes) {
-        await this.todosComposable.handleUpdateNotes(todo, newNotes)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async deleteTodo(id) {
-        await this.todosComposable.deleteTodo(id)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async archiveTodo(id) {
-        await this.todosComposable.archiveTodo(id)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async archiveCompletedTodos() {
-        const projectId = this.isProjectSelected
-          ? this.currentFilter
-          : this.currentFilter === 'inbox'
-            ? 'inbox'
-            : null
-        const count = await window.api.archiveCompletedTodos(projectId)
-        if (count > 0) {
-          await this.loadAllTodos()
-          await this.loadTodos()
-        }
-      },
-      async unarchiveTodo(id) {
-        await this.todosComposable.unarchiveTodo(id)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async moveToProject(todo, projectId) {
-        await this.todosComposable.moveToProject(todo, projectId)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async setDueDate(todo, date) {
-        await this.todosComposable.setDueDate(todo, date)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async restoreTodo(id) {
-        await this.todosComposable.restoreTodo(id)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async permanentlyDeleteTodo(id) {
-        await this.todosComposable.permanentlyDeleteTodo(id)
-        this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      async emptyTrash() {
-        if (confirm('Are you sure you want to permanently delete all items in trash?')) {
-          await window.api.emptyTrash()
-          await this.loadAllTodos()
-          await this.loadTodos()
-          // Force refresh the trash count
-          this.trashCount = 0
-        }
-      },
-      updateGroupTodos(_groupId, todos) {
-        this.persistManualOrder(todos)
       },
       async onProjectDragEnd() {
         await this.projectsComposable.onProjectDragEnd()
@@ -1364,9 +778,6 @@
         this.$nextTick(() => {
           document.querySelector(`[data-todo-id="${id}"]`)?.scrollIntoView({ block: 'nearest' })
         })
-      },
-      toPlainTodo(todo) {
-        return this.todosComposable.toPlainTodo(todo)
       },
       async loadAllTags() {
         this.allTags = await window.api.getAllTags()
@@ -1432,184 +843,6 @@
           await this.loadAllTodos()
           await this.loadTodos()
         })
-      },
-      observeCards() {
-        if (!this.cardResizeObserver) return
-        // Disconnect existing observations
-        this.cardResizeObserver.disconnect()
-        // Observe all cards
-        const cards = document.querySelectorAll('.todo-card')
-        cards.forEach((card) => {
-          this.cardResizeObserver.observe(card)
-        })
-      },
-      applyMasonryLayout() {
-        // Apply masonry layout to all card grids
-        this.$nextTick(() => {
-          setTimeout(() => {
-            const grids = document.querySelectorAll('.cards-grid')
-            grids.forEach((grid) => {
-              const cards = grid.querySelectorAll('.todo-card')
-
-              cards.forEach((card) => {
-                const height = card.getBoundingClientRect().height
-                const rowSpan = Math.ceil(height / 17) + 1
-                card.style.gridRowEnd = `span ${rowSpan}`
-              })
-            })
-
-            // Apply again after a short delay to catch any late-rendering content
-            setTimeout(() => {
-              const grids = document.querySelectorAll('.cards-grid')
-              grids.forEach((grid) => {
-                const cards = grid.querySelectorAll('.todo-card')
-
-                cards.forEach((card) => {
-                  const height = card.getBoundingClientRect().height
-                  const rowSpan = Math.ceil(height / 17) + 1
-                  card.style.gridRowEnd = `span ${rowSpan}`
-                })
-              })
-              // Re-observe cards in case new ones were added
-              this.observeCards()
-            }, 200)
-          }, 150)
-        })
-      },
-      // Keyboard shortcuts
-      handleKeyDown(e) {
-        // Ignore if typing in input/textarea
-        const target = e.target
-        const isInputField =
-          target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
-
-        // Global Search: Cmd/Ctrl + K
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-          e.preventDefault()
-          this.showGlobalSearch = true
-          return
-        }
-
-        // Undo/Redo: Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z.
-        // Skip when typing in a field so native text undo still works.
-        if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !isInputField) {
-          e.preventDefault()
-          if (e.shiftKey) {
-            this.redo()
-          } else {
-            this.undo()
-          }
-          return
-        }
-
-        // Cmd+Arrow navigation
-        if (e.metaKey || e.ctrlKey) {
-          if (e.key === 'ArrowUp') {
-            // Previous item in list
-            e.preventDefault()
-            const todoCount = this.todos.length
-            if (todoCount > 0 && this.focusedTodoIndex > 0) {
-              this.focusedTodoIndex--
-              this.selectTodo(this.todos[this.focusedTodoIndex].id)
-            }
-            return
-          }
-          if (e.key === 'ArrowDown') {
-            // Next item in list
-            e.preventDefault()
-            const todoCount = this.todos.length
-            if (todoCount > 0 && this.focusedTodoIndex < todoCount - 1) {
-              this.focusedTodoIndex++
-              this.selectTodo(this.todos[this.focusedTodoIndex].id)
-            }
-            return
-          }
-        }
-
-        // Escape closes everything: search, inline editing, fullscreen, detail panel, detached windows
-        if (e.key === 'Escape') {
-          e.preventDefault()
-          e.stopPropagation()
-
-          if (this.showGlobalSearch) {
-            this.showGlobalSearch = false
-            return
-          }
-          this.focusedTodoIndex = -1
-          return
-        }
-
-        // If global search is open, let it handle its own navigation
-        if (this.showGlobalSearch) {
-          return
-        }
-
-        // Don't process navigation shortcuts when in input field
-        if (isInputField) return
-
-        // Global shortcuts that work in any view
-        switch (e.key) {
-          case 'n': // New todo
-            e.preventDefault()
-            this.$refs.newTodoInput?.focus()
-            return
-          case '/': // Open search
-            e.preventDefault()
-            this.showGlobalSearch = true
-            return
-          case '?': // Show help
-            e.preventDefault()
-            this.showHelpModal = true
-            return
-        }
-
-        // Navigation shortcuts only work in list/table/cards view with todos
-        const todoCount = this.todos.length
-        if (todoCount === 0) return
-
-        switch (e.key) {
-          case 'j': // Move down
-          case 'ArrowDown':
-            e.preventDefault()
-            this.focusedTodoIndex = Math.min(this.focusedTodoIndex + 1, todoCount - 1)
-            if (this.focusedTodoIndex >= 0 && this.todos[this.focusedTodoIndex]) {
-              this.selectTodo(this.todos[this.focusedTodoIndex].id)
-            }
-            break
-          case 'k': // Move up
-          case 'ArrowUp':
-            e.preventDefault()
-            if (this.focusedTodoIndex < 0) this.focusedTodoIndex = 0
-            else this.focusedTodoIndex = Math.max(this.focusedTodoIndex - 1, 0)
-            if (this.todos[this.focusedTodoIndex]) {
-              this.selectTodo(this.todos[this.focusedTodoIndex].id)
-            }
-            break
-          case 'x': // Toggle complete
-          case ' ': // Space also toggles
-            e.preventDefault()
-            if (this.focusedTodoIndex >= 0 && this.todos[this.focusedTodoIndex]) {
-              this.toggleComplete(this.todos[this.focusedTodoIndex])
-            }
-            break
-          case 'e': // Edit (open detail)
-          case 'Enter':
-            e.preventDefault()
-            if (this.focusedTodoIndex >= 0 && this.todos[this.focusedTodoIndex]) {
-              this.selectTodo(this.todos[this.focusedTodoIndex].id)
-            }
-            break
-          case 'Delete':
-            e.preventDefault()
-            if (this.focusedTodoIndex >= 0 && this.todos[this.focusedTodoIndex]) {
-              this.deleteTodo(this.todos[this.focusedTodoIndex].id)
-              // Adjust focus after deletion
-              if (this.focusedTodoIndex >= this.todos.length) {
-                this.focusedTodoIndex = this.todos.length - 1
-              }
-            }
-            break
-        }
       },
       setTab(tab) {
         this.activeTab = tab
@@ -1679,9 +912,7 @@
         localStorage.setItem('todo-theme', this.theme)
         reinitializeMermaid(this.theme)
         // Clear processed mermaid diagrams to force re-render
-        document.querySelectorAll('.mermaid[data-processed]').forEach((el) => {
-          el.removeAttribute('data-processed')
-        })
+        resetProcessedMermaidDiagrams()
         this.renderMermaid()
       },
       toggleSidebarPin() {
@@ -1734,16 +965,7 @@
       },
       async renderMermaid() {
         await this.$nextTick()
-        try {
-          await mermaid.run({
-            querySelector: '.notes-preview pre.mermaid:not([data-processed])'
-          })
-          document.querySelectorAll('.notes-preview pre.mermaid').forEach((el) => {
-            el.setAttribute('data-processed', 'true')
-          })
-        } catch {
-          // Mermaid render failed
-        }
+        await renderPendingMermaidDiagrams()
       }
     }
   }
