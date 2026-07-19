@@ -17,3 +17,6 @@ out/
 
 # Backup files
 *.bak
+
+# Local SQLite database
+todo.db

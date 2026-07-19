@@ -1,12 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  screen,
-  dialog,
-  shell,
-  session
-} from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog, shell, session } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { Database } from './database.js'
