@@ -44,6 +44,26 @@ Recurring themes:
 5. **File-size violations** driven by the same root cause: App.vue absorbing responsibilities
    that belong in components/composables that already exist.
 
+## Remediation status (260719)
+
+All high and medium findings were fixed the same day, except the two deferred file-size splits:
+
+- Fixed high: H1 (navigation/window-open restrictions plus production CSP without
+  `'unsafe-inline'` for scripts), H2 (version 2.0 export/import covering all ten user-data
+  tables and all todo columns, tolerant of version 1.0 payloads), H3 (real `loadData()`),
+  H5 (Kanban sensitive-notes guard), H6 (indent-unit-aware `preprocessMarkdown`), H7
+  (stylesheet brace restored; the second orphaned block near line 1807 was removed too).
+- Fixed medium: M1, M3-M15, M17, M18. Dead-code removal (M3, M7, M8, M13) shrank App.vue
+  from 2673 to 1754 lines. Card logic is shared via `cardInteractionsMixin.js` (M9) with
+  date helpers in `utils/dueDates.js` (M10) and `renderCardNotes` in `utils/markdown.js`.
+  New test files: `tests/markdown.test.js` (sanitization pipeline, jsdom environment) and
+  `tests/exportImport.test.js` (round-trip); `tests/dueDates.test.js` extended.
+- Also fixed: `npm audit` clean, prettier clean, `todo.db` untracked and gitignored, test
+  count 139 -> 177.
+- Deferred: M2 (`database.js` now 1494 lines - grew with the lossless import) and M16
+  (`styles.css` 8988 lines); both need the planned file splits. H4 is partially addressed
+  (App.vue remains above the 1000-line limit until its split). Low findings remain open.
+
 ## Confirmed findings
 
 ### High
