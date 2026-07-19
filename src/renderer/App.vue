@@ -967,10 +967,7 @@
       }
     },
     async mounted() {
-      await this.loadProjects()
-      await this.loadStatuses()
-      await this.loadAllTags()
-      await this.loadAllTodos()
+      await this.loadData()
 
       // Restore last used filter from localStorage
       const savedFilter = localStorage.getItem('current-filter')
@@ -978,20 +975,20 @@
         try {
           const filter = JSON.parse(savedFilter)
           // Verify the filter is valid (project still exists if it's a number)
+          let restored = null
           if (filter === 'inbox' || filter === 'trash') {
-            this.currentFilter = filter
-          } else if (typeof filter === 'number') {
-            const projectExists = this.projects.some((p) => p.id === filter)
-            if (projectExists) {
-              this.currentFilter = filter
-            }
+            restored = filter
+          } else if (typeof filter === 'number' && this.projects.some((p) => p.id === filter)) {
+            restored = filter
+          }
+          if (restored !== null && restored !== this.currentFilter) {
+            this.currentFilter = restored
+            await this.loadTodos()
           }
         } catch {
           // Failed to restore filter, will use default
         }
       }
-
-      await this.loadTodos()
       this.databasePath = await window.api.getDatabasePath()
       this.appVersion = await window.api.getAppVersion()
 
@@ -1066,6 +1063,14 @@
       onTimezoneChange(value) {
         this.timezone = value
         localStorage.setItem('timezone', value)
+      },
+      // Full reload of everything the UI shows; used on startup and after imports
+      async loadData() {
+        await this.loadProjects()
+        await this.loadStatuses()
+        await this.loadAllTags()
+        await this.loadAllTodos()
+        await this.loadTodos()
       },
       async loadProjects() {
         await this.projectsComposable.loadProjects()

@@ -1247,19 +1247,20 @@ export class Database {
 
   // Export/Import operations
   exportData() {
-    const projects = this.db.prepare('SELECT * FROM projects').all()
-    const statuses = this.db.prepare('SELECT * FROM statuses').all()
-    const todos = this.db.prepare('SELECT * FROM todos').all()
-    const todoLinks = this.db.prepare('SELECT * FROM todo_links').all()
-
     return {
-      version: '1.0',
+      version: '2.0',
       exportDate: new Date().toISOString(),
       data: {
-        projects,
-        statuses,
-        todos,
-        todoLinks
+        projects: this.db.prepare('SELECT * FROM projects').all(),
+        statuses: this.db.prepare('SELECT * FROM statuses').all(),
+        todos: this.db.prepare('SELECT * FROM todos').all(),
+        todoLinks: this.db.prepare('SELECT * FROM todo_links').all(),
+        settings: this.db.prepare('SELECT * FROM settings').all(),
+        milestoneTodos: this.db.prepare('SELECT * FROM milestone_todos').all(),
+        projectTopics: this.db.prepare('SELECT * FROM project_topics').all(),
+        tags: this.db.prepare('SELECT * FROM tags').all(),
+        todoTags: this.db.prepare('SELECT * FROM todo_tags').all(),
+        projectTags: this.db.prepare('SELECT * FROM project_tags').all()
       }
     }
   }
@@ -1269,31 +1270,63 @@ export class Database {
       throw new Error('Invalid import data format')
     }
 
-    const { projects, statuses, todos, todoLinks } = importData.data
+    // Version 1.0 payloads carry only these four collections; every other
+    // collection defaults to empty and every missing todo column to null/0.
+    const {
+      projects,
+      statuses,
+      todos,
+      todoLinks,
+      settings,
+      milestoneTodos,
+      projectTopics,
+      tags,
+      todoTags,
+      projectTags
+    } = importData.data
 
     // Create a transaction for atomic import
     const transaction = this.db.transaction(() => {
-      // If replace mode, clear existing data
+      // If replace mode, clear existing data (children before parents)
       if (mode === 'replace') {
-        this.db.prepare('DELETE FROM todo_links').run()
-        this.db.prepare('DELETE FROM todos').run()
-        this.db.prepare('DELETE FROM statuses').run()
-        this.db.prepare('DELETE FROM projects').run()
+        for (const table of [
+          'todo_tags',
+          'project_tags',
+          'tags',
+          'milestone_todos',
+          'todo_links',
+          'todos',
+          'project_topics',
+          'statuses',
+          'projects',
+          'settings'
+        ]) {
+          this.db.prepare(`DELETE FROM ${table}`).run()
+        }
       }
 
       // Maps to track old ID to new ID mappings
       const projectIdMap = new Map()
       const statusIdMap = new Map()
+      const topicIdMap = new Map()
+      const tagIdMap = new Map()
       const todoIdMap = new Map()
 
       // Import projects
       if (projects && projects.length > 0) {
         const stmt = this.db.prepare(`
-          INSERT INTO projects (name, color, sort_order, created_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO projects (name, color, notes, sort_order, created_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?)
         `)
         projects.forEach((p) => {
-          const result = stmt.run(p.name, p.color, p.sort_order, p.created_at, p.deleted_at || null)
+          const result = stmt.run(
+            p.name,
+            p.color,
+            p.notes ?? null,
+            p.sort_order,
+            p.created_at,
+            p.deleted_at ?? null
+          )
           projectIdMap.set(p.id, result.lastInsertRowid)
         })
       }
@@ -1310,34 +1343,73 @@ export class Database {
         })
       }
 
+      // Import project topics
+      if (projectTopics && projectTopics.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT INTO project_topics (project_id, name, color, sort_order, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+        projectTopics.forEach((t) => {
+          const newProjectId = projectIdMap.get(t.project_id)
+          if (!newProjectId) return
+          const result = stmt.run(newProjectId, t.name, t.color ?? null, t.sort_order, t.created_at)
+          topicIdMap.set(t.id, result.lastInsertRowid)
+        })
+      }
+
+      // Import tags, reusing existing rows with the same name
+      if (tags && tags.length > 0) {
+        const insert = this.db.prepare('INSERT OR IGNORE INTO tags (name) VALUES (?)')
+        const select = this.db.prepare('SELECT id FROM tags WHERE name = ?')
+        tags.forEach((t) => {
+          insert.run(t.name)
+          tagIdMap.set(t.id, select.get(t.name).id)
+        })
+      }
+
       // Import todos
       if (todos && todos.length > 0) {
         const stmt = this.db.prepare(`
-          INSERT INTO todos (title, notes, end_date, start_date, completed, sort_order, importance, project_id, status_id, created_at, updated_at, deleted_at, recurrence_type, recurrence_interval, recurrence_end_date)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO todos (title, notes, notes_sensitive, end_date, start_date, completed, completed_at, archived_at, sort_order, importance, project_id, status_id, topic_id, type, milestone_date, created_at, updated_at, deleted_at, recurrence_type, recurrence_interval, recurrence_end_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         todos.forEach((t) => {
           const newProjectId = t.project_id ? projectIdMap.get(t.project_id) : null
           const newStatusId = t.status_id ? statusIdMap.get(t.status_id) : null
+          const newTopicId = t.topic_id ? topicIdMap.get(t.topic_id) : null
 
           const result = stmt.run(
             t.title,
             t.notes,
+            t.notes_sensitive ?? 0,
             t.end_date,
             t.start_date,
             t.completed,
+            t.completed_at ?? null,
+            t.archived_at ?? null,
             t.sort_order,
             t.importance,
             newProjectId,
             newStatusId,
+            newTopicId ?? null,
+            t.type ?? 'todo',
+            t.milestone_date ?? null,
             t.created_at,
             t.updated_at,
-            t.deleted_at || null,
+            t.deleted_at ?? null,
             t.recurrence_type,
-            t.recurrence_interval,
+            t.recurrence_interval ?? 1,
             t.recurrence_end_date
           )
           todoIdMap.set(t.id, result.lastInsertRowid)
+        })
+
+        // Second pass: parents can appear after their children in the export
+        const setParent = this.db.prepare('UPDATE todos SET parent_id = ? WHERE id = ?')
+        todos.forEach((t) => {
+          if (!t.parent_id) return
+          const newParentId = todoIdMap.get(t.parent_id)
+          if (newParentId) setParent.run(newParentId, todoIdMap.get(t.id))
         })
       }
 
@@ -1353,6 +1425,61 @@ export class Database {
           if (newSourceId && newTargetId) {
             stmt.run(newSourceId, newTargetId, l.created_at)
           }
+        })
+      }
+
+      // Import milestone-todo assignments
+      if (milestoneTodos && milestoneTodos.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO milestone_todos (milestone_id, todo_id, created_at)
+          VALUES (?, ?, ?)
+        `)
+        milestoneTodos.forEach((m) => {
+          const newMilestoneId = todoIdMap.get(m.milestone_id)
+          const newTodoId = todoIdMap.get(m.todo_id)
+          if (newMilestoneId && newTodoId) {
+            stmt.run(newMilestoneId, newTodoId, m.created_at)
+          }
+        })
+      }
+
+      // Import tag assignments
+      if (todoTags && todoTags.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO todo_tags (todo_id, tag_id, created_at)
+          VALUES (?, ?, ?)
+        `)
+        todoTags.forEach((tt) => {
+          const newTodoId = todoIdMap.get(tt.todo_id)
+          const newTagId = tagIdMap.get(tt.tag_id)
+          if (newTodoId && newTagId) {
+            stmt.run(newTodoId, newTagId, tt.created_at)
+          }
+        })
+      }
+
+      if (projectTags && projectTags.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO project_tags (project_id, tag_id, created_at)
+          VALUES (?, ?, ?)
+        `)
+        projectTags.forEach((pt) => {
+          const newProjectId = projectIdMap.get(pt.project_id)
+          const newTagId = tagIdMap.get(pt.tag_id)
+          if (newProjectId && newTagId) {
+            stmt.run(newProjectId, newTagId, pt.created_at)
+          }
+        })
+      }
+
+      // Import settings; on merge the local value wins
+      if (settings && settings.length > 0) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO settings (key, value, updated_at)
+          VALUES (?, ?, ?)
+        `)
+        settings.forEach((s) => {
+          stmt.run(s.key, s.value, s.updated_at)
         })
       }
     })
