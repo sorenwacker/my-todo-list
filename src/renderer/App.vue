@@ -548,7 +548,8 @@
 
       // Define valid values for enum-like settings
       const validViews = ['cards', 'kanban', 'calendar']
-      const validSorts = ['manual', 'created', 'alpha']
+      // Keep in sync with the sort modes supported by sortTodos in useTodos.js
+      const validSorts = ['manual', 'created', 'alpha', 'due']
       const validThemes = ['dark', 'light']
 
       // Validate current-view

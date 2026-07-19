@@ -131,8 +131,9 @@ async function saveProject(loadAllTodos, loadTodos) {
     await loadAllTodos()
     await loadTodos()
     state.editingProject = null
-  } catch {
-    // Project save failed
+  } catch (error) {
+    console.error('Failed to save project:', error)
+    throw error
   }
 }
 
