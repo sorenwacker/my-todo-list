@@ -523,7 +523,7 @@
 </template>
 
 <script>
-  import { renderCardMarkdown, renderInlineMarkdown, marked } from './utils/markdown.js'
+  import { marked } from './utils/markdown.js'
   import mermaid from 'mermaid'
   import GlobalSearch from './components/GlobalSearch.vue'
   import NotesEditor from './components/NotesEditor.vue'
@@ -570,7 +570,7 @@
       }
 
       // Validate JSON settings
-      const jsonSettings = ['card-sizes-v2', 'card-widths']
+      const jsonSettings = ['card-widths']
       for (const key of jsonSettings) {
         const value = localStorage.getItem(key)
         if (value) {
@@ -688,8 +688,8 @@
     data() {
       return {
         // todos, allTodos, selectedTodoIds, focusedTodoIndex now from todosComposable
-        // projects, editingProject, editingProjectTags, newProjectName, showProjectInput now from projectsComposable
-        // statuses, editingStatus, newStatusName, showStatusInput now from statusesComposable
+        // projects, editingProject, editingProjectTags now from projectsComposable
+        // statuses, editingStatus now from statusesComposable
         currentFilter: null,
         tabViews: JSON.parse(localStorage.getItem('tab-views') || '{}'),
         activeTab: (() => {
@@ -699,17 +699,11 @@
         })(),
         showCompleted: localStorage.getItem('show-completed') === 'true',
         newTodoTitle: '',
-        // newProjectName: '', // now in projectsComposable
-        // newStatusName: '', // now in statusesComposable
-        // showProjectInput: false, // now in projectsComposable
-        // showStatusInput: false, // now in statusesComposable
         // editingProject: null, // now in projectsComposable
         // editingProjectTags: [], // now in projectsComposable
         // editingStatus: null, // now in statusesComposable
         // selectedTodoIds: new Set(), // now in todosComposable
-        milestoneRelations: {}, // { milestoneId: { todos: [] } }
         allTags: [],
-        saveTimeout: null,
         // sortBy and searchQuery are still here because they're used by the component's UI state
         sortBy: localStorage.getItem('sort-by') || 'manual',
         searchQuery: '',
@@ -719,34 +713,9 @@
         projectNotesDraftId: null,
         projectNotesSaveTimer: null,
         cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
-        cardSizes: JSON.parse(localStorage.getItem('card-sizes-v2') || '{}'),
         timezone: localStorage.getItem('timezone') || 'auto',
-        gridSize: 100,
-        filterProjectId: null,
-        importanceFilterOp: 'none',
-        importanceFilterValue: 3,
-        timelineScale: 100,
-        timelineMode: 'gantt',
-        calendarDate: new Date(),
-        timelineOffset: 0,
-        ganttGroupBy: 'project',
-        draggingBarId: null,
-        draggingBarTodo: null,
-        barDragStartX: 0,
-        barDragStartY: 0,
-        barDragMode: 'move',
-        barDragOriginalDates: null,
-        lastDeltaDays: 0,
-        dropTargetRowId: null,
         dragOverProjectId: null,
         draggingInboxTodo: null,
-        altKeyHeld: false,
-        // View transition properties
-        viewTransitionDirection: 'forward',
-        previousViewIndex: 0,
-        projectTransitionDirection: 'forward',
-        previousProjectFilter: null,
-        tabTransitionDirection: 'forward',
         // projectColors now from projectsComposable
         // statusColors now from statusesComposable
         // Theme
@@ -754,8 +723,6 @@
         // Sidebar visibility
         sidebarVisible: localStorage.getItem('sidebar-visible') !== 'false',
         sidebarPinned: localStorage.getItem('sidebar-pinned') === 'true',
-        statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
-        settingsCollapsed: localStorage.getItem('settings-collapsed') !== 'false',
         // Trash & Archive
         trashCount: 0,
         archiveCount: 0,
@@ -765,8 +732,6 @@
         showGlobalSearch: false,
         showProjectsOverview: false,
         recentItems: JSON.parse(localStorage.getItem('recent-items') || '[]'),
-        // Type filter
-        typeFilter: localStorage.getItem('type-filter') || 'all',
         // Export/Import
         showImportDialog: false,
         databasePath: '',
@@ -824,30 +789,8 @@
       editingProjectTags() {
         return this.projectsComposable.editingProjectTags.value
       },
-      newProjectName: {
-        get() {
-          return this.projectsComposable.newProjectName.value
-        },
-        set(val) {
-          this.projectsComposable.newProjectName.value = val
-        }
-      },
-      showProjectInput() {
-        return this.projectsComposable.showProjectInput.value
-      },
       editingStatus() {
         return this.statusesComposable.editingStatus.value
-      },
-      newStatusName: {
-        get() {
-          return this.statusesComposable.newStatusName.value
-        },
-        set(val) {
-          this.statusesComposable.newStatusName.value = val
-        }
-      },
-      showStatusInput() {
-        return this.statusesComposable.showStatusInput.value
       },
       projectColors() {
         return this.projectsComposable.projectColors
@@ -868,13 +811,6 @@
       },
       isProjectSelected() {
         return typeof this.currentFilter === 'number'
-      },
-      currentTitle() {
-        if (this.currentFilter === null) return 'Items'
-        if (this.currentFilter === 'inbox') return 'Inbox'
-        if (this.currentFilter === 'trash') return 'Trash'
-        const project = this.projects.find((p) => p.id === this.currentFilter)
-        return project ? project.name : 'Items'
       },
       currentProjectName() {
         if (!this.isProjectSelected) return ''
@@ -908,33 +844,8 @@
       statusCounts() {
         return this.statusesComposable.getStatusCounts(this.allTodos)
       },
-      // Tab-related computed properties
-      itemsCount() {
-        const todos = this.isProjectSelected
-          ? this.allTodos.filter((t) => t.project_id === this.currentFilter)
-          : this.allTodos
-        return todos.filter((t) => !t.deleted_at).length
-      },
       availableViews() {
         return ['cards', 'kanban']
-      },
-      currentViewIndex() {
-        return this.availableViews.indexOf(this.currentView)
-      },
-      viewTransitionName() {
-        return this.viewTransitionDirection === 'forward' ? 'cube' : 'cube-reverse'
-      },
-      projectTransitionName() {
-        return this.projectTransitionDirection === 'forward'
-          ? 'project-cube'
-          : 'project-cube-reverse'
-      },
-      projectTransitionKey() {
-        // Generate a key that changes when project changes
-        return `project-${this.currentFilter}`
-      },
-      tabTransitionName() {
-        return this.tabTransitionDirection === 'forward' ? 'tab-slide' : 'tab-slide-reverse'
       },
       inboxTodos() {
         return this.filteredTodos.filter((t) => !t.project_id)
@@ -989,11 +900,7 @@
         this.todosComposable.setSearchQuery(this.searchQuery)
         this.todosComposable.setShowCompleted(this.showCompleted)
 
-        let todos = this.todosComposable.filteredTodos.value
-        if (this.filterProjectId !== null) {
-          todos = todos.filter((t) => t.project_id === this.filterProjectId)
-        }
-        return todos
+        return this.todosComposable.filteredTodos.value
       },
       sortedKanbanTodos() {
         // Kanban columns must honour the sort dropdown just like the cards view.
@@ -1001,336 +908,18 @@
       },
       completedCount() {
         return this.todosComposable.completedCount.value
-      },
-      timelineTodos() {
-        // Only show todos that have at least one date (start_date or end_date)
-        return [...this.filteredTodos]
-          .filter((t) => t.start_date || t.end_date)
-          .sort((a, b) => {
-            // Sort by start_date, then end_date, then created_at
-            const aDate = a.start_date || a.end_date || a.created_at
-            const bDate = b.start_date || b.end_date || b.created_at
-            return new Date(aDate) - new Date(bDate)
-          })
-      },
-      timelineRange() {
-        const now = new Date()
-        if (this.timelineTodos.length === 0) {
-          // Show current month + 2 months when no todos with dates
-          const end = new Date(now)
-          end.setMonth(end.getMonth() + 2)
-          const days = Math.ceil((end - now) / (1000 * 60 * 60 * 24)) + 1
-          return { start: now, end, days }
-        }
-        const allDates = []
-        this.timelineTodos.forEach((t) => {
-          if (t.start_date) allDates.push(new Date(t.start_date))
-          if (t.end_date) allDates.push(new Date(t.end_date))
-        })
-        allDates.push(now) // Include today
-        // Add a date 2 months from now to ensure timeline extends into the future
-        const futureDate = new Date(now)
-        futureDate.setMonth(futureDate.getMonth() + 2)
-        allDates.push(futureDate)
-        const start = new Date(Math.min(...allDates))
-        const end = new Date(Math.max(...allDates))
-        start.setDate(start.getDate() - 1)
-        end.setDate(end.getDate() + 1)
-        const days = Math.max(14, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1)
-        return { start, end, days }
-      },
-      timelineDates() {
-        const dates = []
-        const start = new Date(this.timelineRange.start)
-        for (let i = 0; i < this.timelineRange.days; i++) {
-          const d = new Date(start)
-          d.setDate(start.getDate() + i)
-          dates.push(d)
-        }
-        return dates
-      },
-      todayPosition() {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const start = new Date(this.timelineRange.start)
-        start.setHours(0, 0, 0, 0)
-        const diffDays = (today - start) / (1000 * 60 * 60 * 24)
-        if (diffDays < 0 || diffDays > this.timelineRange.days) {
-          return -1
-        }
-        return diffDays * this.timelineScale
-      },
-      calendarPeriodLabel() {
-        const opts = { month: 'long', year: 'numeric' }
-        if (this.timelineMode === 'day') {
-          return this.calendarDate.toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-          })
-        } else if (this.timelineMode === 'week') {
-          const start = this.getWeekStart(this.calendarDate)
-          const end = new Date(start)
-          end.setDate(end.getDate() + 6)
-          return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-        }
-        return this.calendarDate.toLocaleDateString('en-US', opts)
-      },
-      calendarMonthDays() {
-        const year = this.calendarDate.getFullYear()
-        const month = this.calendarDate.getMonth()
-        const firstDay = new Date(year, month, 1)
-        const lastDay = new Date(year, month + 1, 0)
-        const startPadding = firstDay.getDay()
-        const days = []
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        for (let i = startPadding - 1; i >= 0; i--) {
-          const date = new Date(year, month, -i)
-          days.push({
-            date: this.formatDateKey(date),
-            dayNumber: date.getDate(),
-            isCurrentMonth: false,
-            isToday: date.getTime() === today.getTime(),
-            isWeekend: date.getDay() === 0 || date.getDay() === 6
-          })
-        }
-        for (let d = 1; d <= lastDay.getDate(); d++) {
-          const date = new Date(year, month, d)
-          days.push({
-            date: this.formatDateKey(date),
-            dayNumber: d,
-            isCurrentMonth: true,
-            isToday: date.getTime() === today.getTime(),
-            isWeekend: date.getDay() === 0 || date.getDay() === 6
-          })
-        }
-        const remaining = 42 - days.length
-        for (let i = 1; i <= remaining; i++) {
-          const date = new Date(year, month + 1, i)
-          days.push({
-            date: this.formatDateKey(date),
-            dayNumber: i,
-            isCurrentMonth: false,
-            isToday: date.getTime() === today.getTime(),
-            isWeekend: date.getDay() === 0 || date.getDay() === 6
-          })
-        }
-        return days
-      },
-      calendarWeekDays() {
-        const start = this.getWeekStart(this.calendarDate)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const days = []
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(start)
-          date.setDate(date.getDate() + i)
-          days.push({
-            date: this.formatDateKey(date),
-            dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
-            dayNumber: date.getDate(),
-            isToday: date.getTime() === today.getTime(),
-            isWeekend: date.getDay() === 0 || date.getDay() === 6
-          })
-        }
-        return days
-      },
-      calendarDayTodos() {
-        return this.getTodosForCalendarDate(this.formatDateKey(this.calendarDate))
-      },
-      dateLabelInterval() {
-        // Determine how many days to skip between labels based on zoom level
-        if (this.timelineScale >= 80) return 1 // Show every day
-        if (this.timelineScale >= 40) return 2 // Every 2 days
-        if (this.timelineScale >= 25) return 7 // Weekly
-        return 14 // Every 2 weeks
-      },
-      ganttRows() {
-        const rows = []
-        const todos = this.timelineTodos
-
-        // Helper to calculate lanes for todos to avoid overlaps
-        const assignLanes = (rowTodos) => {
-          const todoLanes = {}
-          const lanes = [] // Each lane is an array of { end: endPosition }
-
-          // Sort todos by start date (items without dates are already filtered out)
-          const sortedTodos = [...rowTodos].sort((a, b) => {
-            const aStart = a.start_date ? new Date(a.start_date) : new Date(a.end_date)
-            const bStart = b.start_date ? new Date(b.start_date) : new Date(b.end_date)
-            return aStart - bStart
-          })
-
-          for (const todo of sortedTodos) {
-            const startDate = todo.start_date ? new Date(todo.start_date) : new Date(todo.end_date)
-            const endDate = todo.end_date ? new Date(todo.end_date) : startDate
-            const startPos = this.getTimelinePosition(startDate)
-            const endPos = this.getTimelinePosition(endDate) + 20 // Add minimum width
-
-            // Find the first lane where this todo fits
-            let assignedLane = -1
-            for (let i = 0; i < lanes.length; i++) {
-              if (lanes[i] <= startPos) {
-                assignedLane = i
-                lanes[i] = endPos
-                break
-              }
-            }
-
-            // If no lane fits, create a new one
-            if (assignedLane === -1) {
-              assignedLane = lanes.length
-              lanes.push(endPos)
-            }
-
-            todoLanes[todo.id] = assignedLane
-          }
-
-          return { todoLanes, laneCount: Math.max(1, lanes.length) }
-        }
-
-        if (this.ganttGroupBy === 'project') {
-          // Inbox row
-          const inboxTodos = todos.filter((t) => !t.project_id)
-          if (inboxTodos.length > 0) {
-            const { todoLanes, laneCount } = assignLanes(inboxTodos)
-            rows.push({
-              id: 'inbox',
-              name: 'Inbox',
-              color: '#666',
-              todos: inboxTodos,
-              todoLanes,
-              laneCount
-            })
-          }
-          // Project rows
-          for (const project of this.projects) {
-            const projectTodos = todos.filter((t) => t.project_id === project.id)
-            if (projectTodos.length > 0) {
-              const { todoLanes, laneCount } = assignLanes(projectTodos)
-              rows.push({
-                id: project.id,
-                name: project.name,
-                color: project.color,
-                todos: projectTodos,
-                todoLanes,
-                laneCount
-              })
-            }
-          }
-        } else if (this.ganttGroupBy === 'importance') {
-          // Group by importance (5 to 1)
-          for (let i = 5; i >= 1; i--) {
-            const impTodos = todos.filter((t) => (t.importance || 0) === i)
-            if (impTodos.length > 0) {
-              const { todoLanes, laneCount } = assignLanes(impTodos)
-              rows.push({
-                id: `imp-${i}`,
-                name: `Importance ${i}`,
-                color: this.getImportanceColor(i),
-                todos: impTodos,
-                todoLanes,
-                laneCount
-              })
-            }
-          }
-        } else if (this.ganttGroupBy === 'milestone') {
-          // Milestones are todos with type='milestone'
-          const milestones = todos.filter((t) => t.type === 'milestone')
-
-          // Collect all todo IDs that are assigned to any milestone
-          const assignedTodoIds = new Set()
-          for (const milestone of milestones) {
-            const rel = this.milestoneRelations[milestone.id]
-            if (rel?.todos) {
-              rel.todos.forEach((t) => assignedTodoIds.add(t.id))
-            }
-          }
-
-          // Unassigned todos (not milestones themselves, not linked to any milestone)
-          const unassignedTodos = todos.filter(
-            (t) => t.type !== 'milestone' && !assignedTodoIds.has(t.id)
-          )
-
-          // Unassigned todos row
-          if (unassignedTodos.length > 0) {
-            const { todoLanes, laneCount } = assignLanes(unassignedTodos)
-            rows.push({
-              id: 'unassigned',
-              name: 'Unassigned',
-              color: '#666',
-              todos: unassignedTodos,
-              todoLanes,
-              laneCount
-            })
-          }
-
-          // Milestone rows with their linked todos
-          for (const milestone of milestones) {
-            const rel = this.milestoneRelations[milestone.id] || { todos: [] }
-            const linkedTodos = rel.todos || []
-            const milestoneTodos = [milestone, ...linkedTodos]
-            if (milestoneTodos.length > 0) {
-              const { todoLanes, laneCount } = assignLanes(milestoneTodos)
-              rows.push({
-                id: `milestone-${milestone.id}`,
-                name: milestone.title,
-                color: milestone.project_color || '#ffc107',
-                todos: milestoneTodos,
-                todoLanes,
-                laneCount,
-                isMilestone: true,
-                milestone: milestone
-              })
-            }
-          }
-        }
-
-        return rows
       }
     },
     watch: {
-      currentView(val, oldVal) {
-        // Determine transition direction based on view order
-        const views = this.availableViews
-        const oldIndex = views.indexOf(oldVal)
-        const newIndex = views.indexOf(val)
-        this.viewTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
-        this.previousViewIndex = oldIndex
-
+      currentView(val) {
         // Handle entering new view
         if (val === 'cards') {
           this.$nextTick(() => {
             this.applyMasonryLayout()
           })
-        } else if (val === 'timeline' && this.ganttGroupBy === 'milestone') {
-          this.loadMilestoneRelations()
         }
       },
-      activeTab(val, oldVal) {
-        // Determine tab transition direction
-        const tabOrder = ['items']
-        const oldIndex = tabOrder.indexOf(oldVal)
-        const newIndex = tabOrder.indexOf(val)
-        this.tabTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
-      },
-      currentFilter(val, oldVal) {
-        // Determine project transition direction
-        const getFilterIndex = (filter) => {
-          if (filter === null) return 0
-          if (filter === 'inbox') return 1
-          if (filter === 'trash') return 2
-          // For project IDs, find index in projects array
-          const idx = this.projects.findIndex((p) => p.id === filter)
-          return idx >= 0 ? idx + 3 : 999
-        }
-        const oldIndex = getFilterIndex(oldVal)
-        const newIndex = getFilterIndex(val)
-        this.projectTransitionDirection = newIndex >= oldIndex ? 'forward' : 'reverse'
-        this.previousProjectFilter = oldVal
-
+      currentFilter() {
         // Flush any pending notes save for the project we are leaving, then load
         // the newly selected project's notes into the editor draft.
         this.flushProjectNotes()
@@ -1338,12 +927,6 @@
       },
       showProjectNotes(val) {
         localStorage.setItem('show-project-notes', val)
-      },
-      ganttGroupBy(val) {
-        // Load milestone relations when grouping by milestone
-        if (val === 'milestone' && this.currentView === 'timeline') {
-          this.loadMilestoneRelations()
-        }
       },
       sortedTodos() {
         if (this.currentView === 'cards') {
@@ -1413,7 +996,6 @@
 
       // Keyboard shortcuts
       window.addEventListener('keydown', this.handleKeyDown)
-      window.addEventListener('keyup', this.handleKeyUp)
 
       // Listen for history state changes (undo/redo)
       this.historyState = await window.api.getHistoryState()
@@ -1457,7 +1039,6 @@
     },
     beforeUnmount() {
       window.removeEventListener('keydown', this.handleKeyDown)
-      window.removeEventListener('keyup', this.handleKeyUp)
       if (this.cardResizeObserver) {
         this.cardResizeObserver.disconnect()
       }
@@ -1468,27 +1049,6 @@
         if (count.total === 0) return ''
         if (count.done === 0) return count.total
         return `${count.done}/${count.total}`
-      },
-      renderCardMarkdown(text) {
-        return renderCardMarkdown(text)
-      },
-      renderInlineMarkdown(text) {
-        return renderInlineMarkdown(text)
-      },
-      onGroupByProjectChange() {
-        if (this.currentView === 'cards') {
-          this.$nextTick(() => {
-            this.applyMasonryLayout()
-          })
-        }
-      },
-      getInitials(name) {
-        if (!name) return ''
-        const parts = name.trim().split(' ')
-        if (parts.length === 1) {
-          return parts[0].substring(0, 2)
-        }
-        return parts[0][0] + parts[parts.length - 1][0]
       },
       toggleShowCompleted() {
         localStorage.setItem('show-completed', this.showCompleted.toString())
@@ -1515,32 +1075,6 @@
       },
       async loadTodos() {
         await this.todosComposable.loadTodos(this.currentFilter)
-      },
-      async loadMilestoneRelations() {
-        // Load todos and persons for all milestones
-        const milestones = this.allTodos.filter((t) => t.type === 'milestone')
-        const relations = {}
-        for (const milestone of milestones) {
-          const todos = await window.api.getMilestoneTodos(milestone.id)
-          relations[milestone.id] = { todos }
-        }
-        this.milestoneRelations = relations
-      },
-      renderCardNotes(notes) {
-        if (!notes) return ''
-        // Strip mermaid code blocks and replace with placeholder (for performance)
-        const processed = notes.replace(/```mermaid[\s\S]*?```/g, '[diagram]')
-        // Render full notes - CSS handles overflow with scrolling for resizable cards
-        return renderCardMarkdown(processed)
-      },
-      getStatusCount(statusId) {
-        return this.allTodos.filter((t) => t.status_id === statusId).length
-      },
-      getStatusTodos(statusId) {
-        return this.filteredTodos.filter((t) => t.status_id === statusId)
-      },
-      getProjectCount(projectId) {
-        return this.allTodos.filter((t) => t.project_id === projectId).length
       },
       updateStatusTodos(_statusId, _todos) {
         // Used by draggable for reactive updates
@@ -1652,34 +1186,6 @@
         this.newTodoTitle = ''
         this.projectsComposable.setAllTodos(this.allTodos)
       },
-      async addMilestone() {
-        const projectId =
-          this.currentFilter !== null && this.currentFilter !== 'inbox' ? this.currentFilter : null
-        try {
-          const milestone = await window.api.createTodo('New Milestone', projectId, 'milestone')
-          await this.loadAllTodos()
-          await this.loadTodos()
-          if (milestone && milestone.id) this.selectTodo(milestone.id)
-        } catch {
-          // Milestone creation failed
-        }
-      },
-      async createTodoOnDate(dateKey) {
-        const projectId =
-          this.currentFilter !== null && this.currentFilter !== 'inbox' ? this.currentFilter : null
-        try {
-          const type = 'todo'
-          const todo = await window.api.createTodo('New Task', projectId, type)
-          if (todo && todo.id) {
-            await window.api.updateTodo({ id: todo.id, start_date: dateKey, end_date: dateKey })
-            await this.loadAllTodos()
-            await this.loadTodos()
-            this.selectTodo(todo.id)
-          }
-        } catch {
-          // Todo creation failed
-        }
-      },
       async addTodoToProject(projectId) {
         try {
           const type = 'todo'
@@ -1696,10 +1202,6 @@
         event.dataTransfer.effectAllowed = 'move'
         event.dataTransfer.setData('text/plain', todo.id)
       },
-      onInboxDragEnd() {
-        this.draggingInboxTodo = null
-        this.dragOverProjectId = null
-      },
       async dropOnProject(event, projectId) {
         this.dragOverProjectId = null
         if (!this.draggingInboxTodo) return
@@ -1711,41 +1213,6 @@
         await this.loadAllTodos()
         await this.loadTodos()
         this.draggingInboxTodo = null
-      },
-      onTimelineChartDblClick(event) {
-        // Only handle if clicked on empty area (not on a bar or row)
-        if (event.target.closest('.gantt-bar') || event.target.closest('.gantt-row-bg')) {
-          return // Let the row handler handle it
-        }
-        this.createTodoFromTimeline(event, null)
-      },
-      async createTodoFromTimeline(event, _row) {
-        // Calculate date from click position
-        const chartArea = this.$refs.ganttChartArea
-        const rect = chartArea.getBoundingClientRect()
-        const clickX = event.clientX - rect.left + this.timelineOffset
-        const dayIndex = Math.floor(clickX / this.timelineScale)
-        const startDate = new Date(this.timelineRange.start)
-        startDate.setDate(startDate.getDate() + dayIndex)
-        const dateStr = startDate.toISOString().split('T')[0]
-
-        // Determine project ID - use current filter if it's a project
-        const projectId =
-          this.currentFilter !== null &&
-          this.currentFilter !== 'inbox' &&
-          this.currentFilter !== 'trash'
-            ? this.currentFilter
-            : null
-
-        // Create todo and update with start date
-        const type = 'todo'
-        const todo = await window.api.createTodo('New Todo', projectId, type)
-        todo.start_date = dateStr
-        const todoData = this.toPlainTodo(todo)
-        await window.api.updateTodo(todoData)
-        await this.loadAllTodos()
-        await this.loadTodos()
-        this.selectTodo(todo.id)
       },
       async addTodoToStatus(statusId) {
         try {
@@ -1864,24 +1331,6 @@
         this.selectedTodoIds = new Set()
         this.selectTodo(id)
       },
-      handleRowClick(event, id) {
-        // Multi-select with Ctrl/Cmd+click
-        if (event.ctrlKey || event.metaKey) {
-          if (this.selectedTodoIds.has(id)) {
-            this.selectedTodoIds.delete(id)
-          } else {
-            this.selectedTodoIds.add(id)
-          }
-          // Trigger reactivity
-          this.selectedTodoIds = new Set(this.selectedTodoIds)
-          return
-        }
-
-        // Normal click - clear multi-select and select single
-        this.selectedTodoIds.clear()
-        this.selectedTodoIds = new Set()
-        this.selectTodo(id)
-      },
       handleMarqueeSelect(ids) {
         // Set the selected IDs from marquee selection
         this.selectedTodoIds = new Set(ids)
@@ -1895,44 +1344,9 @@
       async loadAllTags() {
         this.allTags = await window.api.getAllTags()
       },
-      formatDeadline(deadline) {
-        if (!deadline) return ''
-        const date = new Date(deadline)
-        return date.toISOString().split('T')[0]
-      },
-      formatShortDate(dateStr) {
-        if (!dateStr) return ''
-        const date = new Date(dateStr)
-        return date.toISOString().split('T')[0]
-      },
-      isOverdue(deadline) {
-        if (!deadline) return false
-        return new Date(deadline) < new Date()
-      },
-      showAddProject() {
-        this.showProjectInput = true
-        this.$nextTick(() => {
-          this.$refs.projectInput?.focus()
-        })
-      },
-      async addProject() {
-        if (!this.newProjectName.trim()) {
-          this.cancelAddProject()
-          return
-        }
-        const randomColor =
-          this.projectColors[Math.floor(Math.random() * this.projectColors.length)]
-        await window.api.createProject(this.newProjectName.trim(), randomColor)
-        this.newProjectName = ''
-        this.showProjectInput = false
-        await this.loadProjects()
-      },
       async addProjectFromSidebar(name) {
         await this.projectsComposable.addProject(name)
         this.projectsComposable.setAllTodos(this.allTodos)
-      },
-      cancelAddProject() {
-        this.projectsComposable.cancelAddProject()
       },
       async editProject(project) {
         await this.projectsComposable.editProject(project)
@@ -1967,28 +1381,8 @@
         )
       },
       // Status methods
-      showAddStatus() {
-        this.showStatusInput = true
-        this.$nextTick(() => {
-          this.$refs.statusInput?.focus()
-        })
-      },
-      async addStatus() {
-        if (!this.newStatusName.trim()) {
-          this.cancelAddStatus()
-          return
-        }
-        const randomColor = this.statusColors[Math.floor(Math.random() * this.statusColors.length)]
-        await window.api.createStatus(this.newStatusName.trim(), randomColor)
-        this.newStatusName = ''
-        this.showStatusInput = false
-        await this.loadStatuses()
-      },
       async addStatusFromSidebar(name) {
         await this.statusesComposable.addStatus(name)
-      },
-      cancelAddStatus() {
-        this.statusesComposable.cancelAddStatus()
       },
       editStatus(status) {
         this.statusesComposable.editStatus(status)
@@ -2011,133 +1405,6 @@
           await this.loadAllTodos()
           await this.loadTodos()
         })
-      },
-      formatCreatedDate(createdAt) {
-        if (!createdAt) return ''
-        const date = new Date(createdAt)
-        return (
-          date.toLocaleDateString() +
-          ' ' +
-          date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        )
-      },
-      // Timeline methods
-      formatTimelineDate(date) {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      },
-      getWeekdayName(date) {
-        return date.toLocaleDateString('en-US', { weekday: 'short' })
-      },
-      // Calendar methods
-      formatDateKey(date) {
-        return date.toISOString().split('T')[0]
-      },
-      getWeekStart(date) {
-        const d = new Date(date)
-        const day = d.getDay()
-        d.setDate(d.getDate() - day)
-        d.setHours(0, 0, 0, 0)
-        return d
-      },
-      navigateCalendar(direction) {
-        const d = new Date(this.calendarDate)
-        if (this.timelineMode === 'month') {
-          d.setMonth(d.getMonth() + direction)
-        } else if (this.timelineMode === 'week') {
-          d.setDate(d.getDate() + direction * 7)
-        } else {
-          d.setDate(d.getDate() + direction)
-        }
-        this.calendarDate = d
-      },
-      goToToday() {
-        this.calendarDate = new Date()
-      },
-      getTodosForCalendarDate(dateKey) {
-        return this.sortedTodos.filter((t) => {
-          if (!t.start_date && !t.end_date) return false
-          const start = t.start_date || t.end_date
-          const end = t.end_date || t.start_date
-          return dateKey >= start && dateKey <= end
-        })
-      },
-      isToday(date) {
-        const today = new Date()
-        return (
-          date.getDate() === today.getDate() &&
-          date.getMonth() === today.getMonth() &&
-          date.getFullYear() === today.getFullYear()
-        )
-      },
-      isWeekend(date) {
-        const day = date.getDay()
-        return day === 0 || day === 6
-      },
-      shouldShowDateLabel(index) {
-        // Always show first date
-        if (index === 0) return true
-        // Show based on interval determined by zoom level
-        const interval = this.dateLabelInterval
-        // For weekly interval, show Mondays
-        if (interval === 7) {
-          const date = this.timelineDates[index]
-          return date.getDay() === 1 // Monday
-        }
-        // For bi-weekly, show every other Monday
-        if (interval === 14) {
-          const date = this.timelineDates[index]
-          if (date.getDay() !== 1) return false
-          // Count Mondays from start
-          const mondayCount = this.timelineDates
-            .slice(0, index)
-            .filter((d) => d.getDay() === 1).length
-          return mondayCount % 2 === 0
-        }
-        return index % interval === 0
-      },
-      getTimelinePosition(dateStr) {
-        const date = new Date(dateStr)
-        const start = this.timelineRange.start
-        const diffDays = (date - start) / (1000 * 60 * 60 * 24)
-        return diffDays * this.timelineScale
-      },
-      getGanttBarStyle(todo, row) {
-        const startDate = todo.start_date ? new Date(todo.start_date) : new Date(todo.end_date)
-        const endDate = todo.end_date ? new Date(todo.end_date) : startDate
-        const startPos = this.getTimelinePosition(startDate)
-        const endPos = this.getTimelinePosition(endDate)
-        const width = Math.max(endPos - startPos, 20)
-        const lane = row?.todoLanes?.[todo.id] || 0
-        const barHeight = 26
-        const barGap = 4
-        return {
-          left: startPos + 'px',
-          width: width + 'px',
-          background: todo.project_color || '#0f4c75',
-          top: 6 + lane * (barHeight + barGap) + 'px',
-          height: barHeight + 'px'
-        }
-      },
-      getRowHeight(row) {
-        const lanes = row.laneCount || 1
-        const barHeight = 26
-        const barGap = 4
-        return Math.max(50, 12 + lanes * (barHeight + barGap))
-      },
-      getImportanceColor(level) {
-        const colors = { 5: '#e74c3c', 4: '#e67e22', 3: '#f1c40f', 2: '#3498db', 1: '#95a5a6' }
-        return colors[level] || '#666'
-      },
-      // Individual card sizing methods
-      getCardStyle(todoId, projectColor) {
-        const size = this.cardSizes[todoId]
-        const style = { borderTopColor: projectColor || '#0f4c75' }
-        if (size && size.height) {
-          // Only apply saved height when user has manually resized
-          style.height = size.height + 'px'
-        }
-        // Otherwise let the card size naturally based on content (no min-height)
-        return style
       },
       observeCards() {
         if (!this.cardResizeObserver) return
@@ -2182,180 +1449,8 @@
           }, 150)
         })
       },
-      saveCardSizes() {
-        localStorage.setItem('card-sizes-v2', JSON.stringify(this.cardSizes))
-      },
-      resetCardSize(todoId, event) {
-        event.stopPropagation()
-        delete this.cardSizes[todoId]
-        this.saveCardSizes()
-      },
-      // Bar drag methods for timeline
-      startBarDrag(e, todo, mode = 'move') {
-        // Don't allow dragging milestones to other rows
-        if (todo.type === 'milestone') mode = 'move'
-        this.draggingBarId = todo.id
-        this.draggingBarTodo = todo
-        this.barDragStartX = e.clientX
-        this.barDragStartY = e.clientY
-        this.barDragMode = mode // 'move', 'resize-start', or 'resize-end'
-        this.barDragOriginalDates = {
-          start_date: todo.start_date,
-          end_date: todo.end_date,
-          parent_id: todo.parent_id
-        }
-        this.lastDeltaDays = 0
-        this.dropTargetRowId = null
-        document.addEventListener('mousemove', this.onBarDrag)
-        document.addEventListener('mouseup', this.stopBarDrag)
-        e.preventDefault()
-      },
-      onBarDrag(e) {
-        if (!this.draggingBarTodo) return
-        const deltaX = e.clientX - this.barDragStartX
-        const deltaDays = Math.round(deltaX / this.timelineScale)
-
-        const todo = this.draggingBarTodo
-        const mode = this.barDragMode
-
-        // Detect drop target row when grouped by milestone
-        if (this.ganttGroupBy === 'milestone' && todo.type !== 'milestone') {
-          const ganttRows = this.$refs.ganttChartArea?.querySelectorAll('.gantt-row')
-          if (ganttRows) {
-            let foundRow = null
-            ganttRows.forEach((rowEl, index) => {
-              const rect = rowEl.getBoundingClientRect()
-              if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                const row = this.ganttRows[index]
-                if (row && row.isMilestone && row.milestone?.id !== todo.id) {
-                  foundRow = row.id
-                } else if (row && row.id === 'unassigned') {
-                  foundRow = 'unassigned'
-                }
-              }
-            })
-            this.dropTargetRowId = foundRow
-          }
-        }
-
-        // Skip date updates if same as last update
-        if (deltaDays === this.lastDeltaDays) return
-        this.lastDeltaDays = deltaDays
-
-        if (mode === 'move') {
-          // Move both dates together (original behavior)
-          if (this.barDragOriginalDates.start_date) {
-            const newStart = new Date(this.barDragOriginalDates.start_date)
-            newStart.setDate(newStart.getDate() + deltaDays)
-            todo.start_date = newStart.toISOString().split('T')[0]
-          }
-          if (this.barDragOriginalDates.end_date) {
-            const newEnd = new Date(this.barDragOriginalDates.end_date)
-            newEnd.setDate(newEnd.getDate() + deltaDays)
-            todo.end_date = newEnd.toISOString().split('T')[0]
-          }
-        } else if (mode === 'resize-start') {
-          // Change start date
-          const origStart =
-            this.barDragOriginalDates.start_date || this.barDragOriginalDates.end_date
-          if (origStart) {
-            const newStart = new Date(origStart)
-            newStart.setDate(newStart.getDate() + deltaDays)
-            // Ensure start doesn't go past end
-            const endDate = this.barDragOriginalDates.end_date
-              ? new Date(this.barDragOriginalDates.end_date)
-              : null
-            if (!endDate || newStart <= endDate) {
-              todo.start_date = newStart.toISOString().split('T')[0]
-            }
-          }
-        } else if (mode === 'resize-end') {
-          // Change end date
-          const origEnd = this.barDragOriginalDates.end_date || this.barDragOriginalDates.start_date
-          if (origEnd) {
-            const newEnd = new Date(origEnd)
-            newEnd.setDate(newEnd.getDate() + deltaDays)
-            // Ensure end doesn't go before start
-            const startDate = this.barDragOriginalDates.start_date
-              ? new Date(this.barDragOriginalDates.start_date)
-              : null
-            if (!startDate || newEnd >= startDate) {
-              todo.end_date = newEnd.toISOString().split('T')[0]
-            }
-          }
-        }
-      },
-      async stopBarDrag() {
-        document.removeEventListener('mousemove', this.onBarDrag)
-        document.removeEventListener('mouseup', this.stopBarDrag)
-
-        if (this.draggingBarTodo) {
-          const todoData = this.toPlainTodo(this.draggingBarTodo)
-          const todoId = this.draggingBarTodo.id
-
-          // Handle milestone assignment when dropping on a milestone row
-          if (this.dropTargetRowId && this.ganttGroupBy === 'milestone') {
-            // First unlink from all current milestones
-            const milestones = this.allTodos.filter((t) => t.type === 'milestone')
-            for (const m of milestones) {
-              const rel = this.milestoneRelations[m.id]
-              if (rel?.todos?.some((t) => t.id === todoId)) {
-                await window.api.unlinkMilestoneTodo(m.id, todoId)
-              }
-            }
-
-            if (this.dropTargetRowId !== 'unassigned') {
-              // Extract milestone id from row id (format: 'milestone-{id}')
-              const match = this.dropTargetRowId.match(/^milestone-(\d+)$/)
-              if (match) {
-                const milestoneId = parseInt(match[1], 10)
-                await window.api.linkMilestoneTodo(milestoneId, todoId)
-              }
-            }
-          }
-
-          await window.api.updateTodo(todoData)
-          await this.loadAllTodos()
-          await this.loadTodos()
-          if (this.ganttGroupBy === 'milestone') {
-            await this.loadMilestoneRelations()
-          }
-        }
-
-        this.draggingBarId = null
-        this.draggingBarTodo = null
-        this.barDragMode = 'move'
-        this.barDragOriginalDates = null
-        this.lastDeltaDays = 0
-        this.dropTargetRowId = null
-      },
-      // Filter methods
-      toggleProjectFilter(projectId) {
-        if (this.filterProjectId === projectId) {
-          this.filterProjectId = null
-        } else {
-          this.filterProjectId = projectId
-        }
-      },
-      onTimelineWheel(event) {
-        if (event.ctrlKey || event.metaKey) {
-          // Ctrl/Cmd + scroll = zoom
-          const delta = event.deltaY > 0 ? -10 : 10
-          this.timelineScale = Math.max(10, Math.min(500, this.timelineScale + delta))
-        } else if (event.shiftKey) {
-          // Shift + scroll = horizontal scroll
-          this.timelineOffset += event.deltaY
-        } else {
-          // Regular scroll = horizontal scroll
-          this.timelineOffset += event.deltaX || event.deltaY
-        }
-      },
       // Keyboard shortcuts
-      handleKeyUp(e) {
-        if (e.key === 'Alt') this.altKeyHeld = false
-      },
       handleKeyDown(e) {
-        if (e.key === 'Alt') this.altKeyHeld = true
         // Ignore if typing in input/textarea
         const target = e.target
         const isInputField =
@@ -2412,12 +1507,6 @@
           if (this.showGlobalSearch) {
             this.showGlobalSearch = false
             return
-          }
-          // Close inline node editing in graph
-          if (this.editingNodeId) {
-            this.editingNodeId = null
-            this.editingNodeNotes = ''
-            this.editingNodeTitle = ''
           }
           this.focusedTodoIndex = -1
           return
@@ -2550,11 +1639,6 @@
         // Persist
         localStorage.setItem('recent-items', JSON.stringify(this.recentItems))
       },
-      async navigateToProject(projectId) {
-        if (projectId) {
-          await this.setFilter(projectId)
-        }
-      },
       async selectProjectFromOverview(projectId) {
         this.showProjectsOverview = false
         if (projectId === 'inbox') {
@@ -2597,14 +1681,6 @@
         await this.loadTodos()
         await this.loadAllTodos()
       },
-      toggleStatusesCollapsed() {
-        this.statusesCollapsed = !this.statusesCollapsed
-        localStorage.setItem('statuses-collapsed', this.statusesCollapsed)
-      },
-      toggleSettingsCollapsed() {
-        this.settingsCollapsed = !this.settingsCollapsed
-        localStorage.setItem('settings-collapsed', this.settingsCollapsed)
-      },
       async handleExport() {
         try {
           const result = await window.api.exportData()
@@ -2629,15 +1705,6 @@
           alert('Failed to import backup: ' + error.message)
         }
       },
-      handleMarkdownClick(event) {
-        // Check if clicked element is a link or inside a link
-        const link = event.target.tagName === 'A' ? event.target : event.target.closest('a')
-        if (link && link.href) {
-          event.preventDefault()
-          event.stopPropagation()
-          window.api.openExternal(link.href)
-        }
-      },
       async renderMermaid() {
         await this.$nextTick()
         try {
@@ -2649,22 +1716,6 @@
           })
         } catch {
           // Mermaid render failed
-        }
-      },
-      async renderTooltipMermaid() {
-        await this.$nextTick()
-        try {
-          await mermaid.run({
-            querySelector:
-              '.graph-tooltip .tooltip-notes pre.mermaid:not([data-processed]), .node-notes pre.mermaid:not([data-processed])'
-          })
-          document
-            .querySelectorAll('.graph-tooltip .tooltip-notes pre.mermaid, .node-notes pre.mermaid')
-            .forEach((el) => {
-              el.setAttribute('data-processed', 'true')
-            })
-        } catch {
-          // Silently ignore - tooltip may have disappeared
         }
       }
     }
