@@ -60,9 +60,26 @@ All high and medium findings were fixed the same day, except the two deferred fi
   `tests/exportImport.test.js` (round-trip); `tests/dueDates.test.js` extended.
 - Also fixed: `npm audit` clean, prettier clean, `todo.db` untracked and gitignored, test
   count 139 -> 177.
-- Deferred: M2 (`database.js` now 1494 lines - grew with the lossless import) and M16
-  (`styles.css` 8988 lines); both need the planned file splits. H4 is partially addressed
-  (App.vue remains above the 1000-line limit until its split). Low findings remain open.
+
+A second remediation pass the same day closed the remaining scope:
+
+- Low-severity dead code removed: vestigial Python scaffolding (`main.py`, `pyproject.toml`,
+  `uv.lock`, `scripts/generate-dmg-bg.py`), unused dependencies `d3-force` and `sql.js`,
+  19 IPC bridge methods with no renderer caller (and their main-process handlers), the
+  `tags_json` subquery, the symbol-picker feature, unused component props and composable
+  exports, `renderInlineMarkdown`, and the dead stylesheet clusters (detail-window,
+  stakeholder, inline links/persons, slide transitions). The DOMPurify config lost its
+  SVG/`style` allowances (mermaid bypasses the sanitizer) and its contradictory
+  FORBID entries.
+- File-size gate now passes everywhere (H4, M2, M16 closed): migrations and backup logic
+  split out of `database.js` (921 lines, plus `schema.js` and `importExport.js`, which
+  also collapsed the 15 copy-pasted migration blocks); `styles.css` split byte-identically
+  into 12 ordered slices under `src/renderer/styles/`; App.vue (972 lines) split into
+  `AppHeader`, `HomeLanding`, `HelpModal`, `ImportDialog` components, keyboard/todo-action
+  mixins, a masonry composable, and mermaid/localStorage utilities.
+- Still open: nothing from the confirmed findings. Candidates for a future pass: the
+  duplicated light-theme rules with conflicting values, and the timeline/gantt/graph
+  stylesheet slices that style views no longer reachable from the UI.
 
 ## Confirmed findings
 
