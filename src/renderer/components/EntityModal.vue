@@ -22,22 +22,6 @@
         ></div>
       </div>
 
-      <!-- Symbol picker section -->
-      <div v-if="showSymbolPicker" class="symbol-picker">
-        <div
-          v-for="symbol in symbols"
-          :key="symbol"
-          class="symbol-option"
-          :class="{ selected: localEntity.symbol === symbol }"
-          @click="localEntity.symbol = symbol"
-        >
-          <component :is="getIconComponent(symbol)" :size="20" />
-        </div>
-      </div>
-
-      <!-- Slot for additional content (e.g., stakeholders in ProjectModal) -->
-      <slot name="extra-content" :entity="localEntity"></slot>
-
       <div class="modal-actions">
         <button v-if="showDelete" class="delete-btn" @click.stop="$emit('delete')">Delete</button>
         <button @click.stop="$emit('cancel')">Cancel</button>
@@ -48,7 +32,7 @@
 </template>
 
 <script>
-  import { getIconComponent, availableIcons, projectColors } from '../utils/helpers.js'
+  import { projectColors } from '../utils/helpers.js'
 
   export default {
     name: 'EntityModal',
@@ -70,10 +54,6 @@
         type: Boolean,
         default: false
       },
-      showSymbolPicker: {
-        type: Boolean,
-        default: false
-      },
       showDelete: {
         type: Boolean,
         default: true
@@ -81,10 +61,6 @@
       colors: {
         type: Array,
         default: () => projectColors
-      },
-      symbols: {
-        type: Array,
-        default: () => availableIcons
       }
     },
     emits: ['save', 'cancel', 'delete'],
@@ -123,9 +99,6 @@
       })
     },
     methods: {
-      getIconComponent(name) {
-        return getIconComponent(name)
-      },
       save() {
         if (!this.localEntity.name || !this.localEntity.name.trim()) {
           return
@@ -205,35 +178,6 @@
   .color-option.selected {
     border-color: white;
     box-shadow: 0 0 0 2px var(--accent-color, #0f4c75);
-  }
-
-  .symbol-picker {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-
-  .symbol-option {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    cursor: pointer;
-    background: var(--bg-primary, #1a1f2e);
-    color: var(--text-secondary, #a0a0a0);
-    transition: all 0.2s;
-  }
-
-  .symbol-option:hover {
-    background: var(--bg-hover, #2a2f3d);
-  }
-
-  .symbol-option.selected {
-    background: var(--accent-color, #0f4c75);
-    color: white;
   }
 
   .modal-actions {

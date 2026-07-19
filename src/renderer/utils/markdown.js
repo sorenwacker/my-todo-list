@@ -73,7 +73,13 @@ export function preprocessMarkdown(markdown) {
 }
 
 /**
- * Configure DOMPurify to allow safe HTML elements for markdown rendering
+ * DOMPurify allowlist for markdown rendering.
+ *
+ * Only elements marked can emit (plus checkbox inputs) are allowed; anything
+ * else is stripped. Mermaid diagrams never pass through this sanitizer: the
+ * markdown pipeline emits an escaped `<pre class="mermaid">` block and
+ * mermaid renders its SVG into the DOM afterwards, so no SVG allowances are
+ * needed here.
  */
 const purifyConfig = {
   ALLOWED_TAGS: [
@@ -107,20 +113,7 @@ const purifyConfig = {
     'img',
     'div',
     'span',
-    'input', // for checkboxes
-    'svg',
-    'g',
-    'path',
-    'line',
-    'rect',
-    'circle',
-    'text',
-    'polygon',
-    'polyline',
-    'marker',
-    'defs',
-    'style',
-    'foreignObject' // for mermaid diagrams
+    'input' // for checkboxes
   ],
   ALLOWED_ATTR: [
     'href',
@@ -135,40 +128,8 @@ const purifyConfig = {
     'id',
     'type',
     'checked',
-    'disabled',
-    // SVG attributes for mermaid
-    'viewBox',
-    'xmlns',
-    'fill',
-    'stroke',
-    'stroke-width',
-    'd',
-    'transform',
-    'x',
-    'y',
-    'x1',
-    'y1',
-    'x2',
-    'y2',
-    'cx',
-    'cy',
-    'r',
-    'rx',
-    'ry',
-    'points',
-    'marker-end',
-    'marker-start',
-    'font-size',
-    'text-anchor',
-    'dominant-baseline',
-    'style',
-    'aria-roledescription',
-    'role'
-  ],
-  // Force all links to open in new tab and have secure attributes
-  ADD_ATTR: ['target', 'rel'],
-  FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'object', 'embed'],
-  FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover', 'onfocus', 'onblur']
+    'disabled'
+  ]
 }
 
 /**
@@ -223,15 +184,4 @@ export function renderCardNotes(notes) {
   return renderCardMarkdown(processed)
 }
 
-/**
- * Render inline markdown (no paragraph wrapper) for titles
- * @param {string} markdown - The markdown string to render
- * @returns {string} - Sanitized HTML string
- */
-export function renderInlineMarkdown(markdown) {
-  if (!markdown) return ''
-  const html = marked.parseInline(markdown)
-  return DOMPurify.sanitize(html, purifyConfig)
-}
-
-export { marked, DOMPurify }
+export { marked }

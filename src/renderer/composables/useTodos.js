@@ -317,13 +317,6 @@ export function useTodos() {
     return todos.filter((t) => t.completed).length
   })
 
-  const focusedTodo = computed(() => {
-    if (state.focusedTodoIndex >= 0 && state.focusedTodoIndex < state.todos.length) {
-      return state.todos[state.focusedTodoIndex]
-    }
-    return null
-  })
-
   return {
     // Reactive refs
     ...toRefs(state),
@@ -332,7 +325,6 @@ export function useTodos() {
     filteredTodos,
     sortedTodos,
     completedCount,
-    focusedTodo,
 
     // Methods
     loadTodos,

@@ -3,7 +3,7 @@ import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { Database } from './database.js'
 import logger from './logger.js'
-import { initAutoUpdater, checkForUpdates } from './updater.js'
+import { initAutoUpdater } from './updater.js'
 import history from './history.js'
 import { MAX_LENGTH, MAX_IMPORT_FILE_SIZE } from '../config/constants.js'
 import {
@@ -20,9 +20,7 @@ import {
   validateSearchQuery,
   validateImportMode,
   validateUrl,
-  validateTodoType,
-  validateSettingKey,
-  validateSettingValue
+  validateTodoType
 } from './validators.js'
 
 const log = logger.child({ module: 'main' })
@@ -159,12 +157,6 @@ app.whenReady().then(() => {
   // Project operations
   ipcMain.handle('get-projects', () => database.getAllProjects())
   ipcMain.handle(
-    'get-project',
-    handleWithValidation((_, id) => {
-      return database.getProject(validateId(id))
-    })
-  )
-  ipcMain.handle(
     'create-project',
     handleWithValidation((_, name, color) => {
       return database.createProject(
@@ -211,12 +203,6 @@ app.whenReady().then(() => {
   // Status operations
   ipcMain.handle('get-statuses', () => database.getAllStatuses())
   ipcMain.handle(
-    'get-status',
-    handleWithValidation((_, id) => {
-      return database.getStatus(validateId(id))
-    })
-  )
-  ipcMain.handle(
     'create-status',
     handleWithValidation((_, name, color) => {
       return database.createStatus(
@@ -235,32 +221,6 @@ app.whenReady().then(() => {
     'delete-status',
     handleWithValidation((_, id) => {
       return database.deleteStatus(validateId(id))
-    })
-  )
-
-  // Milestone operations
-  ipcMain.handle(
-    'get-milestone-todos',
-    handleWithValidation((_, milestoneId) => {
-      return database.getMilestoneTodos(validateId(milestoneId))
-    })
-  )
-  ipcMain.handle(
-    'link-milestone-todo',
-    handleWithValidation((_, milestoneId, todoId) => {
-      return database.linkMilestoneTodo(validateId(milestoneId), validateId(todoId))
-    })
-  )
-  ipcMain.handle(
-    'unlink-milestone-todo',
-    handleWithValidation((_, milestoneId, todoId) => {
-      return database.unlinkMilestoneTodo(validateId(milestoneId), validateId(todoId))
-    })
-  )
-  ipcMain.handle(
-    'get-all-milestones',
-    handleWithValidation((_, projectId) => {
-      return database.getAllMilestones(validateOptionalId(projectId))
     })
   )
 
@@ -313,12 +273,6 @@ app.whenReady().then(() => {
       return database.removeProjectTag(validateId(projectId), validateId(tagId))
     })
   )
-  ipcMain.handle(
-    'search-by-tag',
-    handleWithValidation((_, tagName) => {
-      return database.searchByTag(validateString(tagName, 'tagName', MAX_LENGTH.TAG_NAME))
-    })
-  )
 
   // Todo operations
   ipcMain.handle(
@@ -334,12 +288,6 @@ app.whenReady().then(() => {
         return database.getAllTodos(projectId)
       }
       return database.getAllTodos(validateId(projectId))
-    })
-  )
-  ipcMain.handle(
-    'get-todo',
-    handleWithValidation((_, id) => {
-      return database.getTodo(validateId(id))
     })
   )
   ipcMain.handle(
@@ -392,42 +340,6 @@ app.whenReady().then(() => {
       return result
     })
   )
-  ipcMain.on('update-todo-sync', (event, todo, options = {}) => {
-    try {
-      const validatedTodo = validateTodo(todo)
-      log.debug('Sync save requested for todo', {
-        id: validatedTodo.id,
-        title: validatedTodo.title
-      })
-      const oldTodo = database.getTodo(validatedTodo.id)
-      database.updateTodo(validatedTodo)
-
-      // Record in history (skip if auto-save to avoid undo/redo issues)
-      if (
-        !options.skipHistory &&
-        oldTodo &&
-        JSON.stringify(oldTodo) !== JSON.stringify(validatedTodo)
-      ) {
-        history.push({
-          type: 'update-todo',
-          description: `Update "${validatedTodo.title}"`,
-          undo: () => database.updateTodo(oldTodo),
-          redo: () => database.updateTodo(validatedTodo)
-        })
-
-        // Notify UI of history change
-        if (mainWindow) {
-          mainWindow.webContents.send('history-changed', history.getState())
-        }
-      }
-
-      log.debug('Sync save completed')
-      event.returnValue = true
-    } catch (error) {
-      log.error('Sync save validation error', { error: error.message })
-      event.returnValue = false
-    }
-  })
   ipcMain.handle(
     'delete-todo',
     handleWithValidation((_, id) => {
@@ -555,38 +467,6 @@ app.whenReady().then(() => {
   ipcMain.handle('empty-trash', () => database.emptyTrash())
   ipcMain.handle('get-trash-count', () => database.getTrashCount())
 
-  // Milestone operations
-  ipcMain.handle(
-    'get-child-todos',
-    handleWithValidation((_, parentId) => {
-      return database.getChildTodos(validateId(parentId))
-    })
-  )
-  ipcMain.handle(
-    'get-milestones',
-    handleWithValidation((_, projectId) => {
-      if (projectId === null) {
-        return database.getAllMilestones()
-      }
-      return database.getAllMilestones(validateId(projectId))
-    })
-  )
-  ipcMain.handle(
-    'assign-to-milestone',
-    handleWithValidation((_, todoId, milestoneId) => {
-      return database.assignToMilestone(
-        validateId(todoId),
-        milestoneId ? validateId(milestoneId) : null
-      )
-    })
-  )
-  ipcMain.handle(
-    'unassign-from-milestone',
-    handleWithValidation((_, todoId) => {
-      return database.unassignFromMilestone(validateId(todoId))
-    })
-  )
-
   ipcMain.handle(
     'reorder-todos',
     handleWithValidation((_, ids) => {
@@ -672,25 +552,6 @@ app.whenReady().then(() => {
     })
   )
 
-  // Settings handlers
-  ipcMain.handle(
-    'get-setting',
-    handleWithValidation((_, key) => {
-      return database.getSetting(validateSettingKey(key))
-    })
-  )
-  ipcMain.handle(
-    'set-setting',
-    handleWithValidation((_, key, value) => {
-      const validKey = validateSettingKey(key)
-      const validValue = validateSettingValue(validKey, value)
-      return database.setSetting(validKey, validValue)
-    })
-  )
-  ipcMain.handle('get-all-settings', () => {
-    return database.getAllSettings()
-  })
-
   // Recurrence handler
   ipcMain.handle(
     'create-next-recurrence',
@@ -764,23 +625,11 @@ app.whenReady().then(() => {
     return app.getVersion()
   })
 
-  // Notify main window of updates
-  ipcMain.on('todo-updated', () => {
-    if (mainWindow) {
-      mainWindow.webContents.send('refresh-todos')
-    }
-  })
-
   createMainWindow()
   log.info('Main window created')
 
   // Initialize auto-updater
   initAutoUpdater()
-
-  // IPC handler for manual update check
-  ipcMain.handle('check-for-updates', () => {
-    checkForUpdates()
-  })
 
   // Undo/Redo handlers
   ipcMain.handle('undo', async () => {

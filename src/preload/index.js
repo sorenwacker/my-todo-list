@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld('api', {
 
   // Project operations
   getProjects: () => ipcRenderer.invoke('get-projects'),
-  getProject: (id) => ipcRenderer.invoke('get-project', id),
   createProject: (name, color) => ipcRenderer.invoke('create-project', name, color),
   updateProject: (project) => ipcRenderer.invoke('update-project', project),
   updateProjectNotes: (id, notes) => ipcRenderer.invoke('update-project-notes', id, notes),
@@ -17,18 +16,15 @@ contextBridge.exposeInMainWorld('api', {
 
   // Status operations
   getStatuses: () => ipcRenderer.invoke('get-statuses'),
-  getStatus: (id) => ipcRenderer.invoke('get-status', id),
   createStatus: (name, color) => ipcRenderer.invoke('create-status', name, color),
   updateStatus: (status) => ipcRenderer.invoke('update-status', status),
   deleteStatus: (id) => ipcRenderer.invoke('delete-status', id),
 
   // Todo operations
   getTodos: (projectId) => ipcRenderer.invoke('get-todos', projectId),
-  getTodo: (id) => ipcRenderer.invoke('get-todo', id),
   createTodo: (title, projectId, type = 'todo') =>
     ipcRenderer.invoke('create-todo', title, projectId, type),
   updateTodo: (todo, options) => ipcRenderer.invoke('update-todo', todo, options),
-  updateTodoSync: (todo, options) => ipcRenderer.sendSync('update-todo-sync', todo, options),
   deleteTodo: (id) => ipcRenderer.invoke('delete-todo', id),
   restoreTodo: (id) => ipcRenderer.invoke('restore-todo', id),
   permanentlyDeleteTodo: (id) => ipcRenderer.invoke('permanently-delete-todo', id),
@@ -39,21 +35,6 @@ contextBridge.exposeInMainWorld('api', {
   unarchiveTodo: (id) => ipcRenderer.invoke('unarchive-todo', id),
   getArchiveCount: () => ipcRenderer.invoke('get-archive-count'),
 
-  // Milestone operations (parent_id based - legacy)
-  getChildTodos: (parentId) => ipcRenderer.invoke('get-child-todos', parentId),
-  getMilestones: (projectId) => ipcRenderer.invoke('get-milestones', projectId),
-  assignToMilestone: (todoId, milestoneId) =>
-    ipcRenderer.invoke('assign-to-milestone', todoId, milestoneId),
-  unassignFromMilestone: (todoId) => ipcRenderer.invoke('unassign-from-milestone', todoId),
-
-  // Milestone operations (many-to-many)
-  getMilestoneTodos: (milestoneId) => ipcRenderer.invoke('get-milestone-todos', milestoneId),
-  linkMilestoneTodo: (milestoneId, todoId) =>
-    ipcRenderer.invoke('link-milestone-todo', milestoneId, todoId),
-  unlinkMilestoneTodo: (milestoneId, todoId) =>
-    ipcRenderer.invoke('unlink-milestone-todo', milestoneId, todoId),
-  getAllMilestones: (projectId) => ipcRenderer.invoke('get-all-milestones', projectId),
-
   // Tag operations
   getAllTags: () => ipcRenderer.invoke('get-all-tags'),
   getTodoTags: (todoId) => ipcRenderer.invoke('get-todo-tags', todoId),
@@ -63,7 +44,6 @@ contextBridge.exposeInMainWorld('api', {
   addProjectTag: (projectId, tagName) => ipcRenderer.invoke('add-project-tag', projectId, tagName),
   removeProjectTag: (projectId, tagId) =>
     ipcRenderer.invoke('remove-project-tag', projectId, tagId),
-  searchByTag: (tagName) => ipcRenderer.invoke('search-by-tag', tagName),
 
   reorderTodos: (ids) => ipcRenderer.invoke('reorder-todos', ids),
   reorderProjects: (ids) => ipcRenderer.invoke('reorder-projects', ids),
@@ -78,11 +58,6 @@ contextBridge.exposeInMainWorld('api', {
   // Global search
   globalSearch: (query) => ipcRenderer.invoke('global-search', query),
 
-  // Settings operations
-  getSetting: (key) => ipcRenderer.invoke('get-setting', key),
-  setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value),
-  getAllSettings: () => ipcRenderer.invoke('get-all-settings'),
-
   // Recurrence operations
   createNextRecurrence: (todoId) => ipcRenderer.invoke('create-next-recurrence', todoId),
 
@@ -96,15 +71,6 @@ contextBridge.exposeInMainWorld('api', {
   onRefreshTodos: (callback) => {
     ipcRenderer.on('refresh-todos', callback)
     return () => ipcRenderer.removeListener('refresh-todos', callback)
-  },
-  notifyTodoUpdated: () => ipcRenderer.send('todo-updated'),
-
-  // Update operations
-  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  onUpdateStatus: (callback) => {
-    const handler = (_, data) => callback(data)
-    ipcRenderer.on('update-status', handler)
-    return () => ipcRenderer.removeListener('update-status', handler)
   },
 
   // Undo/Redo operations

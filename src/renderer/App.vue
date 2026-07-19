@@ -10,7 +10,6 @@
       @mouseenter="sidebarVisible = true"
     ></div>
     <AppSidebar
-      :visible="sidebarVisible"
       :pinned="sidebarPinned"
       :theme="theme"
       :on-mouse-leave="onSidebarMouseLeave"
@@ -19,12 +18,10 @@
       :projects="projects"
       :statuses="statuses"
       :all-count="allCount"
-      :inbox-count="inboxCount"
       :trash-count="trashCount"
       :archive-count="archiveCount"
       :project-counts="projectCounts"
       :status-counts="statusCounts"
-      :is-project-selected="isProjectSelected"
       :timezone="timezone"
       :database-path="databasePath"
       :app-version="appVersion"
@@ -430,7 +427,6 @@
                 :sorted-todos="sortedTodos"
                 :grouped-todos="groupedTodos"
                 :group-by-project="groupByProject"
-                :is-project-view="isProjectSelected"
                 :selected-todo-id="null"
                 :selected-todo-ids="selectedTodoIds"
                 :focused-todo-id="focusedTodo?.id"

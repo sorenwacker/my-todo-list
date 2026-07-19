@@ -477,8 +477,7 @@ export class Database {
         .prepare(
           `
         SELECT t.*, p.name as project_name, p.color as project_color,
-               s.name as status_name, s.color as status_color,
-               (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM todo_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.todo_id = t.id) as tags_json
+               s.name as status_name, s.color as status_color
         FROM todos t
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN statuses s ON t.status_id = s.id
@@ -492,8 +491,7 @@ export class Database {
         .prepare(
           `
         SELECT t.*, NULL as project_name, NULL as project_color,
-               s.name as status_name, s.color as status_color,
-               (SELECT json_group_array(json_object('id', tg.id, 'name', tg.name)) FROM todo_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.todo_id = t.id) as tags_json
+               s.name as status_name, s.color as status_color
         FROM todos t
         LEFT JOIN statuses s ON t.status_id = s.id
         WHERE t.project_id IS NULL AND t.deleted_at IS NULL AND t.archived_at IS NULL

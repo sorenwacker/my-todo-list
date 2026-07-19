@@ -158,10 +158,6 @@
         type: [Number, String],
         default: null
       },
-      isProjectView: {
-        type: Boolean,
-        default: false
-      },
       projects: {
         type: Array,
         default: () => []

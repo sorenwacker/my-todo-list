@@ -53,8 +53,6 @@ const STATUS_COLORS = [
 const state = ref({
   statuses: [],
   editingStatus: null,
-  newStatusName: '',
-  showStatusInput: false,
   statusesCollapsed: localStorage.getItem('statuses-collapsed') === 'true',
   _initialized: false,
   _loading: false
@@ -86,30 +84,12 @@ async function loadStatuses(force = false) {
  */
 async function addStatus(name) {
   if (!name?.trim()) {
-    cancelAddStatus()
     return
   }
 
   const randomColor = STATUS_COLORS[Math.floor(Math.random() * STATUS_COLORS.length)]
   await window.api.createStatus(name.trim(), randomColor)
-  state.value.newStatusName = ''
-  state.value.showStatusInput = false
   await loadStatuses(true)
-}
-
-/**
- * Show the add status input.
- */
-function showAddStatus() {
-  state.value.showStatusInput = true
-}
-
-/**
- * Cancel adding a status.
- */
-function cancelAddStatus() {
-  state.value.newStatusName = ''
-  state.value.showStatusInput = false
 }
 
 /**
@@ -215,21 +195,12 @@ export function useStatuses() {
         state.value.editingStatus = val
       }
     }),
-    newStatusName: computed({
-      get: () => state.value.newStatusName,
-      set: (val) => {
-        state.value.newStatusName = val
-      }
-    }),
-    showStatusInput: computed(() => state.value.showStatusInput),
     statusesCollapsed: computed(() => state.value.statusesCollapsed),
     statusColors: STATUS_COLORS,
 
     // Methods
     loadStatuses,
     addStatus,
-    showAddStatus,
-    cancelAddStatus,
     editStatus,
     cancelEditStatus,
     saveStatus,

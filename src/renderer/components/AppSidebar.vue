@@ -201,7 +201,6 @@
       ChevronDown
     },
     props: {
-      visible: { type: Boolean, default: true },
       pinned: { type: Boolean, default: true },
       theme: { type: String, default: 'dark' },
       onMouseLeave: { type: Function, default: null },
@@ -210,12 +209,10 @@
       projects: { type: Array, default: () => [] },
       statuses: { type: Array, default: () => [] },
       allCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
-      inboxCount: { type: Object, default: () => ({ done: 0, total: 0 }) },
       trashCount: { type: Number, default: 0 },
       archiveCount: { type: Number, default: 0 },
       projectCounts: { type: Object, default: () => ({}) },
       statusCounts: { type: Object, default: () => ({}) },
-      isProjectSelected: { type: Boolean, default: false },
       timezone: { type: String, default: 'auto' },
       databasePath: { type: String, default: '' },
       appVersion: { type: String, default: '' }

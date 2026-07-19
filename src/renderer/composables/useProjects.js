@@ -54,8 +54,6 @@ const state = reactive({
   projects: [],
   editingProject: null,
   editingProjectTags: [],
-  newProjectName: '',
-  showProjectInput: false,
   _allTodos: []
 })
 
@@ -73,22 +71,11 @@ async function loadProjects() {
  */
 async function addProject(name) {
   if (!name.trim()) {
-    cancelAddProject()
     return
   }
   const randomColor = PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]
   await window.api.createProject(name.trim(), randomColor)
-  state.newProjectName = ''
-  state.showProjectInput = false
   await loadProjects()
-}
-
-/**
- * Cancel adding a new project.
- */
-function cancelAddProject() {
-  state.newProjectName = ''
-  state.showProjectInput = false
 }
 
 /**
@@ -229,39 +216,12 @@ export function useProjects() {
     return counts
   })
 
-  const currentProjectName = computed(() => {
-    return (currentFilter) => {
-      if (typeof currentFilter !== 'number') return ''
-      const project = state.projects.find((p) => p.id === currentFilter)
-      return project ? project.name : ''
-    }
-  })
-
-  const currentProjectColor = computed(() => {
-    return (currentFilter) => {
-      if (currentFilter && currentFilter !== 'inbox' && currentFilter !== 'trash') {
-        const project = state.projects.find((p) => p.id === currentFilter)
-        return project ? project.color : '#333'
-      }
-      return '#333'
-    }
-  })
-
-  const isProjectSelected = computed(() => {
-    return (currentFilter) => {
-      return typeof currentFilter === 'number'
-    }
-  })
-
   return {
     // Reactive refs
     ...toRefs(state),
 
     // Computed properties
     projectCounts,
-    currentProjectName,
-    currentProjectColor,
-    isProjectSelected,
 
     // Constants
     projectColors: readonly(PROJECT_COLORS),
@@ -269,7 +229,6 @@ export function useProjects() {
     // Methods
     loadProjects,
     addProject,
-    cancelAddProject,
     editProject,
     cancelEditProject,
     saveProject,

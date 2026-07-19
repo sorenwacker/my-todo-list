@@ -144,45 +144,6 @@
       editor = null
     }
   })
-
-  // Expose methods for selection handling
-  function getSelection() {
-    if (!editor) return { text: '', from: 0, to: 0 }
-    const state = editor.state
-    const { from, to } = state.selection.main
-    const text = state.sliceDoc(from, to)
-    return { text, from, to }
-  }
-
-  function replaceSelection(newText) {
-    if (!editor) return
-    const { from, to } = editor.state.selection.main
-    editor.dispatch({
-      changes: { from, to, insert: newText }
-    })
-  }
-
-  function getScrollElement() {
-    if (!editor) return null
-    return editor.scrollDOM
-  }
-
-  function getScrollInfo() {
-    if (!editor) return { scrollTop: 0, scrollHeight: 0, clientHeight: 0 }
-    const el = editor.scrollDOM
-    return {
-      scrollTop: el.scrollTop,
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight
-    }
-  }
-
-  function setScrollTop(scrollTop) {
-    if (!editor) return
-    editor.scrollDOM.scrollTop = scrollTop
-  }
-
-  defineExpose({ getSelection, replaceSelection, getScrollElement, getScrollInfo, setScrollTop })
 </script>
 
 <template>
