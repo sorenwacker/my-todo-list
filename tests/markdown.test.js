@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest'
 import {
   preprocessMarkdown,
   renderMarkdown,
-  renderCardMarkdown
+  renderCardMarkdown,
+  renderCardNotes
 } from '../src/renderer/utils/markdown.js'
 
 describe('preprocessMarkdown', () => {
@@ -84,6 +85,22 @@ describe('renderMarkdown', () => {
     const html = renderMarkdown('[site](https://example.com)')
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noopener noreferrer"')
+  })
+})
+
+describe('renderCardNotes', () => {
+  it('replaces mermaid code blocks with a placeholder', () => {
+    const html = renderCardNotes('```mermaid\ngraph TD\nA-->B\n```')
+    expect(html).toContain('[diagram]')
+    expect(html).not.toContain('graph TD')
+  })
+
+  it('renders regular notes as markdown', () => {
+    expect(renderCardNotes('**bold**')).toContain('<strong>')
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(renderCardNotes('')).toBe('')
   })
 })
 

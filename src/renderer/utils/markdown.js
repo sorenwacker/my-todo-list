@@ -211,6 +211,19 @@ export function renderCardMarkdown(markdown) {
 }
 
 /**
+ * Render note markdown for card previews, replacing mermaid code blocks with
+ * a `[diagram]` placeholder so cards never pay the diagram rendering cost.
+ *
+ * @param {string} notes - The note markdown.
+ * @returns {string} Sanitized HTML for the first paragraph.
+ */
+export function renderCardNotes(notes) {
+  if (!notes) return ''
+  const processed = notes.replace(/`{3,}\s*mermaid\b[\s\S]*?`{3,}/gi, '[diagram]')
+  return renderCardMarkdown(processed)
+}
+
+/**
  * Render inline markdown (no paragraph wrapper) for titles
  * @param {string} markdown - The markdown string to render
  * @returns {string} - Sanitized HTML string
