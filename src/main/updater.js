@@ -1,15 +1,18 @@
 import { autoUpdater } from 'electron-updater'
-import { app, dialog } from 'electron'
+import { app, dialog, BrowserWindow } from 'electron'
 import logger from './logger.js'
 import { UPDATE_CHECK_INITIAL_DELAY, UPDATE_CHECK_INTERVAL } from '../config/constants.js'
 
 const log = logger.child({ module: 'updater' })
 
-let mainWindow = null
+// Resolved lazily on every use: on macOS the window can be closed and
+// recreated while the app (and this module) keeps running.
+function getMainWindow() {
+  const win = BrowserWindow.getAllWindows()[0]
+  return win && !win.isDestroyed() ? win : null
+}
 
-export function initAutoUpdater(win) {
-  mainWindow = win
-
+export function initAutoUpdater() {
   // Configure auto-updater
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
@@ -60,9 +63,10 @@ export function initAutoUpdater(win) {
     sendStatusToWindow('downloaded', info)
 
     // Show notification to user
-    if (mainWindow) {
+    const win = getMainWindow()
+    if (win) {
       dialog
-        .showMessageBox(mainWindow, {
+        .showMessageBox(win, {
           type: 'info',
           title: 'Update Ready',
           message: `Version ${info.version} has been downloaded.`,
@@ -91,7 +95,8 @@ export function checkForUpdates() {
 }
 
 function sendStatusToWindow(status, data = {}) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-status', { status, ...data })
+  const win = getMainWindow()
+  if (win) {
+    win.webContents.send('update-status', { status, ...data })
   }
 }

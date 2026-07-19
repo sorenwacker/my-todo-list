@@ -775,7 +775,7 @@ app.whenReady().then(() => {
   log.info('Main window created')
 
   // Initialize auto-updater
-  initAutoUpdater(mainWindow)
+  initAutoUpdater()
 
   // IPC handler for manual update check
   ipcMain.handle('check-for-updates', () => {
