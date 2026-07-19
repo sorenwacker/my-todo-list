@@ -1,0 +1,680 @@
+/* Light Theme */
+.light-theme {
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e8ecf1;
+  --text-primary: #000000;
+  --text-secondary: #555;
+  --text-muted: #888;
+  --border-color: #ddd;
+  --border-light: #e5e5e5;
+  --accent-color: #1a6fab;
+  --hover-bg: #eef2f7;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  /* Checkbox - light mode */
+  --checkbox-border: #bbb;
+  --checkbox-bg: #fff;
+  --checkbox-checked-bg: #1a6fab;
+  --checkbox-checked-border: #1a6fab;
+  --checkbox-hover-border: #888;
+}
+
+.light-theme body,
+.light-theme,
+.light-theme #app,
+.light-theme .app {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .sidebar {
+  background: var(--bg-secondary);
+  border-right-color: var(--border-color);
+}
+
+.light-theme .sidebar-toggle {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .sidebar-toggle:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.light-theme .sidebar-header {
+  border-bottom-color: var(--border-color);
+}
+
+.light-theme .sidebar-header h2 {
+  color: var(--text-secondary);
+}
+
+.light-theme .nav-item:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .nav-item.active {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .nav-item {
+  color: var(--text-primary);
+}
+
+.light-theme .nav-icon {
+  color: var(--text-muted);
+}
+
+.light-theme .project-name,
+.light-theme .category-name {
+  color: var(--text-primary);
+}
+
+.light-theme .count {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .nav-divider {
+  background: var(--border-color);
+}
+
+.light-theme .project-item .edit-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .project-item .edit-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.light-theme .add-project input,
+.light-theme .add-category input,
+.light-theme .add-status input {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .add-project input:focus,
+.light-theme .add-category input:focus,
+.light-theme .add-status input:focus {
+  border-color: var(--accent-color);
+}
+
+.light-theme .add-project button,
+.light-theme .add-category button,
+.light-theme .add-status button {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .status-name {
+  color: var(--text-primary);
+}
+
+.light-theme .add-project button:hover,
+.light-theme .add-category button:hover,
+.light-theme .add-status button:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.light-theme .project-modal {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.light-theme .modal-content {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.light-theme .modal-content h3 {
+  color: var(--text-primary);
+}
+
+.light-theme .modal-content p {
+  color: var(--text-primary);
+}
+
+.light-theme .modal-content input {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .modal-actions button {
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.light-theme .modal-actions button:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.light-theme .modal-actions button.primary {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+}
+
+.light-theme .modal-actions button.primary:hover {
+  background: #1b6ca8;
+  border-color: #1b6ca8;
+}
+
+.light-theme .main-wrapper {
+  background: var(--bg-primary);
+}
+
+.light-theme .main-content {
+  background: var(--bg-primary);
+}
+
+.light-theme .main-header h1 {
+  color: var(--text-primary);
+}
+
+.light-theme .main-header h1 .breadcrumb-link {
+  color: #2980b9;
+}
+
+.light-theme .main-header h1 .breadcrumb-sep {
+  color: #999;
+}
+
+.light-theme .main-header h1 .breadcrumb-home:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.light-theme .project-card {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .project-card:hover {
+  background: #f9f9f9;
+}
+
+.light-theme .project-card h3 {
+  color: #333;
+}
+
+.light-theme .project-card-stats {
+  color: #666;
+}
+
+.light-theme .main-header .header-btn {
+  color: #999;
+}
+
+.light-theme .main-header .header-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #333;
+}
+
+.light-theme .view-switcher {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .view-switcher button {
+  color: var(--text-secondary);
+}
+
+.light-theme .view-switcher button:hover {
+  color: var(--text-primary);
+}
+
+.light-theme .view-switcher button.active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.light-theme .type-filter {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .type-filter button {
+  color: var(--text-secondary);
+}
+
+.light-theme .type-filter button:hover {
+  color: var(--text-primary);
+}
+
+.light-theme .type-filter button.active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.light-theme .card-size-control {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.light-theme .card-size-control label {
+  color: var(--text-secondary);
+}
+
+.light-theme .card-size-control input[type="range"] {
+  background: var(--border-color);
+}
+
+.light-theme .card-size-control input[type="range"]::-webkit-slider-thumb {
+  background: var(--accent-color);
+}
+
+.light-theme .add-todo {
+  background: var(--bg-primary);
+}
+
+.light-theme .add-todo input {
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.light-theme .add-todo input:focus {
+  border-color: var(--accent-color);
+}
+
+.light-theme .add-todo button {
+  background: var(--accent-color);
+  color: white;
+}
+
+.light-theme .add-todo button:hover {
+  background: #0d3f5f;
+}
+
+.light-theme .todo-item {
+  background: var(--bg-secondary);
+  box-shadow: var(--card-shadow);
+}
+
+.light-theme .todo-item:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .todo-item .title {
+  color: var(--text-primary);
+}
+
+.light-theme .todo-item .deadline {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .todo-item .delete-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .todo-card {
+  background: var(--bg-secondary);
+  box-shadow: var(--card-shadow);
+}
+
+.light-theme .todo-card:hover {
+  background: var(--hover-bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.light-theme .todo-card .card-title {
+  color: var(--text-primary);
+}
+
+.light-theme .todo-card .card-title-input,
+.light-theme .kanban-card .card-title-input {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+}
+
+.light-theme .todo-card .card-start {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .todo-card .card-deadline {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .todo-card .card-header .delete-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .todo-card .card-header .archive-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .table-view thead {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .table-view th {
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-color);
+}
+
+.light-theme .table-view td {
+  border-bottom-color: var(--border-light);
+  color: var(--text-primary) !important;
+}
+
+.light-theme .table-view tbody tr {
+  color: var(--text-primary);
+}
+
+.light-theme .table-view .col-title {
+  color: var(--text-primary) !important;
+}
+
+.light-theme .table-view tbody tr:hover {
+  background: var(--hover-bg) !important;
+}
+
+.light-theme .table-view .inbox-badge {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .table-view .col-actions button {
+  color: var(--text-muted);
+}
+
+.light-theme .table-view .col-start,
+.light-theme .table-view .col-end {
+  color: var(--text-secondary);
+}
+
+.light-theme .table-view .col-category,
+.light-theme .table-view .col-status-col,
+.light-theme .table-view .col-importance,
+.light-theme .table-view .col-project {
+  color: var(--text-primary) !important;
+}
+
+.light-theme .table-view .category-badge {
+  color: var(--text-primary) !important;
+}
+
+.light-theme .table-view .col-check {
+  color: var(--text-primary);
+}
+
+.light-theme .kanban-column {
+  background: var(--bg-secondary);
+  box-shadow: var(--card-shadow);
+}
+
+.light-theme .kanban-column.uncategorized-column {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .column-header {
+  border-bottom-color: var(--border-light);
+}
+
+.light-theme .column-header h3 {
+  color: var(--text-primary);
+}
+
+.light-theme .column-count {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .kanban-card {
+  background: var(--bg-primary);
+}
+
+.light-theme .kanban-card:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .card-title {
+  color: var(--text-primary);
+}
+
+.light-theme .card-start {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .card-deadline {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .card-subtasks {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+
+.light-theme .kanban-add-btn {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .kanban-add-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: rgba(15, 76, 117, 0.05);
+}
+
+.light-theme .detail-panel {
+  background: var(--bg-secondary);
+  border-left-color: var(--border-color);
+}
+
+.light-theme .detail-panel-header {
+  border-bottom-color: var(--border-color);
+}
+
+.light-theme .detail-panel-header h2 {
+  color: var(--text-secondary);
+}
+
+.light-theme .detail-panel-header .close-btn,
+.light-theme .detail-panel-header .detach-btn,
+.light-theme .detail-panel-header .layout-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .detail-panel-header .close-btn:hover,
+.light-theme .detail-panel-header .detach-btn:hover,
+.light-theme .detail-panel-header .layout-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.light-theme .detail-panel .title-input {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-color);
+}
+
+.light-theme .meta-row label {
+  color: var(--text-secondary);
+}
+
+.light-theme .meta-row select,
+.light-theme .meta-row input[type="date"] {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .clear-btn {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .links-section {
+  background: var(--bg-primary);
+}
+
+.light-theme .section-header h3 {
+  color: var(--text-secondary);
+}
+
+.light-theme .link-btn {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .link-search input {
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.light-theme .link-results {
+  border-color: var(--border-color);
+}
+
+.light-theme .link-result {
+  background: var(--bg-secondary);
+}
+
+.light-theme .link-result:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .link-result + .link-result {
+  border-top-color: var(--border-light);
+}
+
+.light-theme .linked-item {
+  background: var(--bg-secondary);
+}
+
+.light-theme .linked-title {
+  color: var(--text-primary);
+}
+
+.light-theme .unlink-btn {
+  color: var(--text-muted);
+}
+
+.light-theme .no-links {
+  color: var(--text-muted);
+}
+
+.light-theme .link-chip {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--accent-color);
+}
+
+.light-theme .link-chip:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .chip-x {
+  color: var(--text-muted);
+}
+
+.light-theme .chip-x:hover {
+  color: #e74c3c;
+}
+
+.light-theme .add-link-btn {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .add-link-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.light-theme .link-search-popup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.light-theme .link-search-popup input {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .link-search-popup .link-result {
+  background: var(--bg-primary);
+}
+
+.light-theme .link-search-popup .link-result:hover {
+  background: var(--bg-tertiary);
+}
+
+.light-theme .add-person-btn {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.light-theme .add-person-btn:hover {
+  border-color: #8e44ad;
+  color: #8e44ad;
+}
+
+.light-theme .person-picker-popup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.light-theme .person-option {
+  color: var(--text-primary);
+}
+
+.light-theme .person-option:hover {
+  background: var(--hover-bg);
+}
+
+.light-theme .person-option .person-email {
+  color: var(--text-muted);
+}
+
+.light-theme .person-picker-empty {
+  color: var(--text-muted);
+}
+
+.light-theme .tabs button {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.light-theme .tabs button.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .notes-editor {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .notes-preview {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.light-theme .notes-section {
+  background: var(--bg-secondary);
+}
+
+.light-theme .notes-split {
+  background: var(--bg-secondary);
+}
+
+.light-theme .notes-split .split-editor,
+.light-theme .notes-split .split-preview {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+

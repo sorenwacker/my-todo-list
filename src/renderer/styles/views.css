@@ -1,0 +1,887 @@
+/* Markdown Styles */
+.markdown-body {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 1em 0 0.5em;
+  color: #fff;
+}
+
+.markdown-body h1 { font-size: 1.5em; }
+.markdown-body h2 { font-size: 1.3em; }
+.markdown-body h3 { font-size: 1.15em; }
+
+.markdown-body p {
+  margin: 0.5em 0;
+}
+
+.markdown-body code {
+  background: #000000;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-body pre {
+  background: #000000;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+/* Smaller checkboxes in markdown task lists */
+.markdown-body input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Checked checkbox in markdown - green background */
+.markdown-body input[type="checkbox"]:checked {
+  background: #2ecc71;
+  border-color: #2ecc71;
+}
+
+.markdown-body li {
+  margin: 0.2em 0;
+}
+
+/* Only hide bullets for task list items (with checkboxes) */
+.markdown-body li:has(input[type="checkbox"]) {
+  list-style: none;
+}
+
+/* Dim completed task list items */
+.markdown-body li:has(input[type="checkbox"]:checked) {
+  color: #888;
+  text-decoration: line-through;
+  text-decoration-color: #666;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #1a6fab;
+  padding-left: 12px;
+  margin: 1em 0;
+  color: #aaa;
+}
+
+.markdown-body a {
+  color: #4fc3f7;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  overflow-x: auto;
+  display: block;
+}
+
+.markdown-body table thead {
+  background: #0d0d0d;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  border: 1px solid #444;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-body table th {
+  font-weight: 600;
+  color: #fff;
+}
+
+.markdown-body table tr:nth-child(even) {
+  background: #1a1f2e;
+}
+
+.markdown-body table tr:hover {
+  background: #0d0d0d;
+}
+
+.light-theme .markdown-body table thead {
+  background: #e0e0e0;
+}
+
+.light-theme .markdown-body table th,
+.light-theme .markdown-body table td {
+  border: 1px solid #ddd;
+}
+
+.light-theme .markdown-body table th {
+  color: #333;
+}
+
+.light-theme .markdown-body table tr:nth-child(even) {
+  background: #f5f5f5;
+}
+
+.light-theme .markdown-body table tr:hover {
+  background: #e8e8e8;
+}
+
+.markdown-body .placeholder {
+  color: #ccc;
+  font-style: italic;
+}
+
+.markdown-body pre.mermaid {
+  background: #1e2433;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 1em 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.markdown-body pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid text wrapping and sizing */
+.markdown-body pre.mermaid .nodeLabel,
+.markdown-body pre.mermaid .edgeLabel {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-body pre.mermaid .node rect,
+.markdown-body pre.mermaid .node circle,
+.markdown-body pre.mermaid .node polygon {
+  min-width: 100px;
+}
+
+.markdown-body pre.mermaid foreignObject {
+  overflow: visible;
+}
+
+.markdown-body .mermaid-error {
+  color: #f44336;
+  background: #2d1f1f;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.status-bar {
+  padding: 10px 0;
+  text-align: right;
+}
+
+.saved-indicator {
+  font-size: 12px;
+  color: #4caf50;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.saved-indicator.visible {
+  opacity: 1;
+}
+
+/* Cards View */
+.cards-view {
+  padding: 16px;
+  width: 100%;
+}
+
+.cards-view .cards-grid,
+.cards-view .cards-grid.masonry {
+  display: grid !important;
+  grid-template-columns: repeat(var(--card-columns, 3), 1fr) !important;
+  gap: 16px !important;
+}
+
+.cards-groups-container {
+  display: grid;
+  grid-template-columns: repeat(var(--card-columns, 3), 1fr);
+  gap: 16px;
+  padding-bottom: 8px;
+  align-items: flex-start;
+}
+
+.cards-group {
+  min-width: 0;
+  overflow: visible;
+}
+
+.cards-group .cards-grid,
+.cards-group .cards-grid.masonry {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cards-group .todo-card {
+  width: 100%;
+}
+
+.add-card-btn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px dashed #444;
+  border-radius: 6px;
+  color: #999;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.add-card-btn:hover {
+  background: #1a1a1a;
+  border-color: #999;
+  color: #ccc;
+}
+
+.cards-grid,
+.cards-grid.masonry {
+  display: grid !important;
+  grid-template-columns: repeat(var(--card-columns, 3), 1fr) !important;
+  gap: 16px;
+  width: 100%;
+  align-items: start;
+}
+
+.cards-grid .todo-card,
+.cards-grid.masonry .todo-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  min-height: auto;
+  max-height: none;
+}
+
+.todo-card {
+  background: #0d0d0d;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 4px solid #1a6fab;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo-card:hover {
+  background: #1a1a1a;
+  transform: translateY(-2px);
+}
+
+.todo-card.selected {
+  box-shadow: 0 0 16px rgba(26, 111, 171, 0.5), 0 0 0 1px rgba(26, 111, 171, 0.3);
+}
+
+.todo-card.completed {
+  border-color: #0f9d58;
+}
+
+.todo-card.ghost {
+  opacity: 0.5;
+  background: #1a6fab;
+}
+
+.todo-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.todo-card .card-header .card-title {
+  flex: 1;
+  font-size: 14px;
+}
+
+.todo-card .card-category-symbol {
+  color: #999;
+  opacity: 0.7;
+  font-size: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.todo-card .card-header .delete-btn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.todo-card:hover .card-header .delete-btn {
+  opacity: 1;
+}
+
+.todo-card .card-header .delete-btn:hover {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+
+.todo-card .card-header .archive-btn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.todo-card:hover .card-header .archive-btn {
+  opacity: 1;
+}
+
+.todo-card .card-header .archive-btn:hover {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.todo-card .card-header .restore-btn {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.todo-card .card-header .restore-btn:hover {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+}
+
+.todo-card .card-header .delete-btn.permanent:hover {
+  background: rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.todo-card .card-header .collapse-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.todo-card:hover .card-header .collapse-btn {
+  opacity: 1;
+}
+
+.todo-card .card-header .collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Trash view styles */
+.trash-nav {
+  opacity: 0.7;
+}
+
+.trash-nav:hover {
+  opacity: 1;
+}
+
+.empty-trash-btn {
+  background: #c0392b;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 12px;
+}
+
+.empty-trash-btn:hover {
+  background: #e74c3c;
+}
+
+/* Table view trash buttons */
+.col-actions .restore-btn,
+.col-actions .permanent-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.col-actions .restore-btn {
+  color: #2ecc71;
+}
+
+.col-actions .restore-btn:hover {
+  background: rgba(46, 204, 113, 0.2);
+}
+
+.col-actions .permanent-delete-btn {
+  color: #e74c3c;
+}
+
+.col-actions .permanent-delete-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+}
+
+.todo-card .card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f0f0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.todo-card .card-title-input,
+.kanban-card .card-title-input {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f0f0f0;
+  background: #2a2a2a;
+  border: 1px solid #4a9eff;
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+.todo-card .card-title-input:focus,
+.kanban-card .card-title-input:focus {
+  border-color: #6ab0ff;
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.todo-card .card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.todo-card .card-project {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.todo-card .card-category {
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.todo-card .card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.todo-card .card-tag {
+  font-size: 11px;
+  color: #999;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.todo-card .card-dates-info {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
+}
+
+.todo-card .card-start {
+  display: inline-block;
+  font-size: 12px;
+  color: #ccc;
+  padding: 3px 8px;
+  background: #0d0d0d;
+  border-radius: 4px;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin-right: auto;
+}
+
+.todo-card .card-deadline {
+  display: inline-block;
+  font-size: 12px;
+  color: #ccc;
+  padding: 3px 8px;
+  background: #0d0d0d;
+  border-radius: 4px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.todo-card .card-deadline.overdue {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.todo-card .card-importance {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #000;
+  text-shadow: 0 0 1px rgba(255,255,255,0.5);
+  margin-left: auto;
+}
+
+.todo-card .importance-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Table View */
+.table-view {
+  overflow-x: auto;
+}
+
+.table-view table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table-view thead {
+  background: #0d0d0d;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table-view th {
+  text-align: left;
+  padding: 8px 10px;
+  font-weight: 600;
+  color: #ccc;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #0d0d0d;
+  white-space: nowrap;
+}
+
+.table-view td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #1a1f2e;
+  font-size: 12px;
+}
+
+.table-view tbody tr {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.table-view tbody tr:hover {
+  background: #1a1a1a !important;
+}
+
+.table-view .col-check {
+  width: 30px;
+  text-align: center;
+}
+
+.table-view .col-expand {
+  width: 24px;
+  text-align: center;
+}
+
+.table-view .expand-btn {
+  background: none;
+  border: none;
+  color: #444;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.table-view .expand-btn.has-subtasks {
+  color: #999;
+  opacity: 1;
+}
+
+.table-view tr:hover .expand-btn {
+  opacity: 1;
+}
+
+.table-view .expand-btn:hover {
+  color: #fff;
+}
+
+.table-view .subtask-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.table-view .subtask-row .subtask-title {
+  padding-left: 8px;
+  font-size: 13px;
+  color: #999;
+}
+
+.table-view .subtask-row.completed .subtask-title {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.table-view .subtask-row .subtask-delete-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.table-view .subtask-row:hover .subtask-delete-btn {
+  opacity: 0.6;
+}
+
+.table-view .subtask-row .subtask-delete-btn:hover {
+  opacity: 1;
+  color: #e74c3c;
+}
+
+.table-view .subtask-inline-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-bottom: 1px solid #4fc3f7;
+  border-radius: 0;
+  color: inherit;
+  font-size: 13px;
+  padding: 4px 0;
+  width: 100%;
+  outline: none;
+}
+
+.table-view .subtask-inline-input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.table-view .add-subtask-row {
+  background: transparent;
+}
+
+.table-view .add-subtask-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table-view .add-subtask-cell {
+  padding: 2px 8px;
+}
+
+.table-view .add-subtask-btn {
+  background: none;
+  border: 1px dashed #444;
+  border-radius: 3px;
+  color: #999;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 10px;
+  transition: all 0.15s;
+}
+
+.table-view .add-subtask-btn:hover {
+  border-color: #4fc3f7;
+  color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.1);
+}
+
+.table-view .subtask-due-input {
+  padding: 2px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #999;
+  font-size: 11px;
+  width: 90px;
+  opacity: 0.5;
+}
+
+.table-view .subtask-row:hover .subtask-due-input {
+  opacity: 1;
+  border-color: #333;
+}
+
+.table-view .subtask-due-input:focus {
+  opacity: 1;
+  border-color: #4fc3f7;
+  background: rgba(0, 0, 0, 0.2);
+  outline: none;
+}
+
+.table-view .subtask-due-input:not([value=""]) {
+  opacity: 1;
+}
+
+.table-view .col-title {
+  min-width: 150px;
+}
+
+.table-view .col-project {
+  width: 100px;
+}
+
+.table-view .col-category {
+  width: 90px;
+}
+
+.table-view .col-status-col {
+  width: 80px;
+}
+
+.table-view .col-importance {
+  width: 40px;
+  text-align: center;
+}
+
+.table-view .col-start,
+.table-view .col-end {
+  width: 60px;
+  text-align: center;
+  font-size: 11px;
+  color: #ccc;
+}
+
+.table-view .col-actions {
+  width: 50px;
+}
+
+.table-view tr.completed .col-title {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.table-view .project-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #fff;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-view .project-badge.clickable,
+.table-view .inbox-badge.clickable {
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.table-view .project-badge.clickable:hover,
+.table-view .inbox-badge.clickable:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.table-view .inbox-badge {
+  color: #555;
+  font-size: 11px;
+}
+
+.table-view .category-badge {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.table-view .status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #fff;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-view .importance-badge {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.table-view .col-end.overdue {
+  color: #ff6b6b;
+  font-weight: 500;
+}
+
+.table-view .col-actions button {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.table-view .col-actions button:hover {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+

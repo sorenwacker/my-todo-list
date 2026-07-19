@@ -1,0 +1,321 @@
+/* Responsive Layout - Narrower screens (900-1200px) */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .sidebar-toggle {
+    left: 200px;
+  }
+
+  .sidebar-collapsed .sidebar-toggle {
+    left: 0;
+  }
+
+  .main-content {
+    padding: 0 8px;
+  }
+
+  .detail-panel {
+    min-width: 280px;
+  }
+
+  .kanban-column {
+    flex: 1 1 240px;
+    min-width: 180px;
+    max-width: 350px;
+  }
+
+}
+
+/* Half-screen layout (600-900px) */
+@media (max-width: 900px) {
+  .sidebar {
+    width: 180px;
+  }
+
+  .sidebar-toggle {
+    left: 180px;
+  }
+
+  .sidebar-header {
+    padding: 12px 15px;
+  }
+
+  .sidebar-header h2 {
+    font-size: 0.85rem;
+  }
+
+  .nav-item {
+    padding: 8px 15px;
+    font-size: 13px;
+  }
+
+  .project-item .project-name,
+  .category-item .category-name,
+  .status-item .status-name {
+    font-size: 13px;
+  }
+
+  .count {
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+
+  .main-content {
+    padding: 0 8px;
+  }
+
+  .main-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .main-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .header-controls {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .view-switcher {
+    flex-wrap: wrap;
+  }
+
+  .view-switcher button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .add-todo {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .add-todo button {
+    flex-shrink: 0;
+  }
+
+  .detail-panel {
+    width: 50% !important;
+    min-width: 260px;
+    max-width: 400px;
+  }
+
+  .detail-panel-content {
+    padding: 15px;
+  }
+
+  .detail-panel .title-input {
+    font-size: 1rem;
+    padding: 10px;
+  }
+
+  .meta-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .meta-row label {
+    width: 60px;
+    font-size: 12px;
+  }
+
+  .meta-row select,
+  .meta-row input[type="date"] {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .kanban-column {
+    flex: 1 1 200px;
+    min-width: 160px;
+    max-width: 300px;
+  }
+
+  .todo-card {
+    padding: 12px;
+    min-height: 100px;
+  }
+
+  .todo-card .card-title {
+    font-size: 13px;
+  }
+
+  .table-view th,
+  .table-view td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .table-view .col-project {
+    display: none;
+  }
+}
+
+/* Very narrow / collapsed sidebar (under 600px) */
+@media (max-width: 600px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    flex-direction: column;
+    border-right: none;
+    border-bottom: 1px solid #0d0d0d;
+    position: relative;
+  }
+
+  .app:not(.sidebar-collapsed) .sidebar {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .sidebar-collapsed .sidebar {
+    max-height: 50px;
+  }
+
+  .sidebar-toggle {
+    position: absolute;
+    left: auto;
+    right: 10px;
+    top: 10px;
+    transform: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #555;
+  }
+
+  .sidebar-collapsed .sidebar-toggle {
+    left: auto;
+  }
+
+  .sidebar-header {
+    padding: 10px 15px;
+  }
+
+  .project-nav {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px 15px;
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  .nav-item {
+    padding: 6px 10px;
+    background: #1a1a1a;
+    border-radius: 6px;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .nav-item.active::before {
+    display: none;
+  }
+
+  .nav-item.active {
+    background: #1a6fab;
+  }
+
+  .nav-divider,
+  .category-header,
+  .category-nav,
+  .status-header,
+  .status-nav,
+  .add-project,
+  .add-category,
+  .add-status,
+  .theme-toggle,
+  .settings-section {
+    display: none;
+  }
+
+  .main-content {
+    padding: 0 6px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .main-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .view-switcher button {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .detail-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    max-width: none;
+    min-width: auto;
+    height: 100% !important;
+    z-index: 100;
+    border-left: none;
+  }
+
+  .detail-panel .resize-handle {
+    display: none;
+  }
+
+  .kanban-view {
+    padding-bottom: 10px;
+  }
+
+  .kanban-column {
+    flex: 0 0 85vw;
+    max-height: 60vh;
+  }
+
+  .table-view .col-deadline {
+    display: none;
+  }
+
+  .todo-item {
+    padding: 10px 12px;
+  }
+
+  .todo-item .title {
+    font-size: 13px;
+  }
+
+  .todo-item .project-tag {
+    display: none;
+  }
+
+  .gantt-sidebar {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  .graph-controls {
+    flex-wrap: wrap;
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .graph-controls button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .graph-controls .control-divider {
+    display: none;
+  }
+}
+

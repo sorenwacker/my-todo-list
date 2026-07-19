@@ -1,0 +1,515 @@
+/* Importance Filter */
+.importance-filter {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.importance-filter .filter-op {
+  min-width: 90px;
+}
+
+.importance-filter .filter-val {
+  width: 50px;
+}
+
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.group-toggle:hover {
+  color: #fff;
+}
+
+.group-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* Todo Group Styles */
+.todo-group {
+  margin-bottom: 20px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #0d0d0d;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border-left: 4px solid #666;
+}
+
+.group-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.group-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.group-count {
+  font-size: 12px;
+  color: #ccc;
+  background: #0d0d0d;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Table View Group Row */
+.table-view .group-row td {
+  background: #0d0d0d;
+  padding: 10px 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #0d0d0d;
+}
+
+.table-view .group-row .group-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+.table-view .group-row .group-name {
+  font-size: 14px;
+  color: #fff;
+}
+
+.table-view .group-row .group-count {
+  font-size: 12px;
+  color: #ccc;
+  background: #0d0d0d;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 10px;
+}
+
+/* Category Styles */
+.category-nav {
+  padding: 5px 0;
+}
+
+.category-item .category-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.category-item .category-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status Styles */
+
+.status-nav {
+  padding: 5px 0;
+}
+
+.status-item .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-item .status-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-status {
+  padding: var(--sidebar-item-padding);
+  border-top: 1px solid #0d0d0d;
+}
+
+.add-status input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+}
+
+.add-status input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.add-status button {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed #333;
+  color: #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.add-status button:hover {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.add-category {
+  padding: var(--sidebar-item-padding);
+  border-top: 1px solid #0d0d0d;
+}
+
+.add-category input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+}
+
+.add-category input:focus {
+  outline: none;
+  border-color: #9b59b6;
+}
+
+.add-category button {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed #333;
+  color: #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.add-category button:hover {
+  border-color: #9b59b6;
+  color: #9b59b6;
+}
+
+/* Importance Picker */
+.importance-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.importance-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.importance-btn:hover {
+  border-color: #f39c12;
+  color: #f39c12;
+}
+
+.importance-btn.active {
+  background: #f39c12;
+  border-color: #f39c12;
+  color: #fff;
+}
+
+/* Created date in detail panel */
+.created-date {
+  font-size: 12px;
+  color: #ccc;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #0d0d0d;
+}
+
+/* Kanban view wrapper */
+.kanban-view-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Stacked Kanban (grouped by project) */
+.kanban-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+
+.kanban-project-section {
+  border-bottom: 1px solid #444;
+  padding-bottom: 20px;
+}
+
+.kanban-project-section:last-child {
+  border-bottom: none;
+}
+
+.kanban-project-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border-left: 4px solid #666;
+}
+
+.kanban-project-header .project-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kanban-project-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f0f0;
+  margin: 0;
+  flex: 1;
+}
+
+.kanban-project-header .project-count {
+  font-size: 12px;
+  color: #999;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.kanban-project-section .kanban-view {
+  overflow-x: auto;
+}
+
+.light-theme .kanban-project-section {
+  border-bottom-color: #ddd;
+}
+
+.light-theme .kanban-project-header {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.light-theme .kanban-project-header h3 {
+  color: #333;
+}
+
+.light-theme .kanban-project-header .project-count {
+  background: rgba(0, 0, 0, 0.08);
+  color: #999;
+}
+
+/* Card meta */
+.card-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.card-importance {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f39c12;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.card-category,
+.card-project {
+  font-size: 11px;
+}
+
+/* Card subtasks */
+.card-subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.card-subtasks .subtask-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtask-progress {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.subtask-bar {
+  height: 100%;
+  background: #2ecc71;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.subtask-count {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.card-subtasks .subtask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 11px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.card-subtasks .subtask-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 2px 0;
+  color: #ccc;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.card-subtasks .subtask-list li:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.card-subtasks .subtask-list li.completed {
+  color: #999;
+  text-decoration: line-through;
+}
+
+.card-subtasks .subtask-check {
+  flex-shrink: 0;
+  font-size: 10px;
+  width: 14px;
+}
+
+.card-subtasks .subtask-text {
+  word-break: break-word;
+}
+
+.light-theme .subtask-progress {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .subtask-count {
+  color: #999;
+}
+
+.light-theme .card-subtasks .subtask-list li {
+  color: #333;
+}
+
+.light-theme .card-subtasks .subtask-list li:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.light-theme .card-subtasks .subtask-list li.completed {
+  color: #999;
+}
+
+/* Card notes preview */
+.card-notes-preview {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ccc;
+}
+
+.todo-card .card-notes-preview {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.card-notes-preview p {
+  margin: 0;
+}
+
+.card-notes-preview h1,
+.card-notes-preview h2,
+.card-notes-preview h3 {
+  font-size: 11px;
+  margin: 0;
+}
+
+.card-notes-preview ul,
+.card-notes-preview ol {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.card-notes-preview code {
+  font-size: 10px;
+  padding: 1px 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+/* Header actions in detail panel */
+.detail-panel-header .header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.detail-panel-header .detach-btn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+
+.detail-panel-header .detach-btn:hover {
+  background: #0d0d0d;
+  color: #fff;
+}
+

@@ -1,0 +1,659 @@
+/* Kanban View */
+.kanban-view {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 20px;
+  min-height: 400px;
+}
+
+.kanban-column {
+  flex: 1 1 280px;
+  min-width: 200px;
+  max-width: 400px;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 200px);
+  border-top: 4px solid #333;
+  overflow: hidden;
+}
+
+.kanban-column.inbox-column {
+  border-top-color: #ccc;
+}
+
+.kanban-column.uncategorized-column {
+  border-top-color: #fff;
+  background: #1a1a1a;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #0d0d0d;
+}
+
+.column-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.column-header h3 {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.column-count {
+  font-size: 12px;
+  color: #ccc;
+  background: #0d0d0d;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.kanban-cards {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100px;
+}
+
+.kanban-add-btn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: transparent;
+  border: 2px dashed #333;
+  border-radius: 8px;
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.kanban-add-btn:hover {
+  border-color: #1a6fab;
+  color: #1a6fab;
+  background: rgba(15, 76, 117, 0.1);
+}
+
+.kanban-card {
+  position: relative;
+  background: #0d0d0d;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+
+.kanban-card:hover {
+  background: #000000;
+  z-index: 10;
+  position: relative;
+}
+
+.kanban-card.ghost {
+  opacity: 0.5;
+  background: #1a6fab;
+}
+
+.kanban-card.completed {
+  border-color: #0f9d58;
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.card-header input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.card-title {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.card-delete-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.kanban-card:hover .card-delete-btn {
+  opacity: 1;
+}
+
+.card-delete-btn:hover {
+  color: #ff6b6b;
+}
+
+.kanban-card .archive-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.kanban-card:hover .archive-btn {
+  opacity: 1;
+}
+
+.kanban-card .archive-btn:hover {
+  color: #ffc107;
+}
+
+.card-start {
+  font-size: 11px;
+  color: #ccc;
+  padding: 3px 8px;
+  background: #0d0d0d;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin-right: auto;
+}
+
+.card-deadline {
+  font-size: 11px;
+  color: #ccc;
+  padding: 3px 8px;
+  background: #0d0d0d;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.card-deadline.overdue {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.kanban-card .card-subtasks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.kanban-card .subtask-progress {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.kanban-card .subtask-bar {
+  height: 100%;
+  background: #2ecc71;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.kanban-card .subtask-count {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+
+/* Detail Panel */
+.detail-panel {
+  width: var(--detail-width, 600px);
+  min-width: 300px;
+  max-width: 1200px;
+  background: #0d0d0d;
+  border-left: 4px solid #444;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Fullscreen mode for detail panel */
+.detail-panel.fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  max-height: none !important;
+  min-height: 100vh !important;
+  border-left: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 1000;
+  overflow: hidden !important;
+}
+
+.detail-panel.fullscreen .detail-panel-content {
+  flex: 1 1 auto !important;
+  height: calc(100vh - 50px) !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 20px 40px !important;
+}
+
+.detail-panel.fullscreen .title-input {
+  font-size: 1.5rem;
+  padding: 12px;
+}
+
+.detail-panel.fullscreen .notes-editor,
+.detail-panel.fullscreen .notes-preview {
+  height: 50vh;
+  min-height: 300px;
+}
+
+.detail-panel.fullscreen .notes-split {
+  height: 50vh;
+  min-height: 300px;
+}
+
+.detail-panel-header .fullscreen-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-panel-header .fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.detail-panel .resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.detail-panel .resize-handle:hover,
+.detail-panel .resize-handle.dragging {
+  background: #1a6fab;
+}
+
+.detail-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #0d0d0d;
+}
+
+.detail-panel-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-panel-header .close-btn,
+.detail-panel-header .layout-btn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.detail-panel-header .close-btn:hover,
+.detail-panel-header .layout-btn:hover {
+  background: #0d0d0d;
+  color: #fff;
+}
+
+.detail-panel-header .layout-btn {
+  font-weight: bold;
+  font-size: 14px;
+  min-width: 28px;
+}
+
+.detail-panel-content {
+  flex: 1;
+  padding: 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-panel .title-input {
+  width: 100%;
+  padding: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-bottom: 2px solid #333;
+  background: transparent;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.detail-panel .title-input:focus {
+  outline: none;
+  border-bottom-color: #1a6fab;
+}
+
+.detail-panel .project-row {
+  margin-bottom: 12px;
+}
+
+.detail-panel .meta-section {
+  margin-bottom: 12px;
+}
+
+.detail-panel .meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-panel .meta-row label {
+  font-size: 13px;
+  color: #ccc;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.detail-panel .meta-row select,
+.detail-panel .meta-row input[type="date"] {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+}
+
+.detail-panel .meta-row select:focus,
+.detail-panel .meta-row input[type="date"]:focus {
+  outline: none;
+  border-color: #1a6fab;
+}
+
+.detail-panel .links-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #1a1a1a;
+  border-radius: 8px;
+}
+
+.detail-panel .notes-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.detail-panel .notes-editor {
+  flex: 1;
+  min-height: 150px;
+}
+
+/* Split view for markdown editor */
+.notes-split {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  flex: 1;
+  min-height: 150px;
+  background: #000000;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.notes-split .split-editor,
+.notes-split .split-preview {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: #000000;
+  padding: 14px;
+  border: 1px solid #555;
+  border-radius: 8px;
+}
+
+/* Selected state for items */
+.todo-item.selected {
+  background: rgba(26, 111, 171, 0.15);
+  box-shadow: 0 0 12px rgba(26, 111, 171, 0.4), inset 0 0 0 1px rgba(26, 111, 171, 0.3);
+}
+
+.table-view tr.selected {
+  background: rgba(26, 111, 171, 0.15);
+  box-shadow: 0 0 12px rgba(26, 111, 171, 0.4), inset 0 0 0 1px rgba(26, 111, 171, 0.3);
+}
+
+.kanban-card.selected {
+  box-shadow: 0 0 16px rgba(26, 111, 171, 0.5), 0 0 0 1px rgba(26, 111, 171, 0.3);
+}
+
+/* Main content adjustment when detail panel is open */
+.main-content.with-detail {
+  max-width: none;
+}
+
+/* Header Controls */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  padding: 8px 12px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+  width: 150px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1a6fab;
+}
+
+.search-input::placeholder {
+  color: #888;
+}
+
+.sort-select {
+  padding: 8px 12px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: #1a6fab;
+}
+
+.show-completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #a0a0a0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.show-completed-toggle input {
+  cursor: pointer;
+}
+
+.show-completed-toggle span {
+  user-select: none;
+}
+
+.card-notes-input {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  background: #2a2a2a;
+  border: 1px solid #4a9eff;
+  border-radius: 4px;
+  color: #f0f0f0;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.card-notes-input:focus {
+  border-color: #6ab0ff;
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.add-notes-link {
+  color: var(--text-secondary, #888);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+  opacity: 0.7;
+}
+
+.add-notes-link:hover {
+  opacity: 1;
+  color: var(--text-primary, #ccc);
+}
+
+/* Card Context Menu */
+.card-context-menu {
+  position: absolute;
+  background: var(--bg-secondary, #1a1f2e);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 150px;
+  z-index: 1000;
+  padding: 4px 0;
+  /* Render native controls (date input icon, calendar popup) to match the menu. */
+  color-scheme: dark;
+}
+
+.light-theme .card-context-menu {
+  color-scheme: light;
+}
+
+.light-theme .card-context-menu .context-menu-item:hover {
+  background: var(--hover-bg, #eef2f7);
+}
+
+.card-context-menu .context-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.card-context-menu .context-menu-item:hover {
+  background: var(--bg-hover, #2a2f3d);
+}
+
+.card-context-menu .context-menu-item.active {
+  color: var(--accent-color, #4a9eff);
+}
+
+.card-context-menu .context-menu-divider {
+  height: 1px;
+  background: var(--border-color, #3a3f4b);
+  margin: 4px 0;
+}
+
+.card-context-menu .context-menu-label {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+}
+
+.card-context-menu .context-menu-date {
+  justify-content: space-between;
+}
+
+.card-context-menu .context-menu-date input[type='date'] {
+  background: var(--bg-primary, #11151f);
+  border: 1px solid var(--border-color, #3a3f4b);
+  border-radius: 4px;
+  color: var(--text-primary, #ccc);
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.card-context-menu .project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
