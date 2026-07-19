@@ -66,7 +66,7 @@
             <div class="shortcut-item"><kbd>j</kbd> / <kbd>↓</kbd><span>Move down</span></div>
             <div class="shortcut-item"><kbd>k</kbd> / <kbd>↑</kbd><span>Move up</span></div>
             <div class="shortcut-item">
-              <kbd>Enter</kbd> / <kbd>e</kbd><span>Open/Edit todo</span>
+              <kbd>Enter</kbd> / <kbd>e</kbd><span>Highlight todo</span>
             </div>
             <div class="shortcut-item">
               <kbd>Esc</kbd><span>Close detail / Clear selection</span>
@@ -791,8 +791,13 @@
       selectedTodoIds() {
         return this.todosComposable.selectedTodoIds.value
       },
-      focusedTodoIndex() {
-        return this.todosComposable.focusedTodoIndex.value
+      focusedTodoIndex: {
+        get() {
+          return this.todosComposable.focusedTodoIndex.value
+        },
+        set(value) {
+          this.todosComposable.focusedTodoIndex.value = value
+        }
       },
       editingProject() {
         return this.projectsComposable.editingProject.value
@@ -1208,7 +1213,7 @@
           const todo = await window.api.createTodo('Untitled', projectId, type)
           await this.loadAllTodos()
           await this.loadTodos()
-          if (todo) this.selectTodo(todo)
+          if (todo) this.selectTodo(todo.id)
         } catch {
           // Todo creation failed
         }
@@ -1242,7 +1247,7 @@
           }
           await this.loadAllTodos()
           await this.loadTodos()
-          if (todo) this.selectTodo(todo)
+          if (todo) this.selectTodo(todo.id)
         } catch {
           // Todo creation failed
         }
@@ -1351,8 +1356,18 @@
         // Set the selected IDs from marquee selection
         this.selectedTodoIds = new Set(ids)
       },
-      async selectTodo(_id) {
-        // TODO: Will be implemented with popover editor
+      selectTodo(id) {
+        const index = this.todos.findIndex((t) => t.id === id)
+        if (index >= 0) {
+          this.focusedTodoIndex = index
+        }
+        const todo = this.allTodos.find((t) => t.id === id)
+        if (todo) {
+          this.addToRecentItems(todo)
+        }
+        this.$nextTick(() => {
+          document.querySelector(`[data-todo-id="${id}"]`)?.scrollIntoView({ block: 'nearest' })
+        })
       },
       toPlainTodo(todo) {
         return this.todosComposable.toPlainTodo(todo)
