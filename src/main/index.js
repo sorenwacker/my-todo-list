@@ -101,14 +101,40 @@ app.whenReady().then(() => {
   database = new Database()
   log.info('Database initialized')
 
+  // Block navigation away from the app and route popups through the OS browser,
+  // so no foreign page can ever run with the preload API attached.
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-navigate', (event, url) => {
+      const allowed =
+        process.env.NODE_ENV === 'development'
+          ? url.startsWith('http://localhost:5173/')
+          : url.startsWith('file:')
+      if (!allowed) {
+        log.warn('Blocked navigation', { url })
+        event.preventDefault()
+      }
+    })
+    contents.setWindowOpenHandler(({ url }) => {
+      try {
+        shell.openExternal(validateUrl(url))
+      } catch (error) {
+        log.warn('Blocked window.open', { url, error: error.message })
+      }
+      return { action: 'deny' }
+    })
+  })
+
   // Configure Content Security Policy
+  const isDev = process.env.NODE_ENV === 'development'
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self';" +
-            "script-src 'self' 'unsafe-inline';" +
+            "script-src 'self'" +
+            (isDev ? " 'unsafe-inline'" : '') +
+            ';' +
             "style-src 'self' 'unsafe-inline';" +
             "img-src 'self' data: blob:;" +
             "font-src 'self' data:;" +
