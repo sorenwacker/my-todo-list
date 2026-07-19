@@ -649,14 +649,24 @@
     })
   }
 
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+  }
+
   const mermaidExtension = {
     name: 'mermaid',
     renderer: {
       code(token) {
+        // Mermaid decodes HTML entities before parsing, so escaping is safe here too
         if (token.lang === 'mermaid') {
-          return `<pre class="mermaid">${token.text}</pre>`
+          return `<pre class="mermaid">${escapeHtml(token.text)}</pre>`
         }
-        return `<pre><code class="language-${token.lang || ''}">${token.text}</code></pre>`
+        return `<pre><code class="language-${escapeHtml(token.lang || '')}">${escapeHtml(token.text)}</code></pre>`
       }
     }
   }

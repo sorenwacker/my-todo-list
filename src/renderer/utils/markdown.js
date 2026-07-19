@@ -7,31 +7,67 @@ marked.setOptions({
   breaks: true
 })
 
+const FENCE_RE = /^\s*(`{3,}|~{3,})/
+const INDENTED_LIST_RE = /^( +)([-*]|\d+\.) (.*)$/
+
 /**
- * Preprocess markdown to fix 2-space indented lists
- * Converts 2-space indentation to 4-space for nested lists
+ * Preprocess markdown so nested lists render regardless of indent width.
+ *
+ * Marked requires 4-space indentation per nesting level. Notes written with
+ * 2-space indents (or any consistent smaller unit) would lose their nesting,
+ * so the smallest indent found on a list line is treated as one level and
+ * every list line is rewritten to 4 spaces per level. Fenced code blocks are
+ * passed through untouched.
+ *
+ * @param {string} markdown - The markdown string to preprocess.
+ * @returns {string} Markdown with list indentation normalized.
  */
-function preprocessMarkdown(markdown) {
+export function preprocessMarkdown(markdown) {
   if (!markdown) return ''
 
-  // Convert 2-space indented list items to 4-space
   const lines = markdown.split('\n')
-  const result = []
 
+  // Pass 1: find the smallest list indent outside fenced code blocks.
+  let inFence = false
+  let fenceChar = ''
+  let unit = Infinity
   for (const line of lines) {
-    // Match lines starting with spaces followed by - or * or number.
-    const match = line.match(/^( +)([-*]|\d+\.) (.*)$/)
-    if (match) {
-      const spaces = match[1]
-      const bullet = match[2]
-      const content = match[3]
-      // Double the indentation for proper nesting
-      const newSpaces = '    '.repeat(Math.ceil(spaces.length / 2))
-      result.push(newSpaces + bullet + ' ' + content)
-    } else {
-      result.push(line)
+    const fence = line.match(FENCE_RE)
+    if (fence) {
+      if (!inFence) {
+        inFence = true
+        fenceChar = fence[1][0]
+      } else if (fence[1][0] === fenceChar) {
+        inFence = false
+      }
+      continue
     }
+    if (inFence) continue
+    const match = line.match(INDENTED_LIST_RE)
+    if (match) unit = Math.min(unit, match[1].length)
   }
+  if (!isFinite(unit) || unit === 0) return markdown
+
+  // Pass 2: rewrite list indentation to 4 spaces per level.
+  inFence = false
+  fenceChar = ''
+  const result = lines.map((line) => {
+    const fence = line.match(FENCE_RE)
+    if (fence) {
+      if (!inFence) {
+        inFence = true
+        fenceChar = fence[1][0]
+      } else if (fence[1][0] === fenceChar) {
+        inFence = false
+      }
+      return line
+    }
+    if (inFence) return line
+    const match = line.match(INDENTED_LIST_RE)
+    if (!match) return line
+    const level = Math.round(match[1].length / unit)
+    return '    '.repeat(level) + match[2] + ' ' + match[3]
+  })
 
   return result.join('\n')
 }
