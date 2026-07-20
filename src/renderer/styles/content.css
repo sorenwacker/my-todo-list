@@ -248,12 +248,14 @@
 .main-header .header-title-row .theme-toggle {
   background: transparent;
   border: none;
-  font-size: 1.2rem;
+  color: #999;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 6px 8px;
   border-radius: 6px;
   transition: background 0.2s ease;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-left: auto;
 }
 
