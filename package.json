@@ -1,6 +1,6 @@
 {
   "name": "todo",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Markdown-based todo list with notes and deadlines",
   "author": {
     "name": "sdrwacker",
@@ -8,6 +8,9 @@
   },
   "main": "out/main/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3",
