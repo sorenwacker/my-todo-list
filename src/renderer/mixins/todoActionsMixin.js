@@ -75,8 +75,8 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         if (todo) this.selectTodo(todo.id)
-      } catch {
-        // Todo creation failed
+      } catch (error) {
+        console.error('Failed to add todo to project:', error)
       }
     },
     async addTodoToStatus(statusId) {
@@ -92,8 +92,8 @@ export default {
         await this.loadAllTodos()
         await this.loadTodos()
         if (todo) this.selectTodo(todo.id)
-      } catch {
-        // Todo creation failed
+      } catch (error) {
+        console.error('Failed to add todo to status:', error)
       }
     },
     async moveInboxTodoToProject(todo, projectId) {
