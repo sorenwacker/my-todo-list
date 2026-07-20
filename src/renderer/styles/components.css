@@ -433,10 +433,6 @@
   background: rgba(0, 0, 0, 0.1);
 }
 
-.light-theme .subtask-count {
-  color: #999;
-}
-
 .light-theme .card-subtasks .subtask-list li {
   color: #333;
 }
