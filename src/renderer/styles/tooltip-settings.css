@@ -1,0 +1,136 @@
+/* Graph Tooltip */
+.graph-tooltip {
+  position: fixed;
+  background: rgba(22, 33, 62, 0.95);
+  border: 1px solid #1a6fab;
+  border-radius: 8px;
+  padding: 12px 16px;
+  pointer-events: none;
+  z-index: 300;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.graph-tooltip .tooltip-title {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.graph-tooltip .tooltip-project {
+  font-size: 12px;
+  color: #4fc3f7;
+  margin-bottom: 4px;
+}
+
+.graph-tooltip .tooltip-deadline {
+  font-size: 12px;
+  color: #f39c12;
+}
+
+.graph-tooltip .tooltip-notes {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.5;
+}
+
+.graph-tooltip .tooltip-notes p {
+  margin: 0 0 4px 0;
+}
+
+.graph-tooltip .tooltip-notes code {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.graph-tooltip .tooltip-notes pre.mermaid {
+  background: transparent;
+  padding: 10px 0;
+}
+
+.graph-tooltip .tooltip-notes pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  padding: var(--sidebar-header-padding);
+  margin-top: auto;
+}
+
+/* Settings Section */
+.settings-content {
+  padding: var(--sidebar-header-padding);
+}
+
+.preference-item {
+  margin: 8px 0;
+  padding: 8px;
+  background: #1a1f2e;
+  border-radius: 6px;
+}
+
+.light-theme .preference-item {
+  background: #f5f5f5;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.settings-btn {
+  width: 100%;
+  padding: 8px;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+}
+
+.settings-btn:hover {
+  border-color: #1a6fab;
+  color: #fff;
+  background: #1a1a1a;
+}
+
+.database-location {
+  margin-top: 8px;
+  padding: 8px;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 6px;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.database-location small {
+  color: #ccc;
+  font-size: 11px;
+  line-height: 1.4;
+  display: block;
+  word-wrap: break-word;
+}
