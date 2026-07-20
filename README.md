@@ -35,22 +35,46 @@ A feature-rich desktop todo application built with Electron and Vue 3. Designed 
 
 ## Installation
 
-### Prerequisites
-- Node.js 16 or higher
-- npm or yarn
+### Option A: Download a prebuilt release (recommended)
 
-### Setup
+Most users should not build from source. Download the packaged app from the
+[Releases page](https://github.com/sorenwacker/my-todo-list/releases):
+
+- **macOS**: download the `.dmg`, open it, and drag `Todo.app` into `Applications`.
+
+The macOS build is not code-signed. On first launch, right-click `Todo.app` and
+choose **Open** (or allow it under **System Settings > Privacy & Security**) to
+get past Gatekeeper.
+
+### Option B: Build from source
+
+Building compiles the native `better-sqlite3` module, so a C/C++ toolchain and a
+supported Node version are required.
+
+#### Prerequisites
+- **Node.js 24 LTS** (pinned in `.nvmrc`). With [nvm](https://github.com/nvm-sh/nvm):
+  `nvm install` then `nvm use` in the project directory. Newer Node versions
+  (e.g. 26) are not yet validated against the native dependencies and can leave a
+  half-built install.
+- **Xcode Command Line Tools** (macOS): `xcode-select --install`. Without them the
+  `better-sqlite3` native build fails, which is the most common cause of a fresh
+  install that opens but cannot save data.
+
+#### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/sorenwacker/todo.git
-cd todo
+git clone https://github.com/sorenwacker/my-todo-list.git
+cd my-todo-list
+
+# Use the pinned Node version
+nvm use
 
 # Install dependencies
 npm install
-
-# Rebuild the native better-sqlite3 module for Electron
-npm run rebuild:electron
 ```
+
+The native module is rebuilt for the correct target automatically when you run
+the app or the tests; see [Development](#development) below.
 
 ## Development
 
