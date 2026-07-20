@@ -77,9 +77,23 @@ A second remediation pass the same day closed the remaining scope:
   into 12 ordered slices under `src/renderer/styles/`; App.vue (972 lines) split into
   `AppHeader`, `HomeLanding`, `HelpModal`, `ImportDialog` components, keyboard/todo-action
   mixins, a masonry composable, and mermaid/localStorage utilities.
-- Still open: nothing from the confirmed findings. Candidates for a future pass: the
-  duplicated light-theme rules with conflicting values, and the timeline/gantt/graph
-  stylesheet slices that style views no longer reachable from the UI.
+A third pass closed the documented follow-ups:
+
+- Removed the stylesheets for views unreachable from the UI (`availableViews` is fixed to
+  cards/kanban): `timeline.css` deleted, the graph-view rules cut from the graph slice, and
+  the dead timeline/graph light-theme rules removed (~1790 lines). The surviving item-preview
+  tooltip and settings-sidebar rules were kept and the slice renamed `tooltip-settings.css`.
+- Resolved the light-theme conflict: `.light-theme .subtask-count` set `color` in two slices;
+  the later slice already won, so the overridden `color: #999` was removed (no visual change).
+  The other apparent duplicates were legitimate `@media` breakpoint overrides, left in place.
+- Added Vue component tests (`@vue/test-utils` + jsdom): `KanbanCard`, `CardItem`,
+  `GlobalSearch`, and the dialogs — covering the sensitive-notes guard, context menus, search
+  keyboard navigation, and dialog emits. Suite is now 203 tests.
+
+- Still open: nothing from the confirmed findings. Candidate for a future pass: the table-view
+  CSS (the table view is likewise unreachable, but its rules are spread across several slices
+  and share generic `table` selectors with live markdown-table styling, so it needs careful
+  per-selector verification).
 
 ## Confirmed findings
 
