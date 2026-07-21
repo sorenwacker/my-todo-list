@@ -607,6 +607,12 @@ app.whenReady().then(() => {
         }
         const importData = JSON.parse(fileContent)
         database.importData(importData, validatedMode)
+        // Import replaces DB contents, so any undo/redo entries now reference
+        // stale rows/IDs; drop them and let the UI refresh its buttons.
+        history.clear()
+        if (mainWindow) {
+          mainWindow.webContents.send('history-changed', history.getState())
+        }
         log.info('Data imported successfully', { path: importPath, mode: validatedMode })
         return { success: true }
       } catch (error) {
