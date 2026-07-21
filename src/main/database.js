@@ -469,59 +469,6 @@ export class Database {
   }
 
   // Milestone operations
-  getChildTodos(parentId) {
-    return this.db
-      .prepare(
-        `
-      SELECT t.*, p.name as project_name, p.color as project_color,
-             s.name as status_name, s.color as status_color
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN statuses s ON t.status_id = s.id
-      WHERE t.parent_id = ? AND t.deleted_at IS NULL
-      ORDER BY t.sort_order ASC
-    `
-      )
-      .all(parentId)
-  }
-
-  getAllMilestones(projectId = null) {
-    if (projectId) {
-      return this.db
-        .prepare(
-          `
-        SELECT t.*, p.name as project_name, p.color as project_color
-        FROM todos t
-        LEFT JOIN projects p ON t.project_id = p.id
-        WHERE t.type = 'milestone' AND t.project_id = ? AND t.deleted_at IS NULL
-        ORDER BY t.milestone_date ASC, t.created_at ASC
-      `
-        )
-        .all(projectId)
-    }
-    return this.db
-      .prepare(
-        `
-      SELECT t.*, p.name as project_name, p.color as project_color
-      FROM todos t
-      LEFT JOIN projects p ON t.project_id = p.id
-      WHERE t.type = 'milestone' AND t.deleted_at IS NULL
-      ORDER BY t.milestone_date ASC, t.created_at ASC
-    `
-      )
-      .all()
-  }
-
-  assignToMilestone(todoId, milestoneId) {
-    this.db.prepare('UPDATE todos SET parent_id = ? WHERE id = ?').run(milestoneId, todoId)
-    return this.getTodo(todoId)
-  }
-
-  unassignFromMilestone(todoId) {
-    this.db.prepare('UPDATE todos SET parent_id = NULL WHERE id = ?').run(todoId)
-    return this.getTodo(todoId)
-  }
-
   reorderTodos(ids) {
     const stmt = this.db.prepare('UPDATE todos SET sort_order = ? WHERE id = ?')
     const transaction = this.db.transaction((ids) => {
@@ -726,44 +673,12 @@ export class Database {
   }
 
   // Milestone operations
-  getMilestoneTodos(milestoneId) {
-    return this.db
-      .prepare(
-        `
-      SELECT t.*,
-             p.name as project_name,
-             p.color as project_color,
-             s.name as status_name,
-             s.color as status_color
-      FROM todos t
-      INNER JOIN milestone_todos mt ON t.id = mt.todo_id
-      LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN statuses s ON t.status_id = s.id
-      WHERE mt.milestone_id = ? AND t.deleted_at IS NULL
-      ORDER BY t.sort_order ASC
-    `
-      )
-      .all(milestoneId)
-  }
-
   linkMilestoneTodo(milestoneId, todoId) {
     this.db
       .prepare(
         `
       INSERT OR IGNORE INTO milestone_todos (milestone_id, todo_id)
       VALUES (?, ?)
-    `
-      )
-      .run(milestoneId, todoId)
-    return true
-  }
-
-  unlinkMilestoneTodo(milestoneId, todoId) {
-    this.db
-      .prepare(
-        `
-      DELETE FROM milestone_todos
-      WHERE milestone_id = ? AND todo_id = ?
     `
       )
       .run(milestoneId, todoId)
@@ -789,11 +704,6 @@ export class Database {
 
     const result = this.db.prepare('INSERT INTO tags (name) VALUES (?)').run(name)
     return this.getTag(result.lastInsertRowid)
-  }
-
-  deleteTag(id) {
-    this.db.prepare('DELETE FROM tags WHERE id = ?').run(id)
-    return true
   }
 
   // Todo-Tag operations
@@ -875,38 +785,6 @@ export class Database {
       .run(projectId, tagId)
     this.cleanupOrphanedTag(tagId)
     return true
-  }
-
-  // Search by tag
-  searchByTag(tagName) {
-    const tag = this.getTagByName(tagName)
-    if (!tag) return { todos: [], projects: [] }
-
-    const todos = this.db
-      .prepare(
-        `
-      SELECT t.*, p.name as project_name, p.color as project_color,
-             s.name as status_name, s.color as status_color
-      FROM todos t
-      INNER JOIN todo_tags tt ON t.id = tt.todo_id
-      LEFT JOIN projects p ON t.project_id = p.id
-      LEFT JOIN statuses s ON t.status_id = s.id
-      WHERE tt.tag_id = ? AND t.deleted_at IS NULL
-    `
-      )
-      .all(tag.id)
-
-    const projects = this.db
-      .prepare(
-        `
-      SELECT p.* FROM projects p
-      INNER JOIN project_tags pt ON p.id = pt.project_id
-      WHERE pt.tag_id = ? AND p.deleted_at IS NULL
-    `
-      )
-      .all(tag.id)
-
-    return { todos, projects }
   }
 
   // Export/Import operations

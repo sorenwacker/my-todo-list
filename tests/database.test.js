@@ -537,23 +537,6 @@ describe('Database', () => {
       db.removeProjectTag(project.id, tag.id)
       expect(db.getProjectTags(project.id)).toHaveLength(0)
     })
-
-    it('should search by tag returning todos and projects', () => {
-      const project = db.createProject('Work')
-      const todo = db.createTodo('Task')
-      db.addProjectTag(project.id, 'q1')
-      db.addTodoTag(todo.id, 'q1')
-
-      const result = db.searchByTag('q1')
-      expect(result.todos).toHaveLength(1)
-      expect(result.projects).toHaveLength(1)
-    })
-
-    it('should return empty results when searching an unknown tag', () => {
-      const result = db.searchByTag('nope')
-      expect(result.todos).toHaveLength(0)
-      expect(result.projects).toHaveLength(0)
-    })
   })
 
   describe('Global Search', () => {
