@@ -234,10 +234,6 @@ export class Database {
     const recurrenceType =
       todo.recurrence_type && todo.recurrence_type.trim() !== '' ? todo.recurrence_type : null
     const recurrenceInterval = todo.recurrence_interval || 1
-    const recurrenceEndDate =
-      todo.recurrence_end_date && todo.recurrence_end_date.trim() !== ''
-        ? todo.recurrence_end_date
-        : null
     const notesSensitive = todo.notes_sensitive ? 1 : 0
     const type = todo.type || 'todo'
     const topicId = todo.topic_id !== undefined ? todo.topic_id : null
@@ -251,10 +247,17 @@ export class Database {
       completedAt = null
     }
 
-    // Preserve parent_id / milestone_date when the caller omits them, so a
-    // generic update does not clear a todo's milestone assignment.
+    // Preserve parent_id / milestone_date / recurrence_end_date when the caller
+    // omits them, so a generic update does not clear a todo's milestone
+    // assignment or make a recurring todo recur forever.
     const parentId =
       todo.parent_id !== undefined ? todo.parent_id : (existingTodo?.parent_id ?? null)
+    const recurrenceEndDate =
+      todo.recurrence_end_date !== undefined
+        ? todo.recurrence_end_date && todo.recurrence_end_date.trim() !== ''
+          ? todo.recurrence_end_date
+          : null
+        : (existingTodo?.recurrence_end_date ?? null)
     const milestoneDate =
       todo.milestone_date !== undefined
         ? todo.milestone_date && todo.milestone_date.trim() !== ''

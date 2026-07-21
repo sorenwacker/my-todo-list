@@ -242,6 +242,33 @@ describe('Database', () => {
       expect(cleared.end_date).toBeNull()
     })
 
+    it('should preserve recurrence_end_date when a generic update omits it', () => {
+      const todo = db.createTodo('Test')
+      const recurring = db.updateTodo({
+        ...todo,
+        recurrence_type: 'weekly',
+        recurrence_interval: 1,
+        recurrence_end_date: '2026-12-31'
+      })
+      expect(recurring.recurrence_end_date).toBe('2026-12-31')
+
+      // A generic edit (e.g. rename) that does not carry the field must not
+      // wipe it, or an imported recurring todo would recur forever.
+      const renamed = { ...recurring, title: 'Renamed' }
+      delete renamed.recurrence_end_date
+      const updated = db.updateTodo(renamed)
+
+      expect(updated.recurrence_end_date).toBe('2026-12-31')
+    })
+
+    it('should clear recurrence_end_date when an empty string is given', () => {
+      const todo = db.createTodo('Test')
+      const recurring = db.updateTodo({ ...todo, recurrence_end_date: '2026-12-31' })
+      const cleared = db.updateTodo({ ...recurring, recurrence_end_date: '' })
+
+      expect(cleared.recurrence_end_date).toBeNull()
+    })
+
     it('should set completed_at when a todo is completed', () => {
       const todo = db.createTodo('Test')
       const completed = db.updateTodo({ ...todo, completed: true })
