@@ -31,30 +31,6 @@
   background: #f9f9f9;
 }
 
-.card-size-control label {
-  font-size: 12px;
-  color: #ccc;
-  white-space: nowrap;
-}
-
-.card-size-control input[type="range"] {
-  width: 80px;
-  height: 4px;
-  -webkit-appearance: none;
-  background: #333;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.card-size-control input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: #1a6fab;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
 .add-todo {
   display: flex;
   flex-direction: row;

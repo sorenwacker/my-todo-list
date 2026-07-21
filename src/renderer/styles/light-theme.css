@@ -251,22 +251,6 @@
   color: #fff;
 }
 
-.light-theme .card-size-control {
-  background: rgba(255, 255, 255, 0.95);
-}
-
-.light-theme .card-size-control label {
-  color: var(--text-secondary);
-}
-
-.light-theme .card-size-control input[type="range"] {
-  background: var(--border-color);
-}
-
-.light-theme .card-size-control input[type="range"]::-webkit-slider-thumb {
-  background: var(--accent-color);
-}
-
 .light-theme .add-todo {
   background: var(--bg-primary);
 }

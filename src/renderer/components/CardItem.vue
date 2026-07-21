@@ -153,7 +153,10 @@
     >
       + Add notes
     </div>
-    <div v-if="(todo.notes || isEditingNotes) && !isCollapsed" class="card-notes-preview">
+    <div
+      v-if="(todo.notes || isEditingNotes) && (!isCollapsed || alwaysShowNotes)"
+      class="card-notes-preview"
+    >
       <div v-if="isEditingNotes" @click.stop @mousedown.stop>
         <NotesEditor
           ref="notesEditor"
@@ -213,6 +216,12 @@
         default: () => ({})
       },
       showProject: {
+        type: Boolean,
+        default: false
+      },
+      // In card (square) mode the note preview is shown even while the card is
+      // collapsed, so the extra tile space is used.
+      alwaysShowNotes: {
         type: Boolean,
         default: false
       },
