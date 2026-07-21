@@ -570,6 +570,9 @@ select {
 .bottom-bar {
   position: sticky;
   bottom: 0;
+  /* Pin to the bottom of the main content even when the cards do not fill the
+     viewport (short content does not trigger sticky positioning on its own). */
+  margin-top: auto;
   background: #000000;
   border-top: none;
   padding: 8px 16px;
