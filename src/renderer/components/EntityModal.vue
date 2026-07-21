@@ -86,17 +86,17 @@
         handler(val) {
           if (val) {
             this.localEntity = { ...val }
+            // Focus the name input when the modal actually opens. This lives in
+            // the watcher, not mounted(), because the modal component stays
+            // mounted and only its content toggles on `entity`.
+            this.$nextTick(() => {
+              if (this.$refs.nameInput) {
+                this.$refs.nameInput.focus()
+              }
+            })
           }
         }
       }
-    },
-    mounted() {
-      // Focus the name input when modal opens
-      this.$nextTick(() => {
-        if (this.$refs.nameInput) {
-          this.$refs.nameInput.focus()
-        }
-      })
     },
     methods: {
       save() {

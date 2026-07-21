@@ -566,6 +566,9 @@
       groupByProject(val) {
         localStorage.setItem('group-by-project', val)
       },
+      showCompleted(val) {
+        localStorage.setItem('show-completed', val)
+      },
       sortBy(val) {
         localStorage.setItem('sort-by', val)
       }
