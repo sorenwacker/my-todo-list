@@ -36,7 +36,6 @@ function toPlainTodo(todo) {
     completed: todo.completed,
     importance: todo.importance,
     project_id: todo.project_id,
-    category_id: todo.category_id,
     status_id: todo.status_id,
     sort_order: todo.sort_order,
     type: todo.type,
@@ -44,6 +43,7 @@ function toPlainTodo(todo) {
     topic_id: todo.topic_id,
     recurrence_type: todo.recurrence_type,
     recurrence_interval: todo.recurrence_interval,
+    recurrence_end_date: todo.recurrence_end_date,
     archived_at: todo.archived_at,
     deleted_at: todo.deleted_at
   }

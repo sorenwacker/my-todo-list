@@ -2,8 +2,6 @@
   <div v-if="item" class="graph-tooltip" :style="positionStyle">
     <div class="tooltip-title">{{ item.title || item.name }}</div>
     <div v-if="item.project_name" class="tooltip-project">{{ item.project_name }}</div>
-    <div v-if="item.company" class="tooltip-meta">{{ item.company }}</div>
-    <div v-if="item.role" class="tooltip-meta">{{ item.role }}</div>
     <div v-if="item.end_date" class="tooltip-deadline">Due: {{ formatDate(item.end_date) }}</div>
     <div
       v-if="item.notes && !item.notes_sensitive"
@@ -13,7 +11,6 @@
     <div v-else-if="item.notes_sensitive" class="tooltip-notes sensitive">
       Sensitive content hidden
     </div>
-    <div v-if="item.description" class="tooltip-notes">{{ item.description }}</div>
   </div>
 </template>
 
@@ -62,12 +59,6 @@
 </script>
 
 <style scoped>
-  .tooltip-meta {
-    font-size: 12px;
-    color: #aaa;
-    margin-bottom: 2px;
-  }
-
   .tooltip-notes.sensitive {
     color: #888;
     font-style: italic;

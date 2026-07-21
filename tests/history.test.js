@@ -116,6 +116,17 @@ describe('ActionHistory', () => {
       expect(value).toBe(1)
     })
 
+    it('should empty both stacks on clear (used after a data import)', async () => {
+      history.push({ type: 'test', undo: () => {}, redo: () => {} })
+      await history.undo()
+      expect(history.canRedo()).toBe(true)
+
+      history.clear()
+
+      expect(history.canUndo()).toBe(false)
+      expect(history.canRedo()).toBe(false)
+    })
+
     it('should clear redo stack when new action is pushed', async () => {
       let value = 0
       history.push({

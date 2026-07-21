@@ -95,6 +95,41 @@ A third pass closed the documented follow-ups:
   and share generic `table` selectors with live markdown-table styling, so it needs careful
   per-selector verification).
 
+## Re-triage (260721)
+
+A fresh correctness review plus a re-verification of every H1-L18 finding against the current
+code. Every high and medium finding remains fixed; five low-severity findings were still open
+(L2, L9, L12, L14, L16). Changes made this pass:
+
+- New correctness fixes (not in the original audit):
+  - `recurrence_end_date` was dropped on any generic edit (`toPlainTodo` omitted it, `updateTodo`
+    nulled it), so an imported recurring todo would recur forever. `toPlainTodo` now carries the
+    field and `updateTodo` preserves it when omitted, mirroring `parent_id`/`milestone_date`.
+  - Undo/redo history was never cleared on import, so post-import undo ran against replaced rows;
+    `import-data` now calls `history.clear()`.
+  - Removed a dead `category_id` reference in `toPlainTodo` (the `categories` table was dropped).
+  - Empty `catch {}` blocks in `todoActionsMixin` (todo creation) now log instead of swallowing.
+- Dead code removed: orphaned `getMilestoneTodos`/`unlinkMilestoneTodo`/`getAllMilestones`/
+  `assignToMilestone`/`unassignFromMilestone`/`getChildTodos`, and `searchByTag`/`deleteTag`
+  (zero callers). `linkMilestoneTodo` kept (export/import round-trip test seeds `milestone_todos`).
+- L9 fixed: `show-completed` is now persisted to localStorage.
+- L12 fixed: `EntityModal` focuses its name input from the `entity` watcher, not `mounted()`.
+- L16 fixed: `ItemPreview` no longer renders `company`/`role`/`description` (fields no item has).
+- L21 fixed: the identical 30-color project/status palettes are now one `entityColorPalette` in
+  `helpers.js`, imported by both composables.
+
+Deliberately left:
+
+- L14 (project-tags): `ProjectModal` receives `project-tags`/`all-tags`/`add-tag`/`remove-tag`
+  that it drops, because the project-tag feature has a complete, tested backend (DB methods, IPC,
+  composable) but no UI was ever built. Removing it is a product decision (build the UI or delete
+  the feature), not a mechanical cleanup, so it is left for an explicit call.
+- L2 (import size): `MAX_IMPORT_FILE_SIZE` is checked after `readFileSync` and counts UTF-16
+  units. Low impact (local, user-chosen file). Would use `statSync().size` before reading.
+- `update-todo` history guard (`index.js`): the `JSON.stringify(oldTodo) !== JSON.stringify(result)`
+  guard is effectively always true because `updated_at` advances; only the "actual change" comment
+  is inaccurate. No data impact (extra undo entries for no-op saves).
+
 ## Confirmed findings
 
 ### High
