@@ -130,23 +130,54 @@
               v-if="isProjectSelected"
               class="project-notes-pane"
               :class="{ collapsed: !showProjectNotes }"
+              :style="showProjectNotes ? { width: projectNotesWidth + 'px' } : {}"
             >
-              <button
-                class="project-notes-header"
-                :title="showProjectNotes ? 'Hide project notes' : 'Show project notes'"
-                @click="toggleProjectNotes"
-              >
-                <span class="project-notes-caret">{{ showProjectNotes ? '▾' : '▸' }}</span>
-                <span class="project-notes-title">Project Notes</span>
-              </button>
+              <div class="project-notes-header">
+                <button
+                  class="project-notes-toggle"
+                  :title="showProjectNotes ? 'Hide project notes' : 'Show project notes'"
+                  @click="toggleProjectNotes"
+                >
+                  <span class="project-notes-caret">{{ showProjectNotes ? '▾' : '▸' }}</span>
+                  <span class="project-notes-title">Project Notes</span>
+                </button>
+                <div v-if="showProjectNotes" class="project-notes-modes">
+                  <button
+                    :class="{ active: !projectNotesPreview }"
+                    @click="projectNotesPreview = false"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    :class="{ active: projectNotesPreview }"
+                    @click="projectNotesPreview = true"
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
               <div v-if="showProjectNotes" class="project-notes-body">
+                <div
+                  v-if="projectNotesPreview"
+                  class="project-notes-preview markdown-body"
+                  title="Click to edit"
+                  @click="projectNotesPreview = false"
+                  v-html="renderedProjectNotes"
+                ></div>
                 <NotesEditor
+                  v-else
                   :model-value="projectNotesDraft"
                   @update:model-value="onProjectNotesInput"
-                  @blur="flushProjectNotes"
+                  @blur="onProjectNotesBlur"
                 />
               </div>
             </div>
+            <div
+              v-if="isProjectSelected && showProjectNotes"
+              class="project-notes-resizer"
+              title="Drag to resize"
+              @mousedown="startNotesResize"
+            ></div>
             <!-- Views Container -->
             <div class="views-container">
               <!-- Cards View -->
@@ -253,6 +284,7 @@
   import keyboardShortcutsMixin from './mixins/keyboardShortcutsMixin.js'
   import todoActionsMixin from './mixins/todoActionsMixin.js'
   import { validateLocalStorage } from './utils/localStorageValidation.js'
+  import { renderMarkdown } from './utils/markdown.js'
   import {
     initializeMermaid,
     reinitializeMermaid,
@@ -317,6 +349,8 @@
         showProjectNotes: localStorage.getItem('show-project-notes') === 'true',
         projectNotesDraft: '',
         projectNotesDraftId: null,
+        projectNotesPreview: localStorage.getItem('project-notes-preview') !== 'false',
+        projectNotesWidth: parseInt(localStorage.getItem('project-notes-width')) || 340,
         projectNotesSaveTimer: null,
         cardLayout: localStorage.getItem('card-layout') === 'row' ? 'row' : 'card',
         timezone: localStorage.getItem('timezone') || 'auto',
@@ -518,6 +552,9 @@
       // --card-columns grid variable the cards view already uses.
       cardColumns() {
         return this.cardLayout === 'row' ? 1 : 3
+      },
+      renderedProjectNotes() {
+        return renderMarkdown(this.projectNotesDraft)
       }
     },
     watch: {
@@ -537,6 +574,9 @@
       },
       showProjectNotes(val) {
         localStorage.setItem('show-project-notes', val)
+      },
+      projectNotesPreview(val) {
+        localStorage.setItem('project-notes-preview', val)
       },
       // Keep the light-theme class on <body> too, not just .app. Several dark
       // rules are written as `body:not(.light-theme) …` with !important; without
@@ -700,6 +740,27 @@
         this.projectNotesDraft = value
         if (this.projectNotesSaveTimer) clearTimeout(this.projectNotesSaveTimer)
         this.projectNotesSaveTimer = setTimeout(() => this.saveProjectNotes(), 500)
+      },
+      onProjectNotesBlur() {
+        // Save, then return to the preview (the resting state).
+        this.flushProjectNotes()
+        this.projectNotesPreview = true
+      },
+      startNotesResize(event) {
+        event.preventDefault()
+        const startX = event.clientX
+        const startWidth = this.projectNotesWidth
+        const onMove = (moveEvent) => {
+          const next = startWidth + (moveEvent.clientX - startX)
+          this.projectNotesWidth = Math.min(700, Math.max(220, next))
+        }
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove)
+          document.removeEventListener('mouseup', onUp)
+          localStorage.setItem('project-notes-width', this.projectNotesWidth)
+        }
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
       },
       async saveProjectNotes() {
         if (this.projectNotesSaveTimer) {

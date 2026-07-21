@@ -25,12 +25,14 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
 .project-content {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 12px;
   min-height: 0;
 }
 
@@ -381,11 +383,14 @@
 
 /* Project notes toggle */
 /* Project notes pane */
+/* Project notes: a left-hand column beside the views. Collapses to a thin
+   strip that expands on click. */
 .project-notes-pane {
   display: flex;
   flex-direction: column;
-  height: 240px;
-  margin-bottom: 12px;
+  flex-shrink: 0;
+  width: 340px;
+  height: 100%;
   border: 1px solid var(--border-color, #333);
   border-radius: 6px;
   overflow: hidden;
@@ -393,24 +398,49 @@
 }
 
 .project-notes-pane.collapsed {
-  height: auto;
+  width: 34px;
 }
 
 .project-notes-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
   padding: 6px 10px;
   background: var(--bg-tertiary);
-  color: var(--text-secondary, #aaa);
   font-size: 12px;
-  border: none;
-  cursor: pointer;
-  text-align: left;
 }
 
-.project-notes-header:hover {
+.project-notes-pane.collapsed .project-notes-header {
+  flex-direction: column;
+  height: 100%;
+  padding: 8px 4px;
+  align-items: center;
+}
+
+.project-notes-pane.collapsed .project-notes-title {
+  writing-mode: vertical-rl;
+  margin-top: 6px;
+}
+
+.project-notes-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary, #aaa);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.project-notes-pane.collapsed .project-notes-toggle {
+  flex-direction: column;
+}
+
+.project-notes-toggle:hover {
   color: var(--text-primary, #fff);
 }
 
@@ -423,12 +453,55 @@
 .project-notes-title {
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.project-notes-modes {
+  display: flex;
+  gap: 2px;
+}
+
+.project-notes-modes button {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 4px;
+  color: var(--text-secondary, #aaa);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.project-notes-modes button.active {
+  background: var(--accent-color, #1a6fab);
+  border-color: var(--accent-color, #1a6fab);
+  color: #fff;
 }
 
 .project-notes-body {
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.project-notes-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  cursor: text;
+}
+
+/* Drag handle between the notes column and the views. */
+.project-notes-resizer {
+  flex: 0 0 5px;
+  align-self: stretch;
+  margin: 0 -6px;
+  cursor: col-resize;
+  border-radius: 3px;
+}
+
+.project-notes-resizer:hover {
+  background: var(--accent-color, #1a6fab);
 }
 
 /* Type Filter */
