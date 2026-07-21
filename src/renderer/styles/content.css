@@ -380,27 +380,6 @@
 }
 
 /* Project notes toggle */
-.notes-toggle-btn {
-  margin-left: 8px;
-  padding: 8px 16px;
-  background: #1a1a1a;
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  border-radius: 6px;
-  font-size: 13px;
-  transition: all 0.15s;
-}
-
-.notes-toggle-btn:hover {
-  color: #fff;
-}
-
-.notes-toggle-btn.active {
-  background: #1a6fab;
-  color: #fff;
-}
-
 /* Project notes pane */
 .project-notes-pane {
   display: flex;
@@ -413,33 +392,37 @@
   background: var(--bg-secondary);
 }
 
+.project-notes-pane.collapsed {
+  height: auto;
+}
+
 .project-notes-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
   padding: 6px 10px;
   background: var(--bg-tertiary);
   color: var(--text-secondary, #aaa);
   font-size: 12px;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.project-notes-header:hover {
+  color: var(--text-primary, #fff);
+}
+
+.project-notes-caret {
+  display: inline-block;
+  width: 10px;
+  font-size: 10px;
 }
 
 .project-notes-title {
   font-weight: 600;
   letter-spacing: 0.02em;
-}
-
-.project-notes-close {
-  background: none;
-  border: none;
-  color: var(--text-secondary, #aaa);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 4px;
-}
-
-.project-notes-close:hover {
-  color: var(--text-primary, #fff);
 }
 
 .project-notes-body {
@@ -493,41 +476,6 @@
 
 .hide-completed-toggle span {
   white-space: nowrap;
-}
-
-/* Card Size Control */
-.card-size-control {
-  display: flex;
-  align-items: center;
-  padding: 0;
-  margin: 0;
-}
-
-.card-size-label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border-radius: 0;
-  font-size: 13px;
-  color: #ccc;
-  user-select: none;
-}
-
-.card-size-slider {
-  width: 100px;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-}
-
-.card-size-value {
-  min-width: 45px;
-  text-align: right;
-  font-weight: 500;
-  color: #1a6fab;
 }
 
 /* Theme Toggle Button */

@@ -566,56 +566,6 @@ select {
   flex: 1;
 }
 
-/* Bottom Bar */
-.bottom-bar {
-  position: sticky;
-  bottom: 0;
-  /* Pin to the bottom of the main content even when the cards do not fill the
-     viewport (short content does not trigger sticky positioning on its own). */
-  margin-top: auto;
-  background: #000000;
-  border-top: none;
-  padding: 8px 16px;
-  display: flex;
-  justify-content: flex-end;
-  z-index: 10;
-  pointer-events: auto;
-}
-
-.bottom-bar .card-size-control {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0;
-  margin: 0;
-  pointer-events: auto;
-}
-
-.bottom-bar .card-size-label {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border-radius: 0;
-  font-size: 13px;
-  color: #ccc;
-  user-select: none;
-  pointer-events: auto;
-}
-
-.bottom-bar .card-size-label span {
-  margin-right: 8px;
-}
-
-.bottom-bar .card-size-slider {
-  width: 150px;
-  cursor: pointer;
-  margin: 0;
-  pointer-events: auto;
-}
-
 /* Topic Boxes Container */
 .topic-boxes-container {
   display: flex;

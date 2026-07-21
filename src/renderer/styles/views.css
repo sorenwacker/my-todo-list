@@ -216,6 +216,12 @@
   gap: 16px !important;
 }
 
+/* Card mode: square tiles. A short card fills a square; longer content grows
+   past it rather than being clipped. Row mode (one column) is unaffected. */
+.cards-square .cards-grid .todo-card {
+  aspect-ratio: 1 / 1;
+}
+
 .cards-groups-container {
   display: grid;
   grid-template-columns: repeat(var(--card-columns, 3), 1fr);

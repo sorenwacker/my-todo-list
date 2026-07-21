@@ -91,7 +91,7 @@
           :available-views="availableViews"
           :is-trash-view="isTrashView"
           :trash-count="trashCount"
-          :show-project-notes="showProjectNotes"
+          :card-layout="cardLayout"
           @go-home="setFilter('inbox')"
           @archive-completed="archiveCompletedTodos"
           @open-search="showGlobalSearch = true"
@@ -100,7 +100,7 @@
           @open-help="showHelpModal = true"
           @toggle-theme="toggleTheme"
           @set-view="setView"
-          @toggle-project-notes="toggleProjectNotes"
+          @set-card-layout="cardLayout = $event"
           @empty-trash="emptyTrash"
           @add-todo="addTodo"
         />
@@ -125,15 +125,21 @@
         <!-- Project fade transition -->
         <Transition v-else-if="currentFilter !== 'inbox'" name="fade" mode="out-in">
           <div :key="currentFilter" class="project-content">
-            <!-- Project Notes -->
-            <div v-if="isProjectSelected && showProjectNotes" class="project-notes-pane">
-              <div class="project-notes-header">
+            <!-- Project Notes: the pane header is the open/close control. -->
+            <div
+              v-if="isProjectSelected"
+              class="project-notes-pane"
+              :class="{ collapsed: !showProjectNotes }"
+            >
+              <button
+                class="project-notes-header"
+                :title="showProjectNotes ? 'Hide project notes' : 'Show project notes'"
+                @click="toggleProjectNotes"
+              >
+                <span class="project-notes-caret">{{ showProjectNotes ? '▾' : '▸' }}</span>
                 <span class="project-notes-title">Project Notes</span>
-                <button class="project-notes-close" title="Close notes" @click="toggleProjectNotes">
-                  ×
-                </button>
-              </div>
-              <div class="project-notes-body">
+              </button>
+              <div v-if="showProjectNotes" class="project-notes-body">
                 <NotesEditor
                   :model-value="projectNotesDraft"
                   @update:model-value="onProjectNotesInput"
@@ -211,22 +217,6 @@
           </div>
         </Transition>
 
-        <!-- Bottom Bar with Card Size Slider - outside transition -->
-        <div v-if="currentView === 'cards'" class="bottom-bar">
-          <div class="card-size-control">
-            <label class="card-size-label">
-              <span>Columns: {{ cardColumns }}</span>
-              <input
-                v-model.number="cardColumns"
-                type="range"
-                min="1"
-                max="10"
-                step="1"
-                class="card-size-slider"
-              />
-            </label>
-          </div>
-        </div>
       </main>
     </div>
 
@@ -328,7 +318,7 @@
         projectNotesDraft: '',
         projectNotesDraftId: null,
         projectNotesSaveTimer: null,
-        cardColumns: parseInt(localStorage.getItem('card-columns')) || 3,
+        cardLayout: localStorage.getItem('card-layout') === 'row' ? 'row' : 'card',
         timezone: localStorage.getItem('timezone') || 'auto',
         // projectColors now from projectsComposable
         // statusColors now from statusesComposable
@@ -522,6 +512,12 @@
       },
       completedCount() {
         return this.todosComposable.completedCount.value
+      },
+      // Card layout has two modes: 'row' shows full-width list rows (one
+      // column), 'card' shows a fixed multi-column grid. Both drive the same
+      // --card-columns grid variable the cards view already uses.
+      cardColumns() {
+        return this.cardLayout === 'row' ? 1 : 3
       }
     },
     watch: {
@@ -542,6 +538,15 @@
       showProjectNotes(val) {
         localStorage.setItem('show-project-notes', val)
       },
+      // Keep the light-theme class on <body> too, not just .app. Several dark
+      // rules are written as `body:not(.light-theme) …` with !important; without
+      // the class on body they leak into light mode and override text colors.
+      theme: {
+        immediate: true,
+        handler(val) {
+          document.body.classList.toggle('light-theme', val === 'light')
+        }
+      },
       sortedTodos() {
         if (this.currentView === 'cards') {
           this.applyMasonryLayout()
@@ -555,8 +560,8 @@
       sidebarVisible(val) {
         localStorage.setItem('sidebar-visible', val)
       },
-      cardColumns(val) {
-        localStorage.setItem('card-columns', val)
+      cardLayout(val) {
+        localStorage.setItem('card-layout', val)
       },
       isProjectSelected(val) {
         if (val && this.groupByProject) {

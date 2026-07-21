@@ -230,15 +230,22 @@
           {{ view.charAt(0).toUpperCase() + view.slice(1) }}
         </button>
       </div>
-      <button
-        v-if="isProjectSelected"
-        class="notes-toggle-btn"
-        :class="{ active: showProjectNotes }"
-        title="Toggle project notes"
-        @click="$emit('toggle-project-notes')"
-      >
-        Notes
-      </button>
+      <div v-if="currentView === 'cards'" class="view-switcher card-layout-switcher">
+        <button
+          :class="{ active: cardLayout === 'row' }"
+          title="List rows"
+          @click="$emit('set-card-layout', 'row')"
+        >
+          Row
+        </button>
+        <button
+          :class="{ active: cardLayout === 'card' }"
+          title="Card grid"
+          @click="$emit('set-card-layout', 'card')"
+        >
+          Card
+        </button>
+      </div>
       <button
         v-if="isTrashView && trashCount > 0"
         class="empty-trash-btn"
@@ -286,7 +293,7 @@
       availableViews: { type: Array, default: () => [] },
       isTrashView: { type: Boolean, default: false },
       trashCount: { type: Number, default: 0 },
-      showProjectNotes: { type: Boolean, default: false },
+      cardLayout: { type: String, default: 'card' },
       searchQuery: { type: String, default: '' },
       sortBy: { type: String, default: 'manual' },
       showCompleted: { type: Boolean, default: false },
@@ -302,7 +309,7 @@
       'open-help',
       'toggle-theme',
       'set-view',
-      'toggle-project-notes',
+      'set-card-layout',
       'empty-trash',
       'add-todo',
       'update:searchQuery',

@@ -2,7 +2,7 @@
   <div
     ref="cardsViewRef"
     class="cards-view"
-    :class="{ 'light-theme': theme === 'light' }"
+    :class="{ 'light-theme': theme === 'light', 'cards-square': cardColumns > 1 }"
     @mousedown="onContainerMouseDown"
     @mousemove="onContainerMouseMove"
     @mouseup="onContainerMouseUp"

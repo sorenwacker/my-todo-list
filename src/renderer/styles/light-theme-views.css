@@ -323,6 +323,7 @@
   color: var(--text-secondary);
 }
 
+
 .light-theme .settings-btn:hover {
   border-color: var(--accent-color);
   color: var(--text-primary);
