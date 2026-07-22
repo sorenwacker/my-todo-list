@@ -174,6 +174,9 @@
         </div>
         <button class="settings-btn" @click="$emit('export')">Export</button>
         <button class="settings-btn" @click="$emit('show-import')">Import</button>
+        <button class="settings-btn danger-btn" @click="$emit('show-reset-database')">
+          Reset Database
+        </button>
         <div class="database-location">
           <small>Database: {{ databasePath }}</small>
         </div>
@@ -230,6 +233,7 @@
       'update:timezone',
       'export',
       'show-import',
+      'show-reset-database',
       'toggle-pin'
     ],
     setup(props, { emit }) {
@@ -527,6 +531,16 @@
 
   .settings-btn:hover {
     background: var(--bg-hover, #2a2f3d);
+  }
+
+  .settings-btn.danger-btn {
+    border-color: #d93025;
+    color: #d93025;
+  }
+
+  .settings-btn.danger-btn:hover {
+    background: #d93025;
+    color: #fff;
   }
 
   .database-location,

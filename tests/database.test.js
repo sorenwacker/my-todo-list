@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { unlinkSync, existsSync } from 'fs'
 import { Database } from '../src/main/database.js'
 
@@ -609,6 +609,55 @@ describe('Database', () => {
 
       const results = db.globalSearch('Test', 5)
       expect(results.todos.length).toBeLessThanOrEqual(5)
+    })
+  })
+
+  describe('Reset', () => {
+    let backupPath
+
+    afterEach(() => {
+      if (backupPath && existsSync(backupPath)) {
+        unlinkSync(backupPath)
+      }
+      backupPath = null
+    })
+
+    it('should empty the database and reseed default statuses', () => {
+      db.createProject('Work')
+      db.createTodo('Task')
+      backupPath = db.reset()
+
+      expect(db.getAllProjects()).toHaveLength(0)
+      expect(db.getAllTodos()).toHaveLength(0)
+      expect(db.getAllStatuses().map((s) => s.name)).toEqual([
+        'Todo',
+        'In Progress',
+        'Done',
+        'Backlog'
+      ])
+    })
+
+    it('should keep the previous data in a backup file next to the original', () => {
+      db.createTodo('Preserved task')
+      backupPath = db.reset()
+
+      expect(backupPath).toMatch(/-backup-\d{6}-\d{6}\.db$/)
+      expect(dirname(backupPath)).toBe(dirname(testDbPath))
+      expect(existsSync(backupPath)).toBe(true)
+
+      const backup = new Database(backupPath)
+      const todos = backup.getAllTodos()
+      backup.close()
+      expect(todos).toHaveLength(1)
+      expect(todos[0].title).toBe('Preserved task')
+    })
+
+    it('should keep the database usable at the original path after reset', () => {
+      backupPath = db.reset()
+
+      const todo = db.createTodo('After reset')
+      expect(existsSync(testDbPath)).toBe(true)
+      expect(db.getTodo(todo.id).title).toBe('After reset')
     })
   })
 })

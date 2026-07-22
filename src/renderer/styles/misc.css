@@ -682,3 +682,32 @@ select {
 .topic-box .topic-input:focus {
   border-color: #3498db;
 }
+
+/* Database error banner */
+.db-error-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 80vw;
+  padding: 10px 14px;
+  background: #d93025;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.db-error-dismiss {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}

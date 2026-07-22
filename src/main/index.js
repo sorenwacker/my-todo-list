@@ -627,6 +627,22 @@ app.whenReady().then(() => {
     return join(app.getPath('userData'), 'todos.db')
   })
 
+  ipcMain.handle('reset-database', () => {
+    try {
+      const backupPath = database.reset()
+      // The reset removed every row the undo/redo entries point at.
+      history.clear()
+      if (mainWindow) {
+        mainWindow.webContents.send('history-changed', history.getState())
+      }
+      log.info('Database reset via settings', { backupPath })
+      return { success: true, backupPath }
+    } catch (error) {
+      log.error('Failed to reset database', { error })
+      return { success: false, error: error.message }
+    }
+  })
+
   ipcMain.handle('get-app-version', () => {
     return app.getVersion()
   })

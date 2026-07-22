@@ -64,7 +64,12 @@ export default {
         this.currentFilter !== null && this.currentFilter !== 'inbox' ? this.currentFilter : null
       const type = 'todo'
       const updates = { start_date: new Date().toISOString().split('T')[0] }
-      await this.todosComposable.addTodo(this.newTodoTitle.trim(), projectId, type, updates)
+      try {
+        await this.todosComposable.addTodo(this.newTodoTitle.trim(), projectId, type, updates)
+      } catch (error) {
+        this.showDbError('Failed to add todo: ' + error.message)
+        return
+      }
       this.newTodoTitle = ''
       this.projectsComposable.setAllTodos(this.allTodos)
     },
@@ -76,7 +81,7 @@ export default {
         await this.loadTodos()
         if (todo) this.selectTodo(todo.id)
       } catch (error) {
-        console.error('Failed to add todo to project:', error)
+        this.showDbError('Failed to add todo: ' + error.message)
       }
     },
     async addTodoToStatus(statusId) {
@@ -93,7 +98,7 @@ export default {
         await this.loadTodos()
         if (todo) this.selectTodo(todo.id)
       } catch (error) {
-        console.error('Failed to add todo to status:', error)
+        this.showDbError('Failed to add todo: ' + error.message)
       }
     },
     async moveInboxTodoToProject(todo, projectId) {
