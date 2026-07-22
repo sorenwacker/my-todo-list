@@ -1,6 +1,73 @@
 /**
- * Database schema creation and migrations.
+ * Database schema creation, migrations, and verification.
  */
+
+/**
+ * Version of the schema this build of the app understands. Stored in the
+ * database file via PRAGMA user_version. Increment together with any schema
+ * change and its migration step. 0 marks databases from before versioning.
+ */
+export const SCHEMA_VERSION = 1
+
+// Full current column set of the todos table. Used both for creating fresh
+// databases and as the rebuild target when repairing legacy tables, so the
+// two can never drift apart.
+const TODOS_COLUMNS_DDL = `
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      notes TEXT DEFAULT '',
+      deadline TEXT,
+      completed INTEGER DEFAULT 0,
+      sort_order INTEGER DEFAULT 0,
+      importance INTEGER DEFAULT NULL,
+      project_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      start_date TEXT,
+      status_id INTEGER,
+      end_date TEXT,
+      deleted_at TEXT,
+      recurrence_type TEXT,
+      recurrence_interval INTEGER DEFAULT 1,
+      recurrence_end_date TEXT,
+      notes_sensitive INTEGER DEFAULT 0,
+      type TEXT DEFAULT 'todo',
+      parent_id INTEGER REFERENCES todos(id) ON DELETE SET NULL,
+      milestone_date TEXT,
+      topic_id INTEGER REFERENCES project_topics(id) ON DELETE SET NULL,
+      completed_at TEXT,
+      archived_at TEXT,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+`
+
+// Columns the code relies on, checked by verifySchema after opening.
+const REQUIRED_COLUMNS = {
+  projects: ['id', 'name', 'color', 'notes', 'sort_order', 'deleted_at'],
+  statuses: ['id', 'name', 'color', 'sort_order'],
+  todos: [
+    'id',
+    'title',
+    'notes',
+    'completed',
+    'sort_order',
+    'importance',
+    'project_id',
+    'start_date',
+    'status_id',
+    'end_date',
+    'deleted_at',
+    'recurrence_type',
+    'recurrence_interval',
+    'recurrence_end_date',
+    'notes_sensitive',
+    'type',
+    'parent_id',
+    'milestone_date',
+    'topic_id',
+    'completed_at',
+    'archived_at'
+  ]
+}
 
 /**
  * Create all tables if they do not exist.
@@ -17,19 +84,19 @@ export function createTables(db) {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS project_topics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#666',
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+      UNIQUE(project_id, name)
+    );
 
     CREATE TABLE IF NOT EXISTS todos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      notes TEXT DEFAULT '',
-      deadline TEXT,
-      completed INTEGER DEFAULT 0,
-      sort_order INTEGER DEFAULT 0,
-      importance INTEGER DEFAULT NULL,
-      project_id INTEGER,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+${TODOS_COLUMNS_DDL}
     );
 
     CREATE TABLE IF NOT EXISTS todo_links (
@@ -64,17 +131,6 @@ export function createTables(db) {
       FOREIGN KEY (milestone_id) REFERENCES todos(id) ON DELETE CASCADE,
       FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
       UNIQUE(milestone_id, todo_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS project_topics (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      color TEXT DEFAULT '#666',
-      sort_order INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-      UNIQUE(project_id, name)
     );
 
     CREATE TABLE IF NOT EXISTS tags (
@@ -182,4 +238,66 @@ export function runMigrations(db, log) {
   addColumn(db, log, 'todos', 'archived_at TEXT')
   // Persistent per-project notes
   addColumn(db, log, 'projects', "notes TEXT DEFAULT ''", 'ADD COLUMN notes to projects')
+
+  repairStaleCategoryFk(db, log)
+}
+
+/**
+ * Rebuild the todos table when its definition still references the dropped
+ * categories table.
+ *
+ * Databases created before the category feature was removed carry a
+ * FOREIGN KEY clause pointing at categories, which a later migration drops.
+ * The clause breaks every write to todos as soon as SQLite foreign-key
+ * enforcement is enabled, so the table is rebuilt without it (and without
+ * the category_id column) following SQLite's table-rebuild procedure.
+ * Runs after all column migrations so the table already has the full
+ * current column set.
+ *
+ * @param {Object} db - better-sqlite3 database handle
+ * @param {Object} log - logger instance
+ */
+function repairStaleCategoryFk(db, log) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'todos'")
+    .get()
+  if (!row || !/categories/i.test(row.sql)) {
+    return
+  }
+
+  db.transaction(() => {
+    db.exec(`CREATE TABLE todos_rebuild (${TODOS_COLUMNS_DDL})`)
+    const targetColumns = db.pragma('table_info(todos_rebuild)').map((c) => c.name)
+    const sourceColumns = new Set(db.pragma('table_info(todos)').map((c) => c.name))
+    const copyColumns = targetColumns.filter((c) => sourceColumns.has(c)).join(', ')
+    db.exec(`INSERT INTO todos_rebuild (${copyColumns}) SELECT ${copyColumns} FROM todos`)
+    db.exec('DROP TABLE todos')
+    db.exec('ALTER TABLE todos_rebuild RENAME TO todos')
+  })()
+  log.info('Rebuilt todos table to remove stale categories foreign key')
+}
+
+/**
+ * Check that the tables the code relies on contain the expected columns.
+ *
+ * @param {Object} db - better-sqlite3 database handle
+ * @throws {Error} Naming every missing column, with recovery guidance.
+ */
+export function verifySchema(db) {
+  const missing = []
+  for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
+    const present = new Set(db.pragma(`table_info(${table})`).map((c) => c.name))
+    for (const column of columns) {
+      if (!present.has(column)) {
+        missing.push(`${table}.${column}`)
+      }
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `Database schema is missing required columns: ${missing.join(', ')}. ` +
+        'Restore a backup from next to the database file, or use ' +
+        'Settings > Reset Database to start fresh.'
+    )
+  }
 }

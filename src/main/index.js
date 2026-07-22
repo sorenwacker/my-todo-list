@@ -96,7 +96,21 @@ if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
 
 app.whenReady().then(() => {
   log.info('Application starting')
-  database = new Database()
+  try {
+    database = new Database()
+  } catch (error) {
+    // Version guard or schema verification refused the file; running on
+    // without a database would fail on every operation.
+    log.error('Cannot open database', { error: error.message })
+    dialog.showMessageBoxSync({
+      type: 'error',
+      title: 'Cannot Open Database',
+      message: 'The database could not be opened.',
+      detail: error.message
+    })
+    app.quit()
+    return
+  }
   log.info('Database initialized')
 
   // Block navigation away from the app and route popups through the OS browser,
