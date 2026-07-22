@@ -1,9 +1,9 @@
 import BetterSqlite3 from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
-import { existsSync, mkdirSync, renameSync } from 'fs'
+import { existsSync, mkdirSync, renameSync, copyFileSync } from 'fs'
 import log from './logger.js'
-import { createTables, runMigrations } from './schema.js'
+import { createTables, runMigrations, verifySchema, SCHEMA_VERSION } from './schema.js'
 import { exportData, importData } from './importExport.js'
 
 export class Database {
@@ -17,13 +17,55 @@ export class Database {
     }
 
     this.dbPath = dbPath
+    const isNewDatabase = !existsSync(dbPath)
     this.db = new BetterSqlite3(dbPath)
-    this.init()
+    try {
+      this.init(isNewDatabase)
+    } catch (error) {
+      this.db.close()
+      throw error
+    }
   }
 
-  init() {
-    createTables(this.db)
-    runMigrations(this.db, log)
+  /**
+   * Open sequence: refuse databases from newer app versions, migrate older
+   * ones behind a pre-migration backup, verify the schema, and stamp the
+   * file with the current version. See docs/database-compatibility.md.
+   *
+   * @param {boolean} isNewDatabase - True when the file did not exist before
+   *   this open; skips the pre-migration backup.
+   */
+  init(isNewDatabase = false) {
+    const fileVersion = this.db.pragma('user_version', { simple: true })
+    if (fileVersion > SCHEMA_VERSION) {
+      throw new Error(
+        `This database was created by a newer version of the app ` +
+          `(schema version ${fileVersion}, this app supports up to ${SCHEMA_VERSION}). ` +
+          'Update the app to open it.'
+      )
+    }
+
+    if (fileVersion < SCHEMA_VERSION) {
+      let backupPath = null
+      if (!isNewDatabase) {
+        backupPath = this.timestampedSiblingPath('premigrate')
+        copyFileSync(this.dbPath, backupPath)
+        log.info('Pre-migration backup created', { backupPath })
+      }
+      try {
+        createTables(this.db)
+        runMigrations(this.db, log)
+        verifySchema(this.db)
+      } catch (error) {
+        if (backupPath) {
+          error.message += ` (pre-migration backup: ${backupPath})`
+        }
+        throw error
+      }
+      this.db.pragma(`user_version = ${SCHEMA_VERSION}`)
+    } else {
+      verifySchema(this.db)
+    }
 
     // Seed default statuses if none exist
     const statusCount = this.db.prepare('SELECT COUNT(*) as count FROM statuses').get().count
@@ -805,13 +847,23 @@ export class Database {
    * @throws {Error} When the current file cannot be moved aside; the
    *   original database is reopened before rethrowing.
    */
-  reset() {
+  /**
+   * Build a sibling file path of the form <name>-<label>-YYMMDD-HHMMSS.db.
+   *
+   * @param {string} label - Purpose marker, e.g. "backup" or "premigrate".
+   * @returns {string} The timestamped path next to the database file.
+   */
+  timestampedSiblingPath(label) {
     const now = new Date()
     const pad = (n) => String(n).padStart(2, '0')
     const stamp =
       `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
       `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-    const backupPath = `${this.dbPath.replace(/\.db$/, '')}-backup-${stamp}.db`
+    return `${this.dbPath.replace(/\.db$/, '')}-${label}-${stamp}.db`
+  }
+
+  reset() {
+    const backupPath = this.timestampedSiblingPath('backup')
 
     this.db.close()
     try {
@@ -827,7 +879,7 @@ export class Database {
     }
 
     this.db = new BetterSqlite3(this.dbPath)
-    this.init()
+    this.init(true)
     log.info('Database reset', { backupPath })
     return backupPath
   }
