@@ -351,6 +351,15 @@
   margin-left: auto;
 }
 
+/* View controls: keep the Cards/Kanban switcher anchored to the right so it
+   does not shift when the Row/Card toggle appears to its left in cards view. */
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
 /* View Switcher */
 .view-switcher {
   display: flex;
@@ -358,7 +367,6 @@
   background: #1a1a1a;
   padding: 4px;
   border-radius: 8px;
-  margin-left: auto;
 }
 
 .view-switcher button {

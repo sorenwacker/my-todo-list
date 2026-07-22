@@ -219,32 +219,34 @@
           <span>Group by project</span>
         </label>
       </div>
-      <div class="view-switcher">
-        <button
-          v-for="view in availableViews"
-          :key="view"
-          :class="{ active: currentView === view }"
-          :disabled="isTrashView && view === 'kanban'"
-          @click="$emit('set-view', view)"
-        >
-          {{ view.charAt(0).toUpperCase() + view.slice(1) }}
-        </button>
-      </div>
-      <div v-if="currentView === 'cards'" class="view-switcher card-layout-switcher">
-        <button
-          :class="{ active: cardLayout === 'row' }"
-          title="List rows"
-          @click="$emit('set-card-layout', 'row')"
-        >
-          Row
-        </button>
-        <button
-          :class="{ active: cardLayout === 'card' }"
-          title="Card grid"
-          @click="$emit('set-card-layout', 'card')"
-        >
-          Card
-        </button>
+      <div class="view-controls">
+        <div v-if="currentView === 'cards'" class="view-switcher card-layout-switcher">
+          <button
+            :class="{ active: cardLayout === 'row' }"
+            title="List rows"
+            @click="$emit('set-card-layout', 'row')"
+          >
+            Row
+          </button>
+          <button
+            :class="{ active: cardLayout === 'card' }"
+            title="Card grid"
+            @click="$emit('set-card-layout', 'card')"
+          >
+            Card
+          </button>
+        </div>
+        <div class="view-switcher">
+          <button
+            v-for="view in availableViews"
+            :key="view"
+            :class="{ active: currentView === view }"
+            :disabled="isTrashView && view === 'kanban'"
+            @click="$emit('set-view', view)"
+          >
+            {{ view.charAt(0).toUpperCase() + view.slice(1) }}
+          </button>
+        </div>
       </div>
       <button
         v-if="isTrashView && trashCount > 0"
