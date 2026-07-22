@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('api', {
   exportData: () => ipcRenderer.invoke('export-data'),
   importData: (mode) => ipcRenderer.invoke('import-data', mode),
   getDatabasePath: () => ipcRenderer.invoke('get-database-path'),
+  resetDatabase: () => ipcRenderer.invoke('reset-database'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
   // Events

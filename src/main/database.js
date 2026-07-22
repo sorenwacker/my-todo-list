@@ -1,7 +1,7 @@
 import BetterSqlite3 from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, renameSync } from 'fs'
 import log from './logger.js'
 import { createTables, runMigrations } from './schema.js'
 import { exportData, importData } from './importExport.js'
@@ -16,6 +16,7 @@ export class Database {
       dbPath = join(userDataPath, 'todos.db')
     }
 
+    this.dbPath = dbPath
     this.db = new BetterSqlite3(dbPath)
     this.init()
   }
@@ -794,6 +795,41 @@ export class Database {
 
   importData(data, mode = 'merge') {
     return importData(this.db, data, mode)
+  }
+
+  /**
+   * Replace the database with a freshly created one, keeping the current
+   * file as a timestamped backup next to it.
+   *
+   * @returns {string} Path of the backup file.
+   * @throws {Error} When the current file cannot be moved aside; the
+   *   original database is reopened before rethrowing.
+   */
+  reset() {
+    const now = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    const stamp =
+      `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+      `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+    const backupPath = `${this.dbPath.replace(/\.db$/, '')}-backup-${stamp}.db`
+
+    this.db.close()
+    try {
+      renameSync(this.dbPath, backupPath)
+      for (const suffix of ['-wal', '-shm']) {
+        if (existsSync(this.dbPath + suffix)) {
+          renameSync(this.dbPath + suffix, backupPath + suffix)
+        }
+      }
+    } catch (error) {
+      this.db = new BetterSqlite3(this.dbPath)
+      throw error
+    }
+
+    this.db = new BetterSqlite3(this.dbPath)
+    this.init()
+    log.info('Database reset', { backupPath })
+    return backupPath
   }
 
   close() {

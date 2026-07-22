@@ -9,6 +9,10 @@
       class="sidebar-hover-trigger"
       @mouseenter="sidebarVisible = true"
     ></div>
+    <div v-if="dbError" class="db-error-banner" role="alert">
+      <span>{{ dbError }}</span>
+      <button class="db-error-dismiss" @click="dbError = ''">&times;</button>
+    </div>
     <AppSidebar
       :pinned="sidebarPinned"
       :theme="theme"
@@ -38,12 +42,20 @@
       @update:timezone="onTimezoneChange"
       @export="handleExport"
       @show-import="showImportDialog = true"
+      @show-reset-database="showResetDialog = true"
     />
 
     <ImportDialog
       v-if="showImportDialog"
       @close="showImportDialog = false"
       @import="handleImport"
+    />
+
+    <ResetDatabaseModal
+      v-if="showResetDialog"
+      :result="resetResult"
+      @close="closeResetDialog"
+      @confirm="handleResetDatabase"
     />
 
     <HelpModal v-if="showHelpModal" @close="showHelpModal = false" />
@@ -274,7 +286,8 @@
     ImportDialog,
     KanbanView,
     StatusModal,
-    ProjectModal
+    ProjectModal,
+    ResetDatabaseModal
   } from './components/index.js'
 
   import { useTodos } from './composables/useTodos.js'
@@ -309,7 +322,8 @@
       KanbanView,
       NotesEditor,
       StatusModal,
-      ProjectModal
+      ProjectModal,
+      ResetDatabaseModal
     },
     mixins: [keyboardShortcutsMixin, todoActionsMixin],
     setup() {
@@ -370,6 +384,10 @@
         recentItems: JSON.parse(localStorage.getItem('recent-items') || '[]'),
         // Export/Import
         showImportDialog: false,
+        showResetDialog: false,
+        resetResult: null,
+        dbError: '',
+        dbErrorTimeout: null,
         databasePath: '',
         appVersion: '',
         // History state
@@ -1031,6 +1049,28 @@
         } catch (error) {
           alert('Failed to import backup: ' + error.message)
         }
+      },
+      async handleResetDatabase() {
+        try {
+          this.resetResult = await window.api.resetDatabase()
+        } catch (error) {
+          this.resetResult = { success: false, error: error.message }
+        }
+      },
+      async closeResetDialog() {
+        const wasReset = this.resetResult?.success
+        this.showResetDialog = false
+        this.resetResult = null
+        if (wasReset) {
+          await this.loadData()
+        }
+      },
+      showDbError(message) {
+        this.dbError = message
+        clearTimeout(this.dbErrorTimeout)
+        this.dbErrorTimeout = setTimeout(() => {
+          this.dbError = ''
+        }, 8000)
       },
       async renderMermaid() {
         await this.$nextTick()
