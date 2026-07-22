@@ -665,7 +665,7 @@ app.whenReady().then(() => {
   log.info('Main window created')
 
   // Initialize auto-updater
-  initAutoUpdater()
+  initAutoUpdater(database)
 
   // Undo/Redo handlers
   ipcMain.handle('undo', async () => {

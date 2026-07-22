@@ -9,6 +9,11 @@ export const HISTORY_MAX_SIZE = 50
 export const UPDATE_CHECK_INITIAL_DELAY = 5000
 export const UPDATE_CHECK_INTERVAL = 4 * 60 * 60 * 1000 // 4 hours
 
+// Squirrel.Mac refuses to install unsigned builds, so unsigned macOS uses a
+// notify-only updater. Set to true once Developer ID signing is configured
+// (see docs/auto-update.md).
+export const MAC_BUILD_SIGNED = false
+
 // Field length limits
 export const MAX_LENGTH = {
   TODO_TITLE: 500,
