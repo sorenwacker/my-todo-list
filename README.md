@@ -1,37 +1,38 @@
 # Todo
 
-A feature-rich desktop todo application built with Electron and Vue 3. Designed for project management with support for hierarchical organization, markdown notes, and visual data representation.
+A desktop todo application built with Electron and Vue 3. Local-first: all
+data lives in a single SQLite file on your machine, with no account and no
+network dependency.
 
 ## Features
 
-### Core Functionality
-- **Projects and Categories**: Organize todos into projects with customizable categories and statuses
-- **Importance Ratings**: Assign priority levels (1-5) to tasks
-- **Deadlines**: Set start and end dates for time-sensitive tasks
-- **Completion Tracking**: Mark tasks as complete with automatic timestamping
+- **Projects and statuses**: organize todos into color-coded projects with
+  customizable statuses; per-project topic buckets and cross-cutting tags
+- **Views**: cards, kanban, and list layouts with drag-and-drop reordering
+- **Milestones**: hierarchical todos with milestone dates and groupings
+- **Markdown notes**: per-todo and per-project notes with syntax
+  highlighting and mermaid diagrams; notes can be marked sensitive to keep
+  them hidden until explicitly revealed (a display flag, not encryption)
+- **Dates and recurrence**: start/end dates, recurring tasks, importance
+  ratings (1-5)
+- **Archive and trash**: soft delete with recovery, archive for completed
+  work, undo/redo
+- **Export/import**: JSON backup with merge or replace
+- **MCP server**: AI assistants (e.g. Claude Code) can read and write todos
+  through a Model Context Protocol server sharing the same database
+- **Database safety**: schema versioning with pre-migration backups; the
+  app refuses files from newer versions instead of corrupting them, and a
+  guarded reset can recover from an unusable database file
 
-### Advanced Features
-- **Markdown Notes**: Full markdown support with syntax highlighting
-- **Project Notes**: Persistent per-project markdown notes, editable in a toggleable pane
-- **Mermaid Diagrams**: Embed flowcharts, sequence diagrams, and other visualizations
-- **Todo Linking**: Create dependencies and relationships between tasks
-- **Subtasks**: Break down complex tasks into manageable subtasks
-- **Recurrence**: Set up recurring tasks with automatic regeneration
-- **Sensitive Notes**: Password-protected notes with reveal confirmation
+## Documentation
 
-### Organization
-- **Multiple Views**: Switch between list, kanban board, and table layouts
-- **Drag-and-Drop**: Reorder todos, projects, and categories
-- **Color Coding**: Visual identification through customizable colors
-- **Person Management**: Assign contacts to todos and projects
-- **Stakeholder Register**: Track project stakeholders with role definitions
-
-### Data Management
-- **SQLite Database**: Local storage with efficient querying
-- **Export/Import**: Backup and restore data in JSON format
-- **Archive System**: Archive completed tasks to declutter active view
-- **Trash System**: Soft delete with recovery options
-- **Undo/Redo**: Full undo support for archive, trash, and restore operations
+- [Database compatibility](docs/database-compatibility.md) — schema
+  versioning, migrations, backups
+- [Reset database](docs/reset-database.md) — recovering from an unusable
+  database file
+- [Auto-update](docs/auto-update.md) — per-platform update behavior and
+  how to enable signed macOS builds
+- [MCP server](docs/mcp-server.md) — exposing the database to AI assistants
 
 ## Installation
 
@@ -44,7 +45,9 @@ Most users should not build from source. Download the packaged app from the
 
 The macOS build is not code-signed. On first launch, right-click `Todo.app` and
 choose **Open** (or allow it under **System Settings > Privacy & Security**) to
-get past Gatekeeper.
+get past Gatekeeper. Because the build is unsigned, macOS cannot install
+updates automatically; the app notifies once per new version instead (see
+[Auto-update](docs/auto-update.md)).
 
 ### Option B: Build from source
 
@@ -87,12 +90,17 @@ npm test
 
 # Run tests in watch mode
 npm run test:watch
+
+# Lint
+npm run lint
 ```
 
 better-sqlite3 is a native module whose binary must match the runtime ABI:
 Electron for the app, Node for the test runner. The `dev`/`preview` and `test`
 scripts rebuild it for the correct target automatically via their `pre*` hooks,
 so switching between running the app and running tests needs no manual step.
+The MCP server keeps its own `node_modules` for the same reason (see
+[docs/mcp-server.md](docs/mcp-server.md)).
 
 ## Building
 
@@ -115,9 +123,9 @@ Built applications will be output to the `dist/` directory.
 
 ### Technology Stack
 - **Frontend**: Vue 3 with Composition API
-- **Desktop Framework**: Electron 36
+- **Desktop Framework**: Electron 39
 - **Build Tool**: electron-vite
-- **Database**: better-sqlite3
+- **Database**: better-sqlite3 (WAL mode, shared with the MCP server)
 - **Markdown Parser**: marked
 - **Diagram Rendering**: mermaid
 - **UI Components**: lucide-vue-next (icons), vuedraggable
@@ -126,86 +134,41 @@ Built applications will be output to the `dist/` directory.
 ```
 src/
 ├── main/          # Electron main process
-│   ├── index.js   # Application entry point
-│   ├── database.js # SQLite database operations
+│   ├── index.js    # Application entry point, IPC handlers
+│   ├── database.js # SQLite operations
+│   ├── schema.js   # Schema, migrations, verification
+│   ├── updater.js  # Auto-update behavior
 │   └── history.js  # Undo/redo state management
 ├── preload/       # Preload scripts (IPC bridge)
-│   └── index.js
 ├── renderer/      # Vue application
-│   ├── App.vue           # Main application view
-│   ├── components/       # Reusable Vue components
-│   └── utils/            # Utility functions
-└── resources/     # Application icons and assets
+└── config/        # Shared constants
+mcp-server/        # Standalone MCP server (own node_modules)
+docs/              # Documentation
+tests/             # Vitest test suite
 ```
 
 ### Database Schema
-The application uses SQLite with the following main tables:
-- `todos`: Task records with metadata
-- `projects`: Project definitions
-- `categories`: Categorization labels
-- `statuses`: Task status tracking
-- `persons`: Contact/stakeholder information
-- `subtasks`: Sub-task hierarchy
-- `todo_links`: Task dependencies
-- `todo_persons`: Task-person associations
-- `project_persons`: Project stakeholder mapping
+SQLite with the following tables: `todos`, `projects`, `statuses`,
+`project_topics`, `tags`, `todo_tags`, `project_tags`, `todo_links`,
+`milestone_todos`, `settings`. The schema is versioned via
+`PRAGMA user_version`; see
+[docs/database-compatibility.md](docs/database-compatibility.md).
 
-## Usage
+## Data Locations
 
-### Creating Todos
-1. Select or create a project
-2. Click "New Todo" or press the add button
-3. Enter task title and optional details
-4. Set importance, deadline, category, and status as needed
-
-### Managing Projects
-- Click the project name to rename
-- Use the color picker to assign visual identification
-- Access project settings through the gear icon
-- View project stakeholders in the dedicated register
-- Toggle the Notes pane to keep persistent per-project notes; they are stored
-  with the project and reload when the project is reopened
-
-### Working with Notes
-- Click a todo to open the detail panel
-- Write markdown-formatted notes in the editor
-- Preview renders automatically
-- Use mermaid code blocks for diagrams
-- Enable "Sensitive Notes" for password-protected content
-
-### Organizing Tasks
-- Drag todos to reorder within a project
-- Link related todos using the link interface
-- Create subtasks for complex activities
-- Use categories and statuses for filtering
-
-### Data Backup
-1. Navigate to Settings
-2. Select "Export Data"
-3. Choose save location for JSON backup
-4. Import using "Import Data" with merge or replace options
-
-## Configuration
-
-The application stores data in the following locations:
 - **macOS**: `~/Library/Application Support/todo/`
 - **Windows**: `%APPDATA%/todo/`
 - **Linux**: `~/.config/todo/`
 
-Database file: `todos.db`
-
-## Security
-
-The sensitive notes feature encrypts note content locally. This is designed to protect against casual viewing but should not be considered cryptographically secure for highly sensitive data.
+Database file: `todos.db`. Backups created by resets and migrations sit next
+to it, named `todos-backup-*.db` and `todos-premigrate-*.db`.
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Implement changes with tests
+3. Update documentation, add tests, then implement
 4. Submit a pull request
-
-Follow the existing code patterns and maintain compatibility with the current database schema.
 
 ## License
 
@@ -213,35 +176,4 @@ This project is licensed under the MIT License.
 
 ## Version History
 
-### v0.1.0
-- Initial release with core todo management
-- Project and category organization
-- Markdown and mermaid support
-- Export/import functionality
-- Person management system
-- Sensitive notes feature
-
-### v0.1.1
-- Security updates for electron, vite, and vitest dependencies
-- Fixed ASAR integrity bypass vulnerability
-- Fixed esbuild development server vulnerability
-
-### v0.3.0
-- Multiple view modes: cards, list, table, kanban
-- Calendar view for deadline visualization
-- Global search across all content
-- Improved markdown rendering with task list support
-- Light and dark theme support
-
-### v0.3.1
-- Fixed light theme backgrounds
-- Fixed inbox item styling
-
-### v0.3.2
-- Archive system with "Archive Done" bulk action
-- Distinguished archive vs trash views with proper actions
-- Progress counts displayed as done/total format
-- Styled completed markdown checkboxes (green with strikethrough)
-- Undo integration for archive/unarchive/restore operations
-- Descriptive tooltips with undo hints on action buttons
-- Version display in settings
+See the [Releases page](https://github.com/sorenwacker/my-todo-list/releases).
