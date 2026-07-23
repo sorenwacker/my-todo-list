@@ -1,5 +1,8 @@
 import BetterSqlite3 from 'better-sqlite3'
-import { app } from 'electron'
+// Default import: under plain Node (MCP server, tests) electron's CJS export
+// is a path string with no named exports; `app` is only touched when no
+// explicit dbPath is given, which only happens inside the Electron app.
+import electron from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync, renameSync, copyFileSync } from 'fs'
 import log from './logger.js'
@@ -7,9 +10,17 @@ import { createTables, runMigrations, verifySchema, SCHEMA_VERSION } from './sch
 import { exportData, importData } from './importExport.js'
 
 export class Database {
-  constructor(dbPath = null) {
+  /**
+   * @param {string|null} dbPath - Database file; null resolves the app default.
+   * @param {Object} [options]
+   * @param {Function} [options.driver] - better-sqlite3 constructor to use.
+   *   The MCP server injects its own copy built for system Node, because the
+   *   root node_modules copy is rebuilt for Electron's ABI by dev/build.
+   */
+  constructor(dbPath = null, { driver } = {}) {
+    this.BetterSqlite3 = driver || BetterSqlite3
     if (!dbPath) {
-      const userDataPath = app.getPath('userData')
+      const userDataPath = electron.app.getPath('userData')
       if (!existsSync(userDataPath)) {
         mkdirSync(userDataPath, { recursive: true })
       }
@@ -18,7 +29,7 @@ export class Database {
 
     this.dbPath = dbPath
     const isNewDatabase = !existsSync(dbPath)
-    this.db = new BetterSqlite3(dbPath)
+    this.db = new this.BetterSqlite3(dbPath)
     try {
       this.init(isNewDatabase)
     } catch (error) {
@@ -36,6 +47,11 @@ export class Database {
    *   this open; skips the pre-migration backup.
    */
   init(isNewDatabase = false) {
+    // WAL + busy timeout so the app and the MCP server can share the file
+    // (see docs/mcp-server.md). journal_mode persists in the file.
+    this.db.pragma('journal_mode = WAL')
+    this.db.pragma('busy_timeout = 5000')
+
     const fileVersion = this.db.pragma('user_version', { simple: true })
     if (fileVersion > SCHEMA_VERSION) {
       throw new Error(
@@ -49,6 +65,8 @@ export class Database {
       let backupPath = null
       if (!isNewDatabase) {
         backupPath = this.timestampedSiblingPath('premigrate')
+        // Fold WAL content into the main file so the copy is complete
+        this.db.pragma('wal_checkpoint(TRUNCATE)')
         copyFileSync(this.dbPath, backupPath)
         log.info('Pre-migration backup created', { backupPath })
       }
@@ -874,11 +892,11 @@ export class Database {
         }
       }
     } catch (error) {
-      this.db = new BetterSqlite3(this.dbPath)
+      this.db = new this.BetterSqlite3(this.dbPath)
       throw error
     }
 
-    this.db = new BetterSqlite3(this.dbPath)
+    this.db = new this.BetterSqlite3(this.dbPath)
     this.init(true)
     log.info('Database reset', { backupPath })
     return backupPath

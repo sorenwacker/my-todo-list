@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, screen, dialog, shell, session } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, watch } from 'fs'
 import { Database } from './database.js'
 import logger from './logger.js'
 import { initAutoUpdater } from './updater.js'
@@ -112,6 +112,23 @@ app.whenReady().then(() => {
     return
   }
   log.info('Database initialized')
+
+  // Reload the UI when another process (the MCP server) writes to the
+  // database. Own writes also trigger this; the debounce keeps it cheap.
+  try {
+    let refreshTimer = null
+    watch(join(app.getPath('userData')), (eventType, filename) => {
+      if (!filename || !filename.startsWith('todos.db')) return
+      clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('refresh-todos')
+        }
+      }, 500)
+    })
+  } catch (error) {
+    log.warn('Database file watcher unavailable', { error: error.message })
+  }
 
   // Block navigation away from the app and route popups through the OS browser,
   // so no foreign page can ever run with the preload API attached.
