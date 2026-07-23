@@ -24,6 +24,13 @@ describe('Database', () => {
     }
   })
 
+  describe('Concurrency setup', () => {
+    it('runs in WAL journal mode with a busy timeout', () => {
+      expect(db.db.pragma('journal_mode', { simple: true })).toBe('wal')
+      expect(db.db.pragma('busy_timeout', { simple: true })).toBe(5000)
+    })
+  })
+
   describe('Projects', () => {
     it('should create a project', () => {
       const project = db.createProject('Work', '#e74c3c')
