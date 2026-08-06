@@ -178,6 +178,7 @@
                 ></div>
                 <NotesEditor
                   v-else
+                  autofocus
                   :model-value="projectNotesDraft"
                   @update:model-value="onProjectNotesInput"
                   @blur="onProjectNotesBlur"
