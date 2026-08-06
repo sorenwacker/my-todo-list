@@ -176,4 +176,4 @@ This project is licensed under the MIT License.
 
 ## Version History
 
-See the [Releases page](https://github.com/sorenwacker/my-todo-list/releases).
+See [CHANGELOG.md](CHANGELOG.md) or the [Releases page](https://github.com/sorenwacker/my-todo-list/releases).
