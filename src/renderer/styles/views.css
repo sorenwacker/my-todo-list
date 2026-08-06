@@ -15,13 +15,8 @@
 }
 
 /* Heading sizes step down but never below normal text size. Because the
-   steps are small, levels are also distinguished by weight and the h1
-   underline, not by size alone. */
-.markdown-body h1 {
-  font-size: 1.3em;
-  padding-bottom: 0.2em;
-  border-bottom: 1px solid var(--border-color, #333);
-}
+   steps are small, lower levels are also distinguished by weight. */
+.markdown-body h1 { font-size: 1.4em; }
 .markdown-body h2 { font-size: 1.2em; }
 .markdown-body h3 { font-size: 1.1em; }
 .markdown-body h4 { font-size: 1.05em; }
