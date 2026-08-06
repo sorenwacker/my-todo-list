@@ -14,13 +14,31 @@
   color: #fff;
 }
 
-/* Heading sizes step down but never below normal text size. */
-.markdown-body h1 { font-size: 1.5em; }
-.markdown-body h2 { font-size: 1.3em; }
-.markdown-body h3 { font-size: 1.15em; }
+/* Heading sizes step down but never below normal text size. Because the
+   steps are small, levels are also distinguished by weight and the h1
+   underline, not by size alone. */
+.markdown-body h1 {
+  font-size: 1.3em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+.markdown-body h2 { font-size: 1.2em; }
+.markdown-body h3 { font-size: 1.1em; }
 .markdown-body h4 { font-size: 1.05em; }
 .markdown-body h5,
 .markdown-body h6 { font-size: 1em; }
+
+.markdown-body h1,
+.markdown-body h2 {
+  font-weight: 700;
+}
+
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-weight: 600;
+}
 
 .markdown-body p {
   margin: 0.5em 0;
