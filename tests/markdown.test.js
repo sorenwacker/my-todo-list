@@ -92,15 +92,15 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<br')
   })
 
-  it('keeps a single blank line as a plain paragraph break', () => {
+  it('renders a single blank line as one empty line', () => {
     const html = renderMarkdown('a\n\nb')
-    expect(html).not.toContain('<br')
+    expect(html.match(/<br\s*\/?>/g)).toHaveLength(1)
   })
 
-  it('preserves extra consecutive blank lines as visible empty lines', () => {
-    // Three blank lines in the editor: one paragraph break plus two empty lines.
+  it('renders every blank line in a run as an empty line', () => {
+    // Three blank lines in the editor must stay three empty lines.
     const html = renderMarkdown('a\n\n\n\nb')
-    expect(html.match(/<br\s*\/?>/g)).toHaveLength(2)
+    expect(html.match(/<br\s*\/?>/g)).toHaveLength(3)
   })
 
   it('does not inject breaks for blank lines inside fenced code blocks', () => {

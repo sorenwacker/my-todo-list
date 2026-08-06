@@ -6,14 +6,14 @@ Notes exist on todos (cards and kanban cards) and on projects (the project notes
 
 - GitHub-flavored markdown with `breaks: true`: a single newline inside a paragraph renders as a line break.
 - List indentation is normalized so 2-space nesting renders as nested lists (see `preprocessMarkdown`).
-- Blank lines are preserved: one blank line separates paragraphs as usual; each additional consecutive blank line renders as one empty line of vertical space in the preview, so the spacing the user typed in the editor is not collapsed. Blank lines inside fenced code blocks are untouched (code blocks already preserve them verbatim).
+- Blank lines are preserved line for line: every blank line in the editor renders as one empty line in the preview, so the vertical spacing the user typed is never collapsed. This intentionally departs from standard markdown, which collapses any run of blank lines into a single paragraph break. Blank lines inside fenced code blocks are untouched (code blocks already preserve them verbatim), and trailing blank lines at the end of a note are dropped.
 - Output is sanitized with DOMPurify against an element allowlist.
 
-## Preview / edit switching
+## View / edit switching
 
-The rendered preview is the resting state on every surface. Clicking anywhere on the rendered preview switches that surface to the editor, and the editor receives keyboard focus immediately, so the user can type without a second click. Leaving the editor (blur) saves the notes and returns to the preview.
+The rendered view is the resting state on every surface. Clicking anywhere on the rendered notes switches that surface to the editor, and the editor receives keyboard focus immediately, so the user can type without a second click. Leaving the editor (blur) saves the notes and returns to the rendered view.
 
 Surfaces:
 
-- Project notes pane: click preview to edit (the Edit/Preview buttons also switch modes); blur saves and returns to preview.
-- Card notes (cards view) and kanban card notes: click the rendered notes to edit; blur saves and returns to preview.
+- Project notes pane: click the rendered notes to edit (the Edit/View buttons also switch modes); blur saves and returns to the view.
+- Card notes (cards view) and kanban card notes: click the rendered notes to edit; blur saves and returns to the view.

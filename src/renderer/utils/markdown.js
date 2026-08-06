@@ -73,18 +73,18 @@ export function preprocessMarkdown(markdown) {
 }
 
 /**
- * Preserve runs of consecutive blank lines as visible empty lines.
+ * Preserve blank lines line for line as visible empty lines.
  *
  * Markdown collapses any run of blank lines into a single paragraph break, so
- * vertical spacing typed in the editor disappears from the preview. The first
- * blank line of a run is kept as the paragraph break; each additional blank
- * line becomes a `<br>` block that renders as one empty line. Blank lines
+ * vertical spacing typed in the editor disappears from the rendered view.
+ * Every blank line becomes a `<br>` block (still surrounded by blank lines so
+ * block boundaries are kept), which renders as one empty line. Blank lines
  * inside fenced code blocks are untouched (code blocks preserve them
  * verbatim), and trailing blank lines at the end of the note are dropped as
  * before.
  *
  * @param {string} markdown - The markdown string to process.
- * @returns {string} Markdown with extra blank lines made visible.
+ * @returns {string} Markdown with blank lines made visible.
  */
 export function preserveBlankLines(markdown) {
   if (!markdown) return ''
@@ -96,9 +96,8 @@ export function preserveBlankLines(markdown) {
   let blanks = 0
 
   const flushBlanks = () => {
-    if (blanks === 0) return
-    out.push('')
-    for (let i = 1; i < blanks; i++) out.push('<br>', '')
+    for (let i = 0; i < blanks; i++) out.push('', '<br>')
+    if (blanks > 0) out.push('')
     blanks = 0
   }
 
