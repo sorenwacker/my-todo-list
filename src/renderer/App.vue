@@ -164,7 +164,7 @@
                     :class="{ active: projectNotesPreview }"
                     @click="projectNotesPreview = true"
                   >
-                    Preview
+                    View
                   </button>
                 </div>
               </div>
