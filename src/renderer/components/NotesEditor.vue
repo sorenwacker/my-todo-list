@@ -68,13 +68,20 @@
   ]
 
   const props = defineProps({
-    modelValue: { type: String, default: '' }
+    modelValue: { type: String, default: '' },
+    // Focus the editor as soon as it mounts. Set on every surface where the
+    // editor opens in response to a click on the rendered preview, so the
+    // user can type immediately without a second click.
+    autofocus: { type: Boolean, default: false }
   })
 
   const emit = defineEmits(['update:modelValue', 'blur'])
 
   const container = ref(null)
   let editor = null
+  // Destroying a focused editor fires a synthetic blur; emitting it would
+  // toggle parent state (save/close) in the middle of unmounting.
+  let isDestroying = false
 
   function setupEditor() {
     if (!container.value) return
@@ -112,14 +119,24 @@
             if (update.docChanged) {
               emit('update:modelValue', update.state.doc.toString())
             }
-            if (update.focusChanged && !update.view.hasFocus) {
+            if (update.focusChanged && !update.view.hasFocus && !isDestroying) {
               emit('blur')
             }
           })
         ]
       })
     })
+
+    if (props.autofocus) {
+      editor.focus()
+    }
   }
+
+  function focus() {
+    editor?.focus()
+  }
+
+  defineExpose({ focus })
 
   watch(
     () => props.modelValue,
@@ -140,6 +157,7 @@
 
   onUnmounted(() => {
     if (editor) {
+      isDestroying = true
       editor.destroy()
       editor = null
     }

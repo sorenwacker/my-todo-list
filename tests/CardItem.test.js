@@ -42,6 +42,25 @@ describe('CardItem', () => {
     expect(wrapper.text()).not.toContain('Sensitive content hidden')
   })
 
+  it('opens a focused notes editor when the rendered notes are clicked', async () => {
+    // The card teleports its context menu to '.app', so the test DOM needs one.
+    const app = document.createElement('div')
+    app.className = 'app'
+    document.body.appendChild(app)
+    const wrapper = mount(CardItem, {
+      props: { todo: makeTodo({ notes: 'plain note text' }) },
+      attachTo: app
+    })
+    await wrapper.trigger('click')
+    await wrapper.get('.card-notes-preview .markdown-body').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.cm-container').exists()).toBe(true)
+    expect(wrapper.element.contains(document.activeElement)).toBe(true)
+    wrapper.unmount()
+    app.remove()
+  })
+
   it('emits toggle-complete when the checkbox is clicked', async () => {
     const wrapper = mount(CardItem, { props: { todo: makeTodo() } })
     await wrapper.get('input[type="checkbox"]').trigger('click')

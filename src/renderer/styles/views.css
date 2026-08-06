@@ -1,20 +1,39 @@
 /* Markdown Styles */
 .markdown-body {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
-.markdown-body h4 {
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
   margin: 1em 0 0.5em;
   color: #fff;
 }
 
-.markdown-body h1 { font-size: 1.5em; }
-.markdown-body h2 { font-size: 1.3em; }
-.markdown-body h3 { font-size: 1.15em; }
+/* Heading sizes step down but never below normal text size. Because the
+   steps are small, lower levels are also distinguished by weight. */
+.markdown-body h1 { font-size: 1.4em; }
+.markdown-body h2 { font-size: 1.2em; }
+.markdown-body h3 { font-size: 1.1em; }
+.markdown-body h4 { font-size: 1.05em; }
+.markdown-body h5,
+.markdown-body h6 { font-size: 1em; }
+
+.markdown-body h1,
+.markdown-body h2 {
+  font-weight: 700;
+}
+
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-weight: 600;
+}
 
 .markdown-body p {
   margin: 0.5em 0;

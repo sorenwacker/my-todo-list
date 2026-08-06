@@ -74,7 +74,9 @@
 .light-theme .markdown-body h1,
 .light-theme .markdown-body h2,
 .light-theme .markdown-body h3,
-.light-theme .markdown-body h4 {
+.light-theme .markdown-body h4,
+.light-theme .markdown-body h5,
+.light-theme .markdown-body h6 {
   color: var(--text-primary);
 }
 

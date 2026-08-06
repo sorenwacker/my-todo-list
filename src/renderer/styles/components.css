@@ -467,10 +467,14 @@
   margin: 0;
 }
 
+/* Compact margins in cards; heading sizes come from the shared markdown
+   styles so headings are never smaller than the note text. */
 .card-notes-preview h1,
 .card-notes-preview h2,
-.card-notes-preview h3 {
-  font-size: 11px;
+.card-notes-preview h3,
+.card-notes-preview h4,
+.card-notes-preview h5,
+.card-notes-preview h6 {
   margin: 0;
 }
 

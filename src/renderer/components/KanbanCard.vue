@@ -92,6 +92,7 @@
       <div v-if="isEditingNotes" @click.stop @mousedown.stop>
         <NotesEditor
           ref="notesEditor"
+          autofocus
           :model-value="editingNotes"
           @update:model-value="editingNotes = $event"
           @blur="saveNotes"

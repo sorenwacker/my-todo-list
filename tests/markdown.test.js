@@ -86,6 +86,28 @@ describe('renderMarkdown', () => {
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noopener noreferrer"')
   })
+
+  it('renders a single newline inside a paragraph as a line break', () => {
+    const html = renderMarkdown('line one\nline two')
+    expect(html).toContain('<br')
+  })
+
+  it('renders a single blank line as one empty line', () => {
+    const html = renderMarkdown('a\n\nb')
+    expect(html.match(/<br\s*\/?>/g)).toHaveLength(1)
+  })
+
+  it('renders every blank line in a run as an empty line', () => {
+    // Three blank lines in the editor must stay three empty lines.
+    const html = renderMarkdown('a\n\n\n\nb')
+    expect(html.match(/<br\s*\/?>/g)).toHaveLength(3)
+  })
+
+  it('does not inject breaks for blank lines inside fenced code blocks', () => {
+    const html = renderMarkdown('```\na\n\n\n\nb\n```')
+    expect(html).not.toContain('<br')
+    expect(html).toContain('a\n\n\n\nb')
+  })
 })
 
 describe('renderCardNotes', () => {

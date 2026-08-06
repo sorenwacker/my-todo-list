@@ -164,7 +164,7 @@
                     :class="{ active: projectNotesPreview }"
                     @click="projectNotesPreview = true"
                   >
-                    Preview
+                    View
                   </button>
                 </div>
               </div>
@@ -178,6 +178,7 @@
                 ></div>
                 <NotesEditor
                   v-else
+                  autofocus
                   :model-value="projectNotesDraft"
                   @update:model-value="onProjectNotesInput"
                   @blur="onProjectNotesBlur"
