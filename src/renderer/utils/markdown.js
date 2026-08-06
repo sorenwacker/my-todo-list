@@ -73,6 +73,57 @@ export function preprocessMarkdown(markdown) {
 }
 
 /**
+ * Preserve runs of consecutive blank lines as visible empty lines.
+ *
+ * Markdown collapses any run of blank lines into a single paragraph break, so
+ * vertical spacing typed in the editor disappears from the preview. The first
+ * blank line of a run is kept as the paragraph break; each additional blank
+ * line becomes a `<br>` block that renders as one empty line. Blank lines
+ * inside fenced code blocks are untouched (code blocks preserve them
+ * verbatim), and trailing blank lines at the end of the note are dropped as
+ * before.
+ *
+ * @param {string} markdown - The markdown string to process.
+ * @returns {string} Markdown with extra blank lines made visible.
+ */
+export function preserveBlankLines(markdown) {
+  if (!markdown) return ''
+
+  const lines = markdown.split('\n')
+  const out = []
+  let inFence = false
+  let fenceChar = ''
+  let blanks = 0
+
+  const flushBlanks = () => {
+    if (blanks === 0) return
+    out.push('')
+    for (let i = 1; i < blanks; i++) out.push('<br>', '')
+    blanks = 0
+  }
+
+  for (const line of lines) {
+    if (!inFence && line.trim() === '') {
+      blanks++
+      continue
+    }
+    flushBlanks()
+    const fence = line.match(FENCE_RE)
+    if (fence) {
+      if (!inFence) {
+        inFence = true
+        fenceChar = fence[1][0]
+      } else if (fence[1][0] === fenceChar) {
+        inFence = false
+      }
+    }
+    out.push(line)
+  }
+
+  return out.join('\n')
+}
+
+/**
  * DOMPurify allowlist for markdown rendering.
  *
  * Only elements marked can emit (plus checkbox inputs) are allowed; anything
@@ -150,7 +201,7 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
  */
 export function renderMarkdown(markdown) {
   if (!markdown) return ''
-  const processed = preprocessMarkdown(markdown)
+  const processed = preserveBlankLines(preprocessMarkdown(markdown))
   const html = marked(processed)
   return DOMPurify.sanitize(html, purifyConfig)
 }
