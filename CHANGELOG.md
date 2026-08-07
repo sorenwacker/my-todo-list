@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
+## 0.7.2 - 260807
+
+### Added
+
+- A complete changelog covering all releases, linked from the README.
+
+### Security
+
+- Patched all 26 dependency advisories open across the app and MCP server lockfiles: undici, tar, postcss, brace-expansion, mermaid, and js-yaml in the app; ip-address, fast-uri, hono, and @hono/node-server in the MCP server. electron-builder moved to 26.15.3 for the app-builder-lib and builder-util-runtime fixes. All updates are lockfile-only, within declared semver ranges.
+
 ## 0.7.1 - 260806
 
 ### Changed
