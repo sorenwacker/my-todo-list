@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
+## Unreleased
+
+### Fixed
+
+- Kanban cards can be dragged to another status or project section when "Group by project" is on. The drop handler read the column the drag started in rather than the one it ended in, so every move was written back as its own original position.
+
+### Security
+
+- dompurify 3.4.12 to 3.4.13 for GHSA-55q2-fjhq-7xh7, where removing an IN_PLACE hook leaves a detached subtree executable. Lockfile-only, within the declared range; applies to both the direct dependency and mermaid's copy.
+
 ## 0.7.2 - 260807
 
 ### Added
