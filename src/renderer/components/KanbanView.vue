@@ -28,7 +28,9 @@
                 class="kanban-cards"
                 group="kanban"
                 ghost-class="ghost"
-                @end="onStackedKanbanDrop($event, group.id, null)"
+                :data-project-id="dropZoneProjectId(group.id)"
+                data-status-id=""
+                @end="onStackedKanbanDrop"
               >
                 <template #item="{ element }">
                   <KanbanCard
@@ -65,7 +67,9 @@
                 class="kanban-cards"
                 group="kanban"
                 ghost-class="ghost"
-                @end="onStackedKanbanDrop($event, group.id, status.id)"
+                :data-project-id="dropZoneProjectId(group.id)"
+                :data-status-id="status.id"
+                @end="onStackedKanbanDrop"
               >
                 <template #item="{ element }">
                   <KanbanCard
@@ -245,11 +249,16 @@
           return projectMatch && statusMatch && !t.deleted
         })
       },
+      // The Inbox section holds todos with no project, so its drop zone carries
+      // an empty id the drop handler reads back as null.
+      dropZoneProjectId(groupId) {
+        return groupId === 'inbox' ? '' : groupId
+      },
       onKanbanDropStatus(event) {
         this.$emit('kanban-drop-status', event)
       },
-      onStackedKanbanDrop(event, projectId, statusId) {
-        this.$emit('stacked-kanban-drop', event, projectId, statusId)
+      onStackedKanbanDrop(event) {
+        this.$emit('stacked-kanban-drop', event)
       },
       onDragOver(event) {
         const kanbanView = this.$refs.kanbanView

@@ -7,6 +7,23 @@
  * `currentFilter`, `isProjectSelected`, `allTodos`, `newTodoTitle`, and
  * `trashCount` state.
  */
+
+/**
+ * Reads a project or status id off a kanban drop zone's data attribute.
+ *
+ * Args:
+ *   value: The raw `dataset` value, empty for the Inbox section and the
+ *     No Status column, and absent when the drop target is not a drop zone.
+ *
+ * Returns:
+ *   The numeric id, or null when the zone stands for "none".
+ */
+function parseDropZoneId(value) {
+  if (value === undefined || value === null || value === '') return null
+  const parsed = parseInt(value, 10)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
 export default {
   methods: {
     updateStatusTodos(_statusId, _todos) {
@@ -31,8 +48,7 @@ export default {
       if (!todoId) return
 
       // Get target status from the drop target element
-      const targetStatusId = event.to?.dataset?.statusId
-      const parsedStatusId = targetStatusId === '' ? null : parseInt(targetStatusId)
+      const parsedStatusId = parseDropZoneId(event.to?.dataset?.statusId)
 
       const todo = this.allTodos.find((t) => t.id === todoId)
       if (todo && todo.status_id !== parsedStatusId) {
@@ -43,15 +59,20 @@ export default {
         await this.loadTodos()
       }
     },
-    async onStackedKanbanDrop(event, projectId, statusId) {
+    async onStackedKanbanDrop(event) {
       const todoId = event.item?.__draggable_context?.element?.id
       if (!todoId) return
+
+      // Read the destination from the drop target, not from the source list:
+      // SortableJS fires `end` on the list the drag started in, so the source
+      // column's own project and status would just restore the original state.
+      const projectId = parseDropZoneId(event.to?.dataset?.projectId)
+      const statusId = parseDropZoneId(event.to?.dataset?.statusId)
 
       const todo = this.allTodos.find((t) => t.id === todoId)
       if (todo) {
         const todoData = this.toPlainTodo(todo)
-        // Update project and status based on the section/column it was dropped into.
-        todoData.project_id = projectId === 'inbox' ? null : projectId
+        todoData.project_id = projectId
         todoData.status_id = statusId
         await window.api.updateTodo(todoData)
         await this.loadAllTodos()
