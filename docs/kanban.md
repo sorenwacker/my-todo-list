@@ -32,6 +32,26 @@ Each `draggable` list therefore carries the identity of its own drop zone as dat
 
 `onKanbanDropStatus` and `onStackedKanbanDrop` in `src/renderer/mixins/todoActionsMixin.js` parse those attributes, persist the change with `window.api.updateTodo`, and reload so the derived column lists re-filter.
 
+## Column width
+
+A card's header is a flex row: checkbox, title, archive button, delete button. Everything except the title is fixed width and does not shrink, so a fixed amount of each column is spent before the title gets any space at all:
+
+| Item | Width |
+| --- | --- |
+| Column padding (both sides) | 32px |
+| Card padding (both sides) | 24px |
+| Card left border | 3px |
+| Checkbox | 16px |
+| Archive and delete buttons | 44px |
+| Three header gaps | 30px |
+| Total | 149px |
+
+The title therefore renders at `column width - 149px`. Below roughly a 200px column the title is narrower than a few characters, and because it also carries `word-break: break-word` it wraps once per character and the card grows to hundreds of pixels tall.
+
+`.kanban-column` sets `min-width: 260px` to keep that from happening, which leaves the title at least 110px. The floor holds at every breakpoint down to 600px; the board scrolls horizontally instead of shrinking columns further, which is what `overflow-x: auto` on `.kanban-view` is for. Below 600px a column is `85vw` and the board is one column at a time.
+
+`tests/kanbanLayout.test.js` gates the arithmetic: it reads the widths back out of the stylesheets and fails if the furniture grows or the floor drops far enough to squeeze the title.
+
 ## The "Done" column
 
 A status named `Done` (case-insensitive, surrounding whitespace ignored) is treated as the completion column. Nothing else marks it; there is no flag on the `statuses` row. If no status carries that name, none of the behaviour below applies and the checkbox and the columns stay independent.

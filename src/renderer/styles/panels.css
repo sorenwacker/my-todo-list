@@ -9,7 +9,10 @@
 
 .kanban-column {
   flex: 1 1 280px;
-  min-width: 200px;
+  /* Everything in a card header but the title is fixed width, so 149px of a
+     column is spent before the title gets any. Below this floor the title wraps
+     one character per line; the board scrolls sideways instead. */
+  min-width: 260px;
   max-width: 400px;
   background: #1a1a1a;
   border-radius: 12px;

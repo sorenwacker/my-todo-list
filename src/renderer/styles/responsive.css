@@ -21,8 +21,7 @@
   }
 
   .kanban-column {
-    flex: 1 1 240px;
-    min-width: 180px;
+    flex: 1 1 260px;
     max-width: 350px;
   }
 
@@ -133,8 +132,7 @@
   }
 
   .kanban-column {
-    flex: 1 1 200px;
-    min-width: 160px;
+    flex: 1 1 260px;
     max-width: 300px;
   }
 

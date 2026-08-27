@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. Versions corres
 
 - A status named "Done" is now linked to the completion checkbox in both directions: ticking a card's box moves it into that column, dropping a card into that column ticks its box, and reversing either un-completes the card and moves it to "No Status". Boards with no status named "Done" are unaffected.
 
+### Fixed
+
+- Kanban card titles no longer wrap one character per line on narrow windows. Everything in a card header except the title is fixed width and costs 149px, while the column floor fell to 160px below 900px viewport width, leaving the title 11px wide. Columns now stop shrinking at 260px and the board scrolls sideways instead.
+
 ## 0.7.3 - 260811
 
 ### Fixed
