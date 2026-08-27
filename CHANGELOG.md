@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
+## Unreleased
+
+### Security
+
+- nanoid 3.3.17 to 3.3.18 for GHSA-2v37-7h3g-55p8, where a custom generator called with size zero loops indefinitely. Lockfile-only, reached through vite and postcss.
+
 ## 0.8.0 - 260827
 
 ### Added
