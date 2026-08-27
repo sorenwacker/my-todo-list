@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const STYLES = resolve(import.meta.dirname, '../src/renderer/styles')
@@ -86,5 +86,56 @@ describe('kanban column width', () => {
     for (const floor of allPx(columnBlocks, 'min-width')) {
       expect(floor - furniture).toBeGreaterThanOrEqual(MIN_TITLE_WIDTH)
     }
+  })
+})
+
+/**
+ * Every (selector, body) pair in the stylesheets. Media query wrappers fall out
+ * on their own: their body contains a nested block, so it never matches.
+ */
+function allRules() {
+  const dir = readdirSync(STYLES).filter((file) => file.endsWith('.css'))
+  const text = dir
+    .map((file) => readFileSync(resolve(STYLES, file), 'utf8'))
+    .join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map((match) => match[1].trim())
+    .filter((selector) => !selector.startsWith('@'))
+    .flatMap((selector) => selector.split(',').map((part) => part.trim()))
+}
+
+describe('kanban card styling', () => {
+  const template = readFileSync(
+    resolve(import.meta.dirname, '../src/renderer/components/KanbanCard.vue'),
+    'utf8'
+  ).split('</template>')[0]
+
+  // Static class attributes on the kanban card's own markup.
+  const classes = [
+    ...new Set(
+      [...template.matchAll(/(?:^|\s)class="([^"]+)"/g)].flatMap((match) => match[1].split(/\s+/))
+    )
+  ].filter(Boolean)
+
+  const selectors = allRules()
+
+  it('finds the card sub-element classes in the template', () => {
+    expect(classes).toContain('card-dates-info')
+    expect(classes).toContain('card-meta')
+  })
+
+  // A kanban card is not a .todo-card, so a rule scoped that way never reaches
+  // it. A class styled only in that scope renders unstyled on the board -- which
+  // is how the dates row lost its gap, its size and its colour.
+  it('never styles a kanban card class only within the cards view scope', () => {
+    const cardsViewOnly = classes.filter((name) => {
+      const mentions = selectors.filter((selector) =>
+        new RegExp(`\\.${name}(?![\\w-])`).test(selector)
+      )
+      return mentions.length > 0 && mentions.every((selector) => selector.includes('.todo-card'))
+    })
+
+    expect(cardsViewOnly).toEqual([])
   })
 })

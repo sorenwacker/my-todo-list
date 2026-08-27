@@ -52,6 +52,12 @@ The title therefore renders at `column width - 149px`. Below roughly a 200px col
 
 `tests/kanbanLayout.test.js` gates the arithmetic: it reads the widths back out of the stylesheets and fails if the furniture grows or the floor drops far enough to squeeze the title.
 
+## Card styling
+
+A kanban card and a cards-view card render the same sub-elements from the same class names: `card-header`, `card-meta`, `card-project`, `card-deadline`, `card-dates-info`, `card-subtasks`, `card-notes-preview`. Each of those is styled by an unscoped base rule that both card types pick up, with `.todo-card`-scoped rules layered on top only where the cards view differs.
+
+A rule written only in the `.todo-card` scope never reaches the board, and the class then renders with no styling at all rather than falling back to something close. `tests/kanbanLayout.test.js` reads the class names out of `KanbanCard.vue` and fails when a class the kanban card uses is styled exclusively inside that scope.
+
 ## The "Done" column
 
 A status named `Done` (case-insensitive, surrounding whitespace ignored) is treated as the completion column. Nothing else marks it; there is no flag on the `statuses` row. If no status carries that name, none of the behaviour below applies and the checkbox and the columns stay independent.

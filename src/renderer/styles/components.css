@@ -356,6 +356,17 @@
   font-size: 11px;
 }
 
+/* Shared by both card types: the cards view and the kanban board render the
+   same card sub-elements, so this row is styled unscoped. */
+.card-dates-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #666;
+}
+
 /* Card subtasks */
 .card-subtasks {
   display: flex;

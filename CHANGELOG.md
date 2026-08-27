@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file. Versions corres
 
 ### Fixed
 
+- The created and completed dates on a kanban card no longer run together as one line of text. The row was styled only for the cards view, so on the board it rendered with no gap, at body size, in body colour; the rule is now shared by both card types.
 - Kanban card titles no longer wrap one character per line on narrow windows. Everything in a card header except the title is fixed width and costs 149px, while the column floor fell to 160px below 900px viewport width, leaving the title 11px wide. Columns now stop shrinking at 260px and the board scrolls sideways instead.
 
 ## 0.7.3 - 260811

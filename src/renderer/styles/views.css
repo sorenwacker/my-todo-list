@@ -559,14 +559,6 @@
   border-radius: 4px;
 }
 
-.todo-card .card-dates-info {
-  font-size: 11px;
-  color: #666;
-  margin-top: 4px;
-  display: flex;
-  gap: 12px;
-}
-
 .todo-card .card-start {
   display: inline-block;
   font-size: 12px;
