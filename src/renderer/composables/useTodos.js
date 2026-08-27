@@ -4,6 +4,7 @@
  */
 
 import { reactive, computed, toRefs } from 'vue'
+import { statusForCompletion, completionForStatus } from '../utils/doneStatus.js'
 
 /**
  * Reactive todos state (private).
@@ -127,25 +128,70 @@ async function deleteTodo(id) {
 }
 
 /**
- * Toggle todo completion status.
- * Auto-sets end_date when completing if not already set.
- * Creates next recurrence for recurring tasks.
- * @param {Object} todo - The todo to toggle
+ * Write a completion change into plain todo data.
+ * Auto-sets end_date when completing if not already set. Un-completing leaves
+ * end_date alone.
+ * @param {Object} todoData - Plain todo data, mutated in place
+ * @param {boolean} isCompleting - Whether the todo becomes completed
  */
-async function toggleComplete(todo) {
-  const todoData = toPlainTodo(todo)
-  const isCompleting = !todo.completed
+function applyCompletion(todoData, isCompleting) {
   todoData.completed = isCompleting
-
-  // Auto-set end_date when completing if empty
   if (isCompleting && !todoData.end_date) {
     todoData.end_date = new Date().toISOString().split('T')[0]
   }
+}
+
+/**
+ * Toggle todo completion status.
+ * Auto-sets end_date when completing if not already set.
+ * Creates next recurrence for recurring tasks.
+ * Moves the todo into or out of the "Done" status column when one exists.
+ * @param {Object} todo - The todo to toggle
+ * @param {Array<Object>} statuses - Status rows, to locate the "Done" column
+ */
+async function toggleComplete(todo, statuses = []) {
+  const todoData = toPlainTodo(todo)
+  const isCompleting = !todo.completed
+  applyCompletion(todoData, isCompleting)
+  todoData.status_id = statusForCompletion(todoData.status_id, isCompleting, statuses)
 
   await window.api.updateTodo(todoData)
 
   // If completing a recurring task, create the next occurrence
   if (isCompleting && todo.recurrence_type) {
+    await window.api.createNextRecurrence(todo.id)
+  }
+
+  await loadAllTodos()
+  await loadTodos(state._currentFilter)
+}
+
+/**
+ * Move a todo to another kanban cell.
+ * Ticks the completion checkbox when the todo lands in the "Done" column and
+ * unticks it when the todo leaves that column, running the same completion
+ * transition as toggleComplete.
+ * @param {Object} todo - The todo to move
+ * @param {Object} target - Destination: `statusId`, and `projectId` when the
+ *   move crosses project sections
+ * @param {Array<Object>} statuses - Status rows, to locate the "Done" column
+ */
+async function moveTodoTo(todo, { statusId, projectId }, statuses = []) {
+  const todoData = toPlainTodo(todo)
+  const wasCompleted = Boolean(todo.completed)
+  const isCompleting = completionForStatus(todo.status_id, statusId, wasCompleted, statuses)
+
+  todoData.status_id = statusId
+  if (projectId !== undefined) {
+    todoData.project_id = projectId
+  }
+  if (isCompleting !== wasCompleted) {
+    applyCompletion(todoData, isCompleting)
+  }
+
+  await window.api.updateTodo(todoData)
+
+  if (isCompleting && !wasCompleted && todo.recurrence_type) {
     await window.api.createNextRecurrence(todo.id)
   }
 
@@ -332,6 +378,7 @@ export function useTodos() {
     addTodo,
     deleteTodo,
     toggleComplete,
+    moveTodoTo,
     archiveTodo,
     unarchiveTodo,
     restoreTodo,

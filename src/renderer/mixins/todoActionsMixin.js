@@ -4,8 +4,8 @@
  *
  * The host component must provide `todosComposable` and `projectsComposable`
  * (from setup), the `loadAllTodos`/`loadTodos` methods, `selectTodo`, and the
- * `currentFilter`, `isProjectSelected`, `allTodos`, `newTodoTitle`, and
- * `trashCount` state.
+ * `currentFilter`, `isProjectSelected`, `allTodos`, `statuses`, `newTodoTitle`,
+ * and `trashCount` state.
  */
 
 /**
@@ -52,11 +52,7 @@ export default {
 
       const todo = this.allTodos.find((t) => t.id === todoId)
       if (todo && todo.status_id !== parsedStatusId) {
-        const todoData = this.toPlainTodo(todo)
-        todoData.status_id = parsedStatusId
-        await window.api.updateTodo(todoData)
-        await this.loadAllTodos()
-        await this.loadTodos()
+        await this.todosComposable.moveTodoTo(todo, { statusId: parsedStatusId }, this.statuses)
       }
     },
     async onStackedKanbanDrop(event) {
@@ -71,12 +67,7 @@ export default {
 
       const todo = this.allTodos.find((t) => t.id === todoId)
       if (todo) {
-        const todoData = this.toPlainTodo(todo)
-        todoData.project_id = projectId
-        todoData.status_id = statusId
-        await window.api.updateTodo(todoData)
-        await this.loadAllTodos()
-        await this.loadTodos()
+        await this.todosComposable.moveTodoTo(todo, { statusId, projectId }, this.statuses)
       }
     },
     async addTodo() {
@@ -130,7 +121,7 @@ export default {
       await this.loadTodos()
     },
     async toggleComplete(todo) {
-      await this.todosComposable.toggleComplete(todo)
+      await this.todosComposable.toggleComplete(todo, this.statuses)
       // Sync to project composable for counts
       this.projectsComposable.setAllTodos(this.allTodos)
     },

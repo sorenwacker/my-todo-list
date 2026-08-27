@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
+## Unreleased
+
+### Added
+
+- A status named "Done" is now linked to the completion checkbox in both directions: ticking a card's box moves it into that column, dropping a card into that column ticks its box, and reversing either un-completes the card and moves it to "No Status". Boards with no status named "Done" are unaffected.
+
 ## 0.7.3 - 260811
 
 ### Fixed

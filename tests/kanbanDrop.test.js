@@ -3,11 +3,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import KanbanView from '../src/renderer/components/KanbanView.vue'
 import todoActionsMixin from '../src/renderer/mixins/todoActionsMixin.js'
+import { useTodos } from '../src/renderer/composables/useTodos.js'
 
 const STATUSES = [
   { id: 10, name: 'Todo', color: '#aaa' },
   { id: 20, name: 'Doing', color: '#bbb' }
 ]
+
+const STATUSES_WITH_DONE = [...STATUSES, { id: 30, name: 'Done', color: '#ccc' }]
 
 function makeTodo(overrides = {}) {
   return {
@@ -30,11 +33,15 @@ function endEvent(todo, toDataset) {
   return { item, to }
 }
 
-// The mixin only needs these members from its host component.
-function makeHost(allTodos) {
+// The mixin only needs these members from its host component. The drop
+// handlers delegate the write to the todos composable, so the real one stands
+// in and the assertions read the `window.api` calls it makes.
+function makeHost(allTodos, statuses = STATUSES) {
   return {
     ...todoActionsMixin.methods,
     allTodos,
+    statuses,
+    todosComposable: useTodos(),
     toPlainTodo: (t) => ({ ...t }),
     loadAllTodos: vi.fn(),
     loadTodos: vi.fn()
@@ -80,7 +87,11 @@ describe('onStackedKanbanDrop', () => {
 
   beforeEach(() => {
     updateTodo = vi.fn().mockResolvedValue(undefined)
-    window.api = { updateTodo }
+    window.api = {
+      updateTodo,
+      getTodos: vi.fn().mockResolvedValue([]),
+      createNextRecurrence: vi.fn().mockResolvedValue(undefined)
+    }
   })
 
   it('moves the card to the status of the column it was dropped into', async () => {
@@ -127,5 +138,76 @@ describe('onStackedKanbanDrop', () => {
     await host.onStackedKanbanDrop({ item: document.createElement('div'), to: null })
 
     expect(updateTodo).not.toHaveBeenCalled()
+  })
+})
+
+describe('the Done column and the completion checkbox', () => {
+  let updateTodo
+
+  beforeEach(() => {
+    updateTodo = vi.fn().mockResolvedValue(undefined)
+    window.api = {
+      updateTodo,
+      getTodos: vi.fn().mockResolvedValue([]),
+      createNextRecurrence: vi.fn().mockResolvedValue(undefined)
+    }
+  })
+
+  it('ticks the box when a card is dropped into the Done column', async () => {
+    const todo = makeTodo({ status_id: 10, completed: false })
+    const host = makeHost([todo], STATUSES_WITH_DONE)
+
+    await host.onKanbanDropStatus(endEvent(todo, { statusId: '30' }))
+
+    expect(updateTodo).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, status_id: 30, completed: true })
+    )
+  })
+
+  it('unticks the box when a card is dragged out of the Done column', async () => {
+    const todo = makeTodo({ status_id: 30, completed: true })
+    const host = makeHost([todo], STATUSES_WITH_DONE)
+
+    await host.onKanbanDropStatus(endEvent(todo, { statusId: '' }))
+
+    expect(updateTodo).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, status_id: null, completed: false })
+    )
+  })
+
+  it('ticks the box on the grouped board too', async () => {
+    const todo = makeTodo({ project_id: 5, status_id: 10, completed: false })
+    const host = makeHost([todo], STATUSES_WITH_DONE)
+
+    await host.onStackedKanbanDrop(endEvent(todo, { projectId: '7', statusId: '30' }))
+
+    expect(updateTodo).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, project_id: 7, status_id: 30, completed: true })
+    )
+  })
+
+  it('leaves the box alone when no status is named Done', async () => {
+    const todo = makeTodo({ status_id: 10, completed: false })
+    const host = makeHost([todo])
+
+    await host.onKanbanDropStatus(endEvent(todo, { statusId: '20' }))
+
+    expect(updateTodo).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, status_id: 20, completed: false })
+    )
+  })
+
+  it('moves a ticked card into the Done column from the checkbox', async () => {
+    const todo = makeTodo({ status_id: 10, completed: false })
+    const host = {
+      ...makeHost([todo], STATUSES_WITH_DONE),
+      projectsComposable: { setAllTodos: vi.fn() }
+    }
+
+    await host.toggleComplete(todo)
+
+    expect(updateTodo).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, status_id: 30, completed: true })
+    )
   })
 })
