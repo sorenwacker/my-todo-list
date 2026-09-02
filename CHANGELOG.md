@@ -2,7 +2,11 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
-## Unreleased
+## 0.8.1 - 260902
+
+### Fixed
+
+- An empty bullet typed under a nested list (a bare `-` with no text) no longer turns the parent item into a heading. Marked read the bare marker as a setext heading underline, so the parent rendered bold and its sub-bullets collapsed into it as literal `- ` text. Indented empty markers now render as an empty bullet.
 
 ### Security
 
