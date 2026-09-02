@@ -9,6 +9,7 @@ marked.setOptions({
 
 const FENCE_RE = /^\s*(`{3,}|~{3,})/
 const INDENTED_LIST_RE = /^( +)([-*]|\d+\.) (.*)$/
+const EMPTY_INDENTED_LIST_RE = /^( +)([-*]|\d+\.) *$/
 
 /**
  * Preprocess markdown so nested lists render regardless of indent width.
@@ -18,6 +19,12 @@ const INDENTED_LIST_RE = /^( +)([-*]|\d+\.) (.*)$/
  * so the smallest indent found on a list line is treated as one level and
  * every list line is rewritten to 4 spaces per level. Fenced code blocks are
  * passed through untouched.
+ *
+ * An indented list marker with no text (a bullet started but not yet filled
+ * in) is rewritten to `- <br>` so it renders as an empty bullet. Left alone,
+ * marked reads the bare marker as a setext heading underline, turning the
+ * parent item into a heading and flattening its children into it. Top-level
+ * empty markers already render as empty bullets and are not touched.
  *
  * @param {string} markdown - The markdown string to preprocess.
  * @returns {string} Markdown with list indentation normalized.
@@ -43,7 +50,7 @@ export function preprocessMarkdown(markdown) {
       continue
     }
     if (inFence) continue
-    const match = line.match(INDENTED_LIST_RE)
+    const match = line.match(EMPTY_INDENTED_LIST_RE) || line.match(INDENTED_LIST_RE)
     if (match) unit = Math.min(unit, match[1].length)
   }
   if (!isFinite(unit) || unit === 0) return markdown
@@ -63,10 +70,11 @@ export function preprocessMarkdown(markdown) {
       return line
     }
     if (inFence) return line
-    const match = line.match(INDENTED_LIST_RE)
+    const match = line.match(EMPTY_INDENTED_LIST_RE) || line.match(INDENTED_LIST_RE)
     if (!match) return line
     const level = Math.round(match[1].length / unit)
-    return '    '.repeat(level) + match[2] + ' ' + match[3]
+    const text = match[3] === undefined ? '<br>' : match[3]
+    return '    '.repeat(level) + match[2] + ' ' + text
   })
 
   return result.join('\n')

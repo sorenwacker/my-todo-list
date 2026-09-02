@@ -35,6 +35,21 @@ describe('preprocessMarkdown', () => {
     expect(preprocessMarkdown(input)).toBe('~~~\n  - not a list\n~~~\n- item\n    - child')
   })
 
+  it('rewrites an indented empty list marker to an empty bullet', () => {
+    const input = '- parent\n  - child\n  -'
+    expect(preprocessMarkdown(input)).toBe('- parent\n    - child\n    - <br>')
+  })
+
+  it('rewrites an indented empty list marker with trailing space', () => {
+    const input = '- parent\n  - child\n  - '
+    expect(preprocessMarkdown(input)).toBe('- parent\n    - child\n    - <br>')
+  })
+
+  it('leaves a top-level empty list marker unchanged', () => {
+    const input = '- a\n-'
+    expect(preprocessMarkdown(input)).toBe(input)
+  })
+
   it('returns input unchanged when no indented list lines exist', () => {
     const input = '# heading\n\nplain paragraph\n- flat item'
     expect(preprocessMarkdown(input)).toBe(input)
@@ -51,6 +66,18 @@ describe('renderMarkdown', () => {
     const html = renderMarkdown('- parent\n  - child')
     expect(html).toMatch(/<ul>[\s\S]*<ul>/)
     expect(html).toContain('child')
+  })
+
+  it('renders an empty nested bullet instead of a heading when a marker has no text', () => {
+    const html = renderMarkdown('- a\n- b\n  - c `code`\n  - d\n  -')
+    expect(html).not.toContain('<h2>')
+    expect(html).toMatch(/<li>b<ul>[\s\S]*<li>c <code>code<\/code><\/li>[\s\S]*<li>d<\/li>[\s\S]*<li><br><\/li>/)
+  })
+
+  it('renders an empty nested bullet in the middle of a nested list', () => {
+    const html = renderMarkdown('- b\n  - c\n  -\n  - d')
+    expect(html).not.toContain('<h2>')
+    expect(html).toMatch(/<li>c<\/li>[\s\S]*<li><br><\/li>[\s\S]*<li>d<\/li>/)
   })
 
   it('renders nested lists from 4-space indentation', () => {
