@@ -1,4 +1,5 @@
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { isWindowUnfocused } from '../utils/windowFocus.js'
 
 /**
  * Composable for managing add input states across different entity types.
@@ -30,12 +31,29 @@ export function useAddInput(entityType, emit) {
     showInput.value = false
   }
 
+  const cancelOnBlur = () => {
+    // Switching to another application must not discard a half-typed name
+    // (see docs/editing.md).
+    if (isWindowUnfocused()) return
+    cancel()
+  }
+
+  const restoreFocus = () => {
+    if (showInput.value) {
+      nextTick(() => inputRef.value?.focus())
+    }
+  }
+
+  onMounted(() => window.addEventListener('focus', restoreFocus))
+  onUnmounted(() => window.removeEventListener('focus', restoreFocus))
+
   return {
     showInput,
     inputValue,
     inputRef,
     showAdd,
     add,
-    cancel
+    cancel,
+    cancelOnBlur
   }
 }

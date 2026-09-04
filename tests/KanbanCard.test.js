@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import KanbanCard from '../src/renderer/components/KanbanCard.vue'
+import NotesEditor from '../src/renderer/components/NotesEditor.vue'
 
 function makeTodo(overrides = {}) {
   return {
@@ -74,5 +75,62 @@ describe('KanbanCard', () => {
     })
     expect(wrapper.find('.subtask-bar').exists()).toBe(true)
     expect(wrapper.text()).toContain('2/4')
+  })
+})
+
+// Kanban cards share cardInteractionsMixin with the cards view, so the rule
+// that a window blur does not end an edit session applies here too.
+describe('KanbanCard editing across an application switch', () => {
+  // The card teleports its context menu to '.app', so the test DOM needs one.
+  let app
+
+  beforeEach(() => {
+    app = document.createElement('div')
+    app.className = 'app'
+    document.body.appendChild(app)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    app.remove()
+  })
+
+  it('keeps the title editor open when the window loses focus', async () => {
+    const wrapper = mount(KanbanCard, { props: { todo: makeTodo() }, attachTo: app })
+    await wrapper.get('.card-title').trigger('dblclick')
+    const input = wrapper.get('.card-title-input')
+    await input.setValue('Renamed todo')
+
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    await input.trigger('blur')
+    expect(wrapper.find('.card-title-input').exists()).toBe(true)
+    expect(wrapper.emitted('update-title')).toBeUndefined()
+
+    hasFocus.mockReturnValue(true)
+    await wrapper.get('.card-title-input').trigger('blur')
+    expect(wrapper.find('.card-title-input').exists()).toBe(false)
+    expect(wrapper.emitted('update-title')[0]).toEqual(['Renamed todo'])
+    wrapper.unmount()
+  })
+
+  it('keeps the notes editor open when the window loses focus', async () => {
+    const wrapper = mount(KanbanCard, {
+      props: { todo: makeTodo({ notes: 'plain note text' }) },
+      attachTo: app
+    })
+    await expand(wrapper)
+    await wrapper.get('.card-notes-preview .markdown-body').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    const editor = wrapper.findComponent(NotesEditor)
+    editor.vm.$emit('update:modelValue', 'edited note text')
+    await wrapper.vm.$nextTick()
+
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    editor.vm.$emit('blur')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.cm-container').exists()).toBe(true)
+    expect(wrapper.emitted('update-notes')).toBeUndefined()
+    wrapper.unmount()
   })
 })

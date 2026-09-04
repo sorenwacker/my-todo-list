@@ -35,6 +35,8 @@ network dependency.
 - [MCP server](docs/mcp-server.md) — exposing the database to AI assistants
 - [Cards view](docs/cards.md) — row/card layout modes and the card width
   setting
+- [Inline editing](docs/editing.md) — where editing happens in place and how
+  edit sessions survive an application switch
 
 ## Installation
 

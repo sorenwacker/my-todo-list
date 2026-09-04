@@ -45,7 +45,7 @@
         class="card-title-input"
         @keydown.enter.prevent="saveTitle"
         @keydown.escape.prevent="cancelEdit"
-        @blur="saveTitle"
+        @blur="onTitleBlur"
         @click.stop
       />
       <span v-else class="card-title" @dblclick.stop="startEdit">{{ todo.title }}</span>
@@ -95,7 +95,7 @@
           autofocus
           :model-value="editingNotes"
           @update:model-value="editingNotes = $event"
-          @blur="saveNotes"
+          @blur="onNotesBlur"
         />
       </div>
       <div v-else class="markdown-body" @click.stop="startNotesEdit">

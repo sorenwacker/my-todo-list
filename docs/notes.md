@@ -13,9 +13,11 @@ Notes exist on todos (cards and kanban cards) and on projects (the project notes
 
 ## View / edit switching
 
-The rendered view is the resting state on every surface. Clicking anywhere on the rendered notes switches that surface to the editor, and the editor receives keyboard focus immediately, so the user can type without a second click. Leaving the editor (blur) saves the notes and returns to the rendered view.
+The rendered view is the resting state on every surface. Clicking anywhere on the rendered notes switches that surface to the editor, and the editor receives keyboard focus immediately, so the user can type without a second click. Leaving the editor saves the notes and returns to the rendered view.
 
 Surfaces:
 
-- Project notes pane: click the rendered notes to edit (the Edit/View buttons also switch modes); blur saves and returns to the view.
-- Card notes (cards view) and kanban card notes: click the rendered notes to edit; blur saves and returns to the view.
+- Project notes pane: click the rendered notes to edit (the Edit/View buttons also switch modes).
+- Card notes (cards view) and kanban card notes: click the rendered notes to edit.
+
+What counts as leaving the editor - and why switching to another application does not - is described in [Inline editing](editing.md).

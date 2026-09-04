@@ -1,5 +1,6 @@
 import { presetDueDate, isOverdue, formatDeadline, formatCreatedDate } from '../utils/dueDates.js'
 import { renderCardNotes } from '../utils/markdown.js'
+import { isWindowUnfocused } from '../utils/windowFocus.js'
 
 /**
  * Shared behavior for todo card components (CardItem, KanbanCard): date
@@ -18,7 +19,9 @@ export default {
       isEditingNotes: false,
       editingNotes: '',
       contextMenuVisible: false,
-      contextMenuStyle: { top: '0px', left: '0px' }
+      contextMenuStyle: { top: '0px', left: '0px' },
+      // Set while a window focus listener is registered for an open editor.
+      watchingWindowFocus: false
     }
   },
   computed: {
@@ -32,6 +35,7 @@ export default {
   },
   beforeUnmount() {
     document.removeEventListener('close-card-menus', this.hideContextMenu)
+    this.stopEditFocusWatch()
   },
   methods: {
     formatDeadline(dateString) {
@@ -49,7 +53,14 @@ export default {
     startEdit() {
       this.editingTitle = this.todo.title
       this.isEditing = true
+      this.updateEditFocusWatch()
       this.$nextTick(() => this.$refs.titleInput?.focus())
+    },
+    onTitleBlur() {
+      // Switching to another application blurs the input; the edit session
+      // outlives it (see docs/editing.md).
+      if (isWindowUnfocused()) return
+      this.saveTitle()
     },
     saveTitle() {
       if (this.isEditing) {
@@ -58,15 +69,22 @@ export default {
           this.$emit('update-title', newTitle)
         }
         this.isEditing = false
+        this.updateEditFocusWatch()
       }
     },
     cancelEdit() {
       this.isEditing = false
       this.editingTitle = ''
+      this.updateEditFocusWatch()
     },
     startNotesEdit() {
       this.editingNotes = this.todo.notes || ''
       this.isEditingNotes = true
+      this.updateEditFocusWatch()
+    },
+    onNotesBlur() {
+      if (isWindowUnfocused()) return
+      this.saveNotes()
     },
     saveNotes() {
       if (this.isEditingNotes) {
@@ -75,7 +93,35 @@ export default {
           this.$emit('update-notes', newNotes)
         }
         this.isEditingNotes = false
+        this.updateEditFocusWatch()
       }
+    },
+    updateEditFocusWatch() {
+      // Listen for the window coming back only while this card has an open
+      // editor, so the listener count follows open editors, not card count.
+      if (this.isEditing || this.isEditingNotes) {
+        if (!this.watchingWindowFocus) {
+          window.addEventListener('focus', this.restoreEditFocus)
+          this.watchingWindowFocus = true
+        }
+      } else {
+        this.stopEditFocusWatch()
+      }
+    },
+    stopEditFocusWatch() {
+      if (!this.watchingWindowFocus) return
+      window.removeEventListener('focus', this.restoreEditFocus)
+      this.watchingWindowFocus = false
+    },
+    restoreEditFocus() {
+      // Put the caret back where the user left it when the window returns.
+      this.$nextTick(() => {
+        if (this.isEditing) {
+          this.$refs.titleInput?.focus()
+        } else if (this.isEditingNotes) {
+          this.$refs.notesEditor?.focus()
+        }
+      })
     },
     showContextMenu(event) {
       // Close any other open card menu so only one is visible at a time.

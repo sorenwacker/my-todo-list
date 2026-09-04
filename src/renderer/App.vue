@@ -180,6 +180,7 @@
                 ></div>
                 <NotesEditor
                   v-else
+                  ref="projectNotesEditor"
                   autofocus
                   :model-value="projectNotesDraft"
                   @update:model-value="onProjectNotesInput"
@@ -301,6 +302,7 @@
   import todoActionsMixin from './mixins/todoActionsMixin.js'
   import { validateLocalStorage } from './utils/localStorageValidation.js'
   import { cardMinWidth, normalizeCardWidth } from './utils/cardWidth.js'
+  import { isWindowUnfocused } from './utils/windowFocus.js'
   import { renderMarkdown } from './utils/markdown.js'
   import {
     initializeMermaid,
@@ -685,6 +687,7 @@
 
       // Keyboard shortcuts
       window.addEventListener('keydown', this.handleKeyDown)
+      window.addEventListener('focus', this.onWindowFocus)
 
       // Listen for history state changes (undo/redo)
       this.historyState = await window.api.getHistoryState()
@@ -717,6 +720,7 @@
     },
     beforeUnmount() {
       window.removeEventListener('keydown', this.handleKeyDown)
+      window.removeEventListener('focus', this.onWindowFocus)
       this.stopCardResizeObserver()
     },
     methods: {
@@ -772,9 +776,18 @@
         this.projectNotesSaveTimer = setTimeout(() => this.saveProjectNotes(), 500)
       },
       onProjectNotesBlur() {
+        // Switching to another application must not close the editor behind
+        // the user's back (see docs/editing.md).
+        if (isWindowUnfocused()) return
         // Save, then return to the preview (the resting state).
         this.flushProjectNotes()
         this.projectNotesPreview = true
+      },
+      onWindowFocus() {
+        // Put the caret back into the project notes editor the user left open.
+        if (this.showProjectNotes && !this.projectNotesPreview) {
+          this.$nextTick(() => this.$refs.projectNotesEditor?.focus())
+        }
       },
       startNotesResize(event) {
         event.preventDefault()

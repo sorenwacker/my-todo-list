@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import CardItem from '../src/renderer/components/CardItem.vue'
+import NotesEditor from '../src/renderer/components/NotesEditor.vue'
 
 function makeTodo(overrides = {}) {
   return {
@@ -100,5 +101,82 @@ describe('CardItem', () => {
     await today.trigger('click')
     expect(wrapper.emitted('set-due-date')).toHaveLength(1)
     expect(wrapper.emitted('set-due-date')[0][0]).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+// A blur is how an inline editor decides the user is done - except when the
+// blur comes from the whole window losing focus (see docs/editing.md).
+describe('CardItem editing across an application switch', () => {
+  let app
+
+  beforeEach(() => {
+    app = document.createElement('div')
+    app.className = 'app'
+    document.body.appendChild(app)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    app.remove()
+  })
+
+  it('keeps the title editor open and refocuses it when the window loses focus', async () => {
+    const wrapper = mount(CardItem, { props: { todo: makeTodo() }, attachTo: app })
+    await wrapper.get('.card-title').trigger('dblclick')
+    await wrapper.vm.$nextTick()
+    const input = wrapper.get('.card-title-input')
+    await input.setValue('Renamed todo')
+
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    input.element.blur()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.card-title-input').exists()).toBe(true)
+    expect(wrapper.emitted('update-title')).toBeUndefined()
+
+    window.dispatchEvent(new Event('focus'))
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(document.activeElement).toBe(wrapper.get('.card-title-input').element)
+    wrapper.unmount()
+  })
+
+  it('still saves the title on a blur inside the focused window', async () => {
+    const wrapper = mount(CardItem, { props: { todo: makeTodo() }, attachTo: app })
+    await wrapper.get('.card-title').trigger('dblclick')
+    const input = wrapper.get('.card-title-input')
+    await input.setValue('Renamed todo')
+
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    await input.trigger('blur')
+    expect(wrapper.find('.card-title-input').exists()).toBe(false)
+    expect(wrapper.emitted('update-title')[0]).toEqual(['Renamed todo'])
+    wrapper.unmount()
+  })
+
+  it('keeps the notes editor open when the window loses focus, and saves once it returns', async () => {
+    const wrapper = mount(CardItem, {
+      props: { todo: makeTodo({ notes: 'plain note text' }) },
+      attachTo: app
+    })
+    await wrapper.trigger('click')
+    await wrapper.get('.card-notes-preview .markdown-body').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    const editor = wrapper.findComponent(NotesEditor)
+    editor.vm.$emit('update:modelValue', 'edited note text')
+    await wrapper.vm.$nextTick()
+
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    editor.vm.$emit('blur')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.cm-container').exists()).toBe(true)
+    expect(wrapper.emitted('update-notes')).toBeUndefined()
+
+    hasFocus.mockReturnValue(true)
+    wrapper.findComponent(NotesEditor).vm.$emit('blur')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.cm-container').exists()).toBe(false)
+    expect(wrapper.emitted('update-notes')[0]).toEqual(['edited note text'])
+    wrapper.unmount()
   })
 })

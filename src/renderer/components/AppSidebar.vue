@@ -78,7 +78,7 @@
           placeholder="Project name..."
           type="text"
           @keyup.enter="projectInput.add"
-          @blur="projectInput.cancel"
+          @blur="projectInput.cancelOnBlur"
         />
         <button v-else @click="projectInput.showAdd">+ Add Project</button>
       </div>
@@ -146,7 +146,7 @@
         placeholder="Status name..."
         type="text"
         @keyup.enter="statusInput.add"
-        @blur="statusInput.cancel"
+        @blur="statusInput.cancelOnBlur"
       />
       <button v-else @click="statusInput.showAdd">+ Add Status</button>
     </div>
