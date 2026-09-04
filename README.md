@@ -33,6 +33,8 @@ network dependency.
 - [Auto-update](docs/auto-update.md) — per-platform update behavior and
   how to enable signed macOS builds
 - [MCP server](docs/mcp-server.md) — exposing the database to AI assistants
+- [Cards view](docs/cards.md) — row/card layout modes and the card width
+  setting
 
 ## Installation
 

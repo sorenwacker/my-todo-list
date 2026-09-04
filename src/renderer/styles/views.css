@@ -236,12 +236,13 @@
 }
 
 /* Card mode: a responsive grid whose column count adapts to the window width
-   (auto-fill). Each card shows its note preview (via always-show-notes). Row
-   mode keeps a single full-width column via --card-columns: 1. */
+   (auto-fill) and to the chosen minimum card width. Each card shows its note
+   preview (via always-show-notes). Row mode keeps a single full-width column
+   via --card-columns: 1. */
 .cards-preview .cards-grid,
 .cards-preview .cards-grid.masonry,
 .cards-preview .cards-groups-container {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width, 440px), 1fr)) !important;
 }
 
 .cards-groups-container {

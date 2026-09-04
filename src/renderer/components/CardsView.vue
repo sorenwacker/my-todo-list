@@ -11,7 +11,10 @@
     <!-- Selection Box -->
     <div v-if="isSelecting" class="selection-box" :style="selectionBoxStyle"></div>
     <template v-if="groupByProject">
-      <div class="cards-groups-container" :style="{ '--card-columns': cardColumns }">
+      <div
+        class="cards-groups-container"
+        :style="{ '--card-columns': cardColumns, '--card-min-width': cardMinWidth }"
+      >
         <div v-for="group in groupedTodos" :key="group.id" class="cards-group">
           <div class="group-header" :style="{ borderLeftColor: group.color || '#666' }">
             <span class="group-dot" :style="{ background: group.color || '#666' }"></span>
@@ -25,7 +28,7 @@
             :model-value="group.todos"
             item-key="id"
             class="cards-grid masonry"
-            :style="{ '--card-columns': cardColumns }"
+            :style="{ '--card-columns': cardColumns, '--card-min-width': cardMinWidth }"
             ghost-class="ghost"
             :disabled="sortBy !== 'manual'"
             @update:model-value="$emit('update-group-todos', group.id, $event)"
@@ -65,7 +68,7 @@
         :model-value="sortedTodos"
         item-key="id"
         class="cards-grid masonry"
-        :style="{ '--card-columns': cardColumns }"
+        :style="{ '--card-columns': cardColumns, '--card-min-width': cardMinWidth }"
         ghost-class="ghost"
         :disabled="sortBy !== 'manual'"
         @update:model-value="$emit('update-sorted-todos', $event)"
@@ -104,6 +107,7 @@
 <script>
   import draggable from 'vuedraggable'
   import CardItem from './CardItem.vue'
+  import { CARD_MIN_WIDTHS, DEFAULT_CARD_WIDTH } from '../utils/cardWidth.js'
 
   export default {
     name: 'CardsView',
@@ -151,6 +155,11 @@
       cardColumns: {
         type: Number,
         default: 3
+      },
+      // Minimum card width for the card-mode auto-fill grid, as a CSS length.
+      cardMinWidth: {
+        type: String,
+        default: CARD_MIN_WIDTHS[DEFAULT_CARD_WIDTH]
       },
       sortBy: {
         type: String,

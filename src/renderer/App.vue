@@ -104,6 +104,7 @@
           :is-trash-view="isTrashView"
           :trash-count="trashCount"
           :card-layout="cardLayout"
+          :card-width="cardWidth"
           @go-home="setFilter('inbox')"
           @archive-completed="archiveCompletedTodos"
           @open-search="showGlobalSearch = true"
@@ -113,6 +114,7 @@
           @toggle-theme="toggleTheme"
           @set-view="setView"
           @set-card-layout="cardLayout = $event"
+          @set-card-width="cardWidth = $event"
           @empty-trash="emptyTrash"
           @add-todo="addTodo"
         />
@@ -206,6 +208,7 @@
                 :is-trash-view="isTrashView"
                 :is-archive-view="isArchiveView"
                 :card-columns="cardColumns"
+                :card-min-width="cardMinWidth"
                 :sort-by="sortBy"
                 :current-filter="currentFilter"
                 :projects="projects"
@@ -260,7 +263,6 @@
             </div>
           </div>
         </Transition>
-
       </main>
     </div>
 
@@ -298,6 +300,7 @@
   import keyboardShortcutsMixin from './mixins/keyboardShortcutsMixin.js'
   import todoActionsMixin from './mixins/todoActionsMixin.js'
   import { validateLocalStorage } from './utils/localStorageValidation.js'
+  import { cardMinWidth, normalizeCardWidth } from './utils/cardWidth.js'
   import { renderMarkdown } from './utils/markdown.js'
   import {
     initializeMermaid,
@@ -368,6 +371,7 @@
         projectNotesWidth: parseInt(localStorage.getItem('project-notes-width')) || 340,
         projectNotesSaveTimer: null,
         cardLayout: localStorage.getItem('card-layout') === 'row' ? 'row' : 'card',
+        cardWidth: normalizeCardWidth(localStorage.getItem('card-width')),
         timezone: localStorage.getItem('timezone') || 'auto',
         // projectColors now from projectsComposable
         // statusColors now from statusesComposable
@@ -572,6 +576,10 @@
       cardColumns() {
         return this.cardLayout === 'row' ? 1 : 3
       },
+      // Minimum width of a card in the card-mode auto-fill grid.
+      cardMinWidth() {
+        return cardMinWidth(this.cardWidth)
+      },
       renderedProjectNotes() {
         return renderMarkdown(this.projectNotesDraft)
       }
@@ -621,6 +629,9 @@
       },
       cardLayout(val) {
         localStorage.setItem('card-layout', val)
+      },
+      cardWidth(val) {
+        localStorage.setItem('card-width', val)
       },
       isProjectSelected(val) {
         if (val && this.groupByProject) {

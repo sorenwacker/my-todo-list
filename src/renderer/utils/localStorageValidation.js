@@ -1,11 +1,12 @@
+import { CARD_MIN_WIDTHS } from './cardWidth.js'
+
 const SETTINGS_VERSION = 1
 
 /**
  * Validate and repair localStorage settings on startup.
  *
- * Enum-like settings are reset to their defaults when they hold unknown
- * values, malformed JSON settings are removed, and out-of-range numeric
- * settings are removed. If validation itself fails, all keys are cleared.
+ * Enum-like settings are reset to their defaults or removed when they hold
+ * unknown values. If validation itself fails, all keys are cleared.
  */
 export function validateLocalStorage() {
   try {
@@ -35,26 +36,10 @@ export function validateLocalStorage() {
       localStorage.setItem('todo-theme', 'dark')
     }
 
-    // Validate JSON settings
-    const jsonSettings = ['card-widths']
-    for (const key of jsonSettings) {
-      const value = localStorage.getItem(key)
-      if (value) {
-        try {
-          JSON.parse(value)
-        } catch {
-          localStorage.removeItem(key)
-        }
-      }
-    }
-
-    // Validate numeric settings
-    const cardColumns = localStorage.getItem('card-columns')
-    if (
-      cardColumns &&
-      (isNaN(parseInt(cardColumns)) || parseInt(cardColumns) < 1 || parseInt(cardColumns) > 10)
-    ) {
-      localStorage.removeItem('card-columns')
+    // Validate card-width: an unknown size falls back to the default
+    const cardWidth = localStorage.getItem('card-width')
+    if (cardWidth && !Object.hasOwn(CARD_MIN_WIDTHS, cardWidth)) {
+      localStorage.removeItem('card-width')
     }
 
     // Update version

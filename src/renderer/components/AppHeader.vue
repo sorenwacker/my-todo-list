@@ -236,6 +236,20 @@
             Card
           </button>
         </div>
+        <div
+          v-if="currentView === 'cards' && cardLayout === 'card'"
+          class="view-switcher card-width-switcher"
+        >
+          <button
+            v-for="size in cardWidthSizes"
+            :key="size.value"
+            :class="{ active: cardWidth === size.value }"
+            :title="size.title"
+            @click="$emit('set-card-width', size.value)"
+          >
+            {{ size.label }}
+          </button>
+        </div>
         <div class="view-switcher">
           <button
             v-for="view in availableViews"
@@ -271,6 +285,8 @@
 </template>
 
 <script>
+  import { CARD_MIN_WIDTHS, DEFAULT_CARD_WIDTH } from '../utils/cardWidth.js'
+
   export default {
     name: 'AppHeader',
     props: {
@@ -296,6 +312,7 @@
       isTrashView: { type: Boolean, default: false },
       trashCount: { type: Number, default: 0 },
       cardLayout: { type: String, default: 'card' },
+      cardWidth: { type: String, default: DEFAULT_CARD_WIDTH },
       searchQuery: { type: String, default: '' },
       sortBy: { type: String, default: 'manual' },
       showCompleted: { type: Boolean, default: false },
@@ -312,6 +329,7 @@
       'toggle-theme',
       'set-view',
       'set-card-layout',
+      'set-card-width',
       'empty-trash',
       'add-todo',
       'update:searchQuery',
@@ -321,6 +339,15 @@
       'update:newTodoTitle'
     ],
     computed: {
+      // Card width is chosen as a size, but the minimum width it stands for is
+      // what the user actually sees, so the tooltip names it.
+      cardWidthSizes() {
+        return Object.entries(CARD_MIN_WIDTHS).map(([value, width]) => ({
+          value,
+          label: value.toUpperCase(),
+          title: `Minimum card width ${width}`
+        }))
+      },
       searchQueryModel: {
         get() {
           return this.searchQuery
