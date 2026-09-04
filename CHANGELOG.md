@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file. Versions corres
 
 ### Fixed
 
+- A card title can be double-clicked to rename it again. The first click of the pair reached the card underneath, which toggled it open or shut; the height change re-ran the masonry layout and moved the title out from under the pointer before the second click landed. Wider cards move it further, so the wider default made it near-impossible. The title now consumes its own single clicks; the rest of the card still expands and selects as before.
 - Switching to another application no longer closes whatever was being edited. A card title, card or kanban note, project note, or half-typed project/status name lost its editor the moment the window lost focus, because the blur that ends an edit session could not be told apart from the blur the OS raises on an application switch. Blurs raised while the window itself is unfocused are now ignored, and focus returns to the editor when the window does. A click elsewhere inside the app still ends the edit as before.
 
 ## 0.8.1 - 260902

@@ -180,3 +180,36 @@ describe('CardItem editing across an application switch', () => {
     wrapper.unmount()
   })
 })
+
+// A double-click on the title must open the rename box. The first click of that
+// pair used to reach the card, toggle it, and reflow the masonry grid, moving
+// the title out from under the pointer before the second click landed.
+describe('CardItem title clicks do not disturb the card', () => {
+  it('does not collapse or select the card when the title is clicked', async () => {
+    const wrapper = mount(CardItem, { props: { todo: makeTodo() } })
+    const before = wrapper.vm.isCollapsed
+
+    await wrapper.get('.card-title').trigger('click')
+
+    expect(wrapper.vm.isCollapsed).toBe(before)
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
+
+  it('still opens the rename box on a double-click', async () => {
+    const wrapper = mount(CardItem, { props: { todo: makeTodo() } })
+    await wrapper.get('.card-title').trigger('click')
+    await wrapper.get('.card-title').trigger('dblclick')
+
+    expect(wrapper.find('.card-title-input').exists()).toBe(true)
+  })
+
+  it('still expands the card when the body is clicked', async () => {
+    const wrapper = mount(CardItem, { props: { todo: makeTodo() } })
+    const before = wrapper.vm.isCollapsed
+
+    await wrapper.trigger('click')
+
+    expect(wrapper.vm.isCollapsed).toBe(!before)
+    expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+})

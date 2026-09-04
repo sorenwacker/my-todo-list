@@ -134,3 +134,24 @@ describe('KanbanCard editing across an application switch', () => {
     wrapper.unmount()
   })
 })
+
+// KanbanCard shares the title/collapse interaction with CardItem.
+describe('KanbanCard title clicks do not disturb the card', () => {
+  it('does not collapse or select the card when the title is clicked', async () => {
+    const wrapper = mount(KanbanCard, { props: { todo: makeTodo() } })
+    const before = wrapper.vm.isCollapsed
+
+    await wrapper.get('.card-title').trigger('click')
+
+    expect(wrapper.vm.isCollapsed).toBe(before)
+    expect(wrapper.emitted('select')).toBeUndefined()
+  })
+
+  it('still opens the rename box on a double-click', async () => {
+    const wrapper = mount(KanbanCard, { props: { todo: makeTodo() } })
+    await wrapper.get('.card-title').trigger('click')
+    await wrapper.get('.card-title').trigger('dblclick')
+
+    expect(wrapper.find('.card-title-input').exists()).toBe(true)
+  })
+})

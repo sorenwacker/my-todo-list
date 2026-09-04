@@ -48,7 +48,7 @@
         @blur="onTitleBlur"
         @click.stop
       />
-      <span v-else class="card-title" @dblclick.stop="startEdit">{{ todo.title }}</span>
+      <span v-else class="card-title" @click.stop @dblclick.stop="startEdit">{{ todo.title }}</span>
       <button class="archive-btn" title="Archive" @click.stop="$emit('archive')">
         <Archive :size="14" />
       </button>

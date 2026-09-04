@@ -76,7 +76,7 @@
         @blur="onTitleBlur"
         @click.stop
       />
-      <span v-else class="card-title" @dblclick.stop="startEdit">{{ todo.title }}</span>
+      <span v-else class="card-title" @click.stop @dblclick.stop="startEdit">{{ todo.title }}</span>
       <template v-if="isTrashView">
         <button
           class="restore-btn"
