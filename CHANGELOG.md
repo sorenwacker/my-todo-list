@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
+## Unreleased
+
+### Added
+
+- Card width in the cards view is now a setting. A S/M/L control next to the Row/Card switcher chooses the minimum card width the auto-fill grid packs to (320px, 440px, 600px); the grid was previously fixed at a 320px minimum. The default is M, so cards are wider than before. The choice persists per machine.
+
+### Fixed
+
+- Switching to another application no longer closes whatever was being edited. A card title, card or kanban note, project note, or half-typed project/status name lost its editor the moment the window lost focus, because the blur that ends an edit session could not be told apart from the blur the OS raises on an application switch. Blurs raised while the window itself is unfocused are now ignored, and focus returns to the editor when the window does. A click elsewhere inside the app still ends the edit as before.
+
 ## 0.8.1 - 260902
 
 ### Fixed
