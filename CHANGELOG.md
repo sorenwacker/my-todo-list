@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file. Versions correspond to git tags and GitHub releases; dates use YYMMDD format. Version bumps that were never tagged (0.1.0, 0.3.0-0.3.7, 0.4.x, 0.5.0) are folded into the release that shipped them.
 
+## Unreleased
+
+### Added
+
+- The repository now ships the licence it grants. `LICENSE` holds the Apache License 2.0 and `NOTICE` the copyright statement redistributions must preserve; `package.json` declares `Apache-2.0`. Previously the only statement of a licence anywhere was a line in the README claiming MIT, with no licence file and no `license` field to back it.
+
+### Fixed
+
+- The README documented only the macOS download, though every release also builds Windows (NSIS installer and portable executable) and Linux (AppImage and deb). All three are now listed with their asset names.
+- The README did not say that the macOS build is Apple silicon only, so an Intel Mac user had no warning before downloading a build that cannot run. The architecture limits for macOS and Linux are now stated.
+- The project structure listed five of the eight modules in `src/main/`, and the documentation index linked six of the eight pages under `docs/`. Both are complete, and a test now fails when either drifts again.
+- The Development section did not mention the Makefile targets, `lint:fix`, `format` or `format:check`, and the Building section did not mention `install:mac` or how releases are cut.
+
+### Removed
+
+- `docs/REVIEW.md`, a point-in-time audit snapshot dated 260719 that documented no current behaviour.
+
 ## 0.8.2 - 260905
 
 ### Added

@@ -33,10 +33,10 @@ network dependency.
 - [Auto-update](docs/auto-update.md) — per-platform update behavior and
   how to enable signed macOS builds
 - [MCP server](docs/mcp-server.md) — exposing the database to AI assistants
-- [Cards view](docs/cards.md) — row/card layout modes and the card width
-  setting
-- [Inline editing](docs/editing.md) — where editing happens in place and how
-  edit sessions survive an application switch
+- [Cards view](docs/cards.md) — row/card layout modes and the card width setting
+- [Kanban view](docs/kanban.md) — the two board layouts and when each one renders
+- [Notes](docs/notes.md) — the markdown pipeline and editor shared by todo and project notes
+- [Inline editing](docs/editing.md) — where editing happens in place and how edit sessions survive an application switch
 
 ## Installation
 
@@ -45,13 +45,13 @@ network dependency.
 Most users should not build from source. Download the packaged app from the
 [Releases page](https://github.com/sorenwacker/my-todo-list/releases):
 
-- **macOS**: download the `.dmg`, open it, and drag `Todo.app` into `Applications`.
+- **macOS**: download `Todo-<version>-arm64.dmg`, open it, and drag `Todo.app` into `Applications`.
+- **Windows**: download `Todo-Setup-<version>.exe` for the installer, or `Todo-<version>.exe` for a portable build that needs no installation.
+- **Linux**: download `Todo-<version>.AppImage` (mark it executable with `chmod +x`), or `todo_<version>_amd64.deb` for Debian and Ubuntu.
 
-The macOS build is not code-signed. On first launch, right-click `Todo.app` and
-choose **Open** (or allow it under **System Settings > Privacy & Security**) to
-get past Gatekeeper. Because the build is unsigned, macOS cannot install
-updates automatically; the app notifies once per new version instead (see
-[Auto-update](docs/auto-update.md)).
+**The macOS build is Apple silicon only.** It is built for `arm64` and no x64 or universal target is produced, so it will not run on an Intel Mac. The Linux packages are x86_64 only for the same reason. On either platform, build from source to target a different architecture.
+
+The macOS build is not code-signed. On first launch, right-click `Todo.app` and choose **Open** (or allow it under **System Settings > Privacy & Security**) to get past Gatekeeper. Because the build is unsigned, macOS cannot install updates automatically; the app notifies once per new version instead (see [Auto-update](docs/auto-update.md)).
 
 ### Option B: Build from source
 
@@ -85,6 +85,18 @@ the app or the tests; see [Development](#development) below.
 
 ## Development
 
+The Makefile wraps the common tasks and is the shortest way in:
+
+```bash
+make dev          # start the app in development mode
+make build        # build the renderer/main bundles
+make dist         # package a macOS distributable (regenerates icons first)
+make install-mac  # build and install into /Applications
+make clean        # remove dist/, out/ and generated icons
+```
+
+The underlying npm scripts, for anything the Makefile does not cover:
+
 ```bash
 # Start development server (rebuilds better-sqlite3 for Electron first)
 npm run dev
@@ -95,8 +107,13 @@ npm test
 # Run tests in watch mode
 npm run test:watch
 
-# Lint
+# Lint, and fix what can be fixed automatically
 npm run lint
+npm run lint:fix
+
+# Format, or check formatting without writing
+npm run format
+npm run format:check
 ```
 
 better-sqlite3 is a native module whose binary must match the runtime ABI:
@@ -119,9 +136,12 @@ npm run dist
 npm run dist:win
 npm run dist:mac
 npm run dist:linux
+
+# Build and install into /Applications (macOS)
+npm run install:mac
 ```
 
-Built applications will be output to the `dist/` directory.
+Built applications are written to the `dist/` directory. Releases are cut by pushing a `v*` tag, which runs `.github/workflows/release.yml` across macOS, Windows and Linux runners; `npm run dist` builds locally without publishing.
 
 ## Architecture
 
@@ -138,11 +158,14 @@ Built applications will be output to the `dist/` directory.
 ```
 src/
 ├── main/          # Electron main process
-│   ├── index.js    # Application entry point, IPC handlers
-│   ├── database.js # SQLite operations
-│   ├── schema.js   # Schema, migrations, verification
-│   ├── updater.js  # Auto-update behavior
-│   └── history.js  # Undo/redo state management
+│   ├── index.js        # Application entry point, IPC handlers
+│   ├── database.js     # SQLite operations
+│   ├── schema.js       # Schema, migrations, verification
+│   ├── validators.js   # Input validation for IPC payloads
+│   ├── importExport.js # JSON backup import and export
+│   ├── updater.js      # Auto-update behavior
+│   ├── logger.js       # Main-process logging
+│   └── history.js      # Undo/redo state management
 ├── preload/       # Preload scripts (IPC bridge)
 ├── renderer/      # Vue application
 └── config/        # Shared constants
@@ -176,7 +199,7 @@ to it, named `todos-backup-*.db` and `todos-premigrate-*.db`.
 
 ## License
 
-This project is licensed under the MIT License.
+Licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for the copyright statement that redistributions must preserve.
 
 ## Version History
 
